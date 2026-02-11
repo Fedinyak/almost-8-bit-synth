@@ -1,0 +1,29 @@
+.keyboard {
+  width: 100%;
+  display: flex;
+  flex-wrap: nowrap;
+}
+
+.keyboardKey {
+  display: block;
+  width: 50px;
+  height: 50px;
+  text-transform: uppercase;
+  border-radius: 10px;
+}
+
+.pianoWhiteKey {
+  background-color: lightgray;
+  margin-top: 50px;
+}
+
+.pianoBlackKey {
+  background-color: darkgray;
+  /* padding-top: -10px; */
+  margin-left: -25px;
+  margin-right: -25px;
+}
+
+.keyboardActiveKey {
+  background-color: blueviolet;
+}

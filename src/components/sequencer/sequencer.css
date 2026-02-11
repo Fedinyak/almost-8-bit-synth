@@ -1,0 +1,41 @@
+.sequencer {
+  /* display: flex; */
+  margin-left: 12px;
+}
+
+.sequencer-note-title {
+  display: flex;
+}
+
+.sequencer-note-title-item {
+  font-size: 14px;
+  margin-right: 5px;
+}
+
+.sequencer-cell {
+  /* box-sizing: border-box; */
+  width: 25px;
+  height: 25px;
+  background-color: rgb(219, 211, 214);
+  border: 1px solid rgb(122, 117, 119);
+  padding: 0;
+}
+
+.sequencer-cells .sequencer-cells-row:nth-child(4n + 1) .sequencer-cell {
+  background-color: rgb(178, 172, 174);
+}
+
+.sequencer-cell-accidental {
+  background-color: rgb(165, 160, 162);
+}
+
+.sequencer-cells
+  .sequencer-cells-row:nth-child(4n + 1)
+  .sequencer-cell-accidental {
+  background-color: rgb(142, 137, 139);
+}
+
+.sequencer-cell-active,
+.sequencer-cells .sequencer-cells-row:nth-child(4n + 1) .sequencer-cell-active {
+  background-color: rgb(30, 134, 63);
+}

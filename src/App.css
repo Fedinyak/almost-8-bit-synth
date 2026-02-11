@@ -1,0 +1,91 @@
+@font-face {
+  font-family: Martian Mono;
+  src: url("./fonts/MartianMono-StdRg.woff2") format("woff2");
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: Martian Mono;
+  src: url("./fonts/MartianMono-sWdxBd.woff2") format("woff2");
+  font-weight: 800;
+}
+
+::-moz-focus-inner {
+  padding: 0;
+  border-style: none;
+}
+
+html {
+  height: 100%;
+}
+
+:root {
+  font-family: Martian Mono, "Courier New", Courier, monospace;
+  line-height: 1.5;
+  font-weight: 400;
+
+  min-height: 100%;
+  -webkit-text-size-adjust: 100%;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --background-color: oklch(70.96% 0.13524 288.809);
+  --text-color: oklch(0.3316 0.00176 106.8);
+  --text-shadow: oklch(1 0 0 / 50%);
+  --cube-color-dark: oklch(0.7921 0 0);
+  --cube-color-light: oklch(90.374% 0.00434 15.935);
+  --cap-color-light: oklch(0.7621 0.0069 17.31);
+  --cap-color-dark: oklch(0.5736 0.0012 17.19);
+  --transparent: oklch(1 0 0 / 0%);
+  --black-transparent-20: oklch(0% 0 0 / 0.2);
+  --black-transparent-30: oklch(0% 0 0 / 0.3);
+  --black-transparent-40: oklch(0% 0 0 / 0.4);
+
+  --grey-dark: oklch(0.8 0.00176 106.8);
+  --white: oklch(1 0 0);
+  --pink: oklch(0.749 0.1605 338.96);
+  --pink-dark: oklch(0.97 0.03 336.84);
+  --blue: oklch(0.6443 0.1606 251.84);
+  --green: oklch(0.8222 0.2462 144.27);
+  --light-green: oklch(0.8412 0.1562 169.87);
+}
+
+.visually-hidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+body {
+  padding: 0;
+  margin: 0;
+  color: var(--text-color);
+  box-sizing: border-box;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  box-sizing: border-box;
+  border-radius: 0;
+  /* box-shadow: inset 0 0 1px 1px var(--black-transparent-20); */
+  border: none;
+  /* padding: 0.6em 1.2em; */
+  /* font-size: 1em; */
+  /* font-weight: 700; */
+  font-family: inherit;
+  /* cursor: pointer; */
+  /* transition: 0.1s linear; */
+  -webkit-appearance: button;
+}
