@@ -1,4 +1,6 @@
 .keyboard {
+  margin-top: 40px;
+  margin-bottom: 40px;
   width: 100%;
   display: flex;
   flex-wrap: nowrap;
@@ -6,6 +8,9 @@
 
 .keyboardKey {
   display: block;
+  margin-top: -5px;
+  margin-right: 5px;
+  padding: 0;
   width: 50px;
   height: 50px;
   text-transform: uppercase;
@@ -13,17 +18,70 @@
 }
 
 .pianoWhiteKey {
-  background-color: lightgray;
+  /* background-color: lightgray; */
   margin-top: 50px;
 }
 
 .pianoBlackKey {
-  background-color: darkgray;
-  /* padding-top: -10px; */
+  position: relative;
+  padding-top: -10px;
+  color: var(--button-color);
+  /* background-color: var(--black); */
   margin-left: -25px;
   margin-right: -25px;
+  z-index: 1;
+  /* box-shadow: inset 0px 0px 0px 10px var(--transparent); */
+  /* background: radial-gradient(circle, white 10px, transparent 11px), #4caf50;
+  background-repeat: no-repeat;
+  background-position: center; */
+  /* background-image: linear-gradient(var(--grey-dark), var(--grey-dark));
+  background-size: 20px 20px;
+  background-position: center;
+  background-repeat: no-repeat; */
 }
 
+.pianoBlackKey::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+
+  width: 40px;
+  height: 40px;
+  background-color: var(--grey-dark);
+
+  border-radius: 4px;
+  z-index: -1;
+}
+
+.pianoBlackKey span {
+  z-index: 2;
+}
+
+/* .keyboardActiveKey {
+  background:
+    radial-gradient(circle, var(--red) 10px, transparent 30px),
+    var(--button-color);
+  background-repeat: no-repeat;
+  background-position: center;
+  box-shadow:
+    0px 0px 4px 0px var(--red),
+    inset 0px -1px 2px 2px var(--red),
+    inset 0px 1px 2px 1px var(--red);
+} */
+
 .keyboardActiveKey {
-  background-color: blueviolet;
+  --led-red-on: oklch(60% 0.25 25);
+  --led-red-off: oklch(30% 0.08 25);
+
+  border: 1px solid oklch(10% 0 0 / 0.5);
+
+  background-color: var(--led-red-off);
+  transition: all 0.2s ease-in-out;
+  background-color: var(--led-red-on);
+
+  box-shadow:
+    0 0 15px oklch(55% 0.22 25 / 0.8),
+    0 0 5px oklch(100% 0 0 / 0.5);
 }

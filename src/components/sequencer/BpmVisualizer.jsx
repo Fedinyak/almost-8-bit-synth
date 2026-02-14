@@ -31,7 +31,7 @@ const BpmVisualizer = () => {
         height: "50px",
         borderRadius: "50%",
         margin: "0 auto 20px",
-        backgroundColor: isBeating ? "#00ff00" : "#333", // Зеленый при ударе
+        backgroundColor: isBeating ? "#00ff00" : "#333",
         boxShadow: isBeating ? "0 0 20px #00ff00" : "none",
         transition: "background-color 0.05s ease-out",
       }}

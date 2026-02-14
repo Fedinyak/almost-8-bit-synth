@@ -1,6 +1,7 @@
 .sequencer {
   /* display: flex; */
   margin-left: 12px;
+  /* background-color: var(--black); */
 }
 
 .sequencer-note-title {
@@ -16,26 +17,118 @@
   /* box-sizing: border-box; */
   width: 25px;
   height: 25px;
-  background-color: rgb(219, 211, 214);
-  border: 1px solid rgb(122, 117, 119);
+  margin-right: 2px;
+  margin-bottom: 2px;
+  /* background-color: rgb(219, 211, 214); */
+  /* border: 1px solid rgb(122, 117, 119); */
   padding: 0;
+  border-radius: 2px;
+  box-shadow:
+    inset 0px -1px 2px 1px var(--black-transparent-30),
+    inset 0px 0px 1px 1px var(--white);
 }
 
 .sequencer-cells .sequencer-cells-row:nth-child(4n + 1) .sequencer-cell {
-  background-color: rgb(178, 172, 174);
+  /* background-color: rgb(178, 172, 174); */
+  background:
+    radial-gradient(circle, var(--black-transparent-30) 3px, transparent 3px),
+    var(--button-color);
 }
 
 .sequencer-cell-accidental {
-  background-color: rgb(165, 160, 162);
+  /* background-color: rgb(165, 160, 162); */
+  /* position: inherit; */
+  background-image: linear-gradient(
+    var(--black-transparent-20),
+    var(--black-transparent-20)
+  );
+  background-size: 70% 70%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+/* .sequencer-cell-accidental::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+
+  width: 20px;
+  height: 20px;
+  background-color: var(--grey-dark);
+
+  border-radius: 4px;
+} */
+.sequencer-cells
+  .sequencer-cells-row:nth-child(4n + 1)
+  .sequencer-cell-accidental {
+  position: relative;
+  background-image: linear-gradient(
+    var(--black-transparent-20),
+    var(--black-transparent-20)
+  );
+  background-size: 70% 70%;
+  background-position: center;
+  background-repeat: no-repeat;
+  /* background-color: rgb(142, 137, 139); */
+  /* background-color: rgb(142, 137, 139);
+  background:
+    radial-gradient(circle, var(--black) 5px, transparent 5px),
+    var(--button-color);
+  background-repeat: no-repeat;
+  background-position: center; */
 }
 
 .sequencer-cells
   .sequencer-cells-row:nth-child(4n + 1)
-  .sequencer-cell-accidental {
-  background-color: rgb(142, 137, 139);
+  .sequencer-cell-accidental::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  background: radial-gradient(
+    circle,
+    var(--black-transparent-30) 3px,
+    transparent 3px
+  );
+  /* var(--button-color); */
+  background-repeat: no-repeat;
+  background-position: center;
+
+  /* content: ""; */
+  /* position: absolute; */
+  /* top: 50%; */
+  /* left: 50%; */
+
+  /* background-color: var(--grey-dark); */
+
+  /* border-radius: 4px; */
 }
 
 .sequencer-cell-active,
 .sequencer-cells .sequencer-cells-row:nth-child(4n + 1) .sequencer-cell-active {
-  background-color: rgb(30, 134, 63);
+  background:
+    radial-gradient(circle, var(--red) 10px, transparent 30px),
+    var(--button-color);
+  background-repeat: no-repeat;
+  background-position: center;
+  box-shadow: 0px 0px 4px 0px var(--red);
+  /* inset 0px -1px 2px 2px var(--red), */
+  /* inset 0px 1px 2px 1px var(--red); */
+}
+
+.step-indicator-button {
+  background-color: var(--black);
+  border-radius: 50%;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  box-shadow: none;
+}
+
+.step-indicator-button-active {
+  background-color: var(--violet-stain);
 }

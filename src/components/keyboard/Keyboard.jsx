@@ -5,19 +5,26 @@ import { setActiveNote } from "../../slices/noteSlice.js";
 // import playSound from "../../utility/playSound";
 import getNote from "../../utility/getNote";
 import KeyboardKey from "./KeyboardKey";
+import noteAndKeyMap from "../../constants.js/noteAndKeyMap.js";
 
 const Keyboard = () => {
   // const count = useSelector(state => state.counter.value);
-  const keyboardLetter = useSelector(state => state.note.keyboardLetter);
+  // const keyboardLetter = useSelector(state => state.note.keyboardLetter);
+
   const octave = useSelector(state => state.note.octave);
   const activeNote = useSelector(state => state.note.activeNote);
+  // const noteMap = useSelector(state => state.note.noteMap);
+  const keyboardLetter = noteAndKeyMap.keyboardLetter;
+  const noteMap = noteAndKeyMap.noteMap;
+  const octaveMap = noteAndKeyMap.noteOctaveIndexMap;
+  // const octaveMap = useSelector(state => state.note.noteOctaveIndexMap);
 
   const dispatch = useDispatch();
 
   const handleKeyboardKeyDown = event => {
     if (keyboardLetter.join().includes(event.key)) {
       console.log(event.key, octave, "event.key, octave");
-      const note = getNote(event.key, octave);
+      const note = getNote(event.key, octave, noteMap, octaveMap);
       dispatch(setActiveNote(note));
     }
   };
@@ -53,7 +60,13 @@ const Keyboard = () => {
           Decrement
         </button>
       </div> */}
-      {keyboardLetter.map(letter => KeyboardKey(letter, octave, activeNote))}
+      {keyboardLetter.map(letter => (
+        <KeyboardKey
+          keyboardLetter={letter}
+          octave={octave}
+          activeNote={activeNote}
+        />
+      ))}
     </div>
   );
 };

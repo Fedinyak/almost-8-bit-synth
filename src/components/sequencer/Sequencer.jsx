@@ -2,25 +2,34 @@ import { useSelector } from "react-redux";
 import getNote from "../../utility/getNote";
 import Cell from "./Cell";
 import TimerTransport from "../../utility/scheduler";
+import SequencerControlPanel from "./SequencerControlPanel";
+import StepIndicator from "./StepIndicator";
+import noteAndKeyMap from "../../constants.js/noteAndKeyMap";
 // import * as Tone from "tone";
 // import { useEffect, useState } from "react";
 // import BpmVisualizer from "./BpmVisualizer";
 
 const Sequencer = () => {
-  const keyboardLetter = useSelector(state => state.note.keyboardLetter);
+  // const keyboardLetter = useSelector(state => state.note.keyboardLetter);
   const octave = useSelector(state => state.note.octave);
   const sequencerNoteGrid = useSelector(
     state => state.sequencer.sequencerNoteGrid,
   );
+  // const noteMap = useSelector(state => state.note.noteMap);
+  // const octaveMap = useSelector(state => state.note.noteOctaveIndexMap);
+  const keyboardLetter = noteAndKeyMap.keyboardLetter;
+  const noteMap = noteAndKeyMap.noteMap;
+  const octaveMap = noteAndKeyMap.noteOctaveIndexMap;
 
   return (
     <section className="sequencer">
+      <SequencerControlPanel />
       <TimerTransport sequencerNoteGrid={sequencerNoteGrid} />
       <div className="sequencer-note-title">
         {keyboardLetter.map(letter => {
           return (
             <p className="sequencer-note-title-item" key={letter}>
-              {getNote(letter, octave)}
+              {getNote(letter, octave, noteMap, octaveMap)}
             </p>
           );
         })}
@@ -29,14 +38,15 @@ const Sequencer = () => {
         {sequencerNoteGrid.map((item, i) => {
           return (
             <div className="sequencer-cells-row" key={i}>
+              <StepIndicator key={`${i}-step`} stepIndex={i} />
               {keyboardLetter.map(letter => {
                 // console.log(sequencerNoteGrid[i], "sequencerNoteGrid[i]");
                 return (
                   <Cell
                     className="sequencer-cell"
                     key={letter + i + octave}
-                    note={getNote(letter, octave)}
-                    sequencerActiveNot={sequencerNoteGrid[i]}
+                    note={getNote(letter, octave, noteMap, octaveMap)}
+                    sequencerActiveNote={sequencerNoteGrid[i]}
                     step={i}
                   />
                 );

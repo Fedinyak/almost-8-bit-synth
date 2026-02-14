@@ -3,10 +3,10 @@ import { setSequencerNote } from "../../slices/sequencerSlice";
 import cn from "classnames";
 
 // eslint-disable-next-line no-unused-vars
-const Cell = ({ note, sequencerActiveNot, step }) => {
+const Cell = ({ note, sequencerActiveNote, step }) => {
   const dispatch = useDispatch();
 
-  const isSelectedNote = sequencerActiveNot.note === note;
+  const isSelectedNote = sequencerActiveNote.note === note;
 
   const handleNote = () => {
     if (isSelectedNote) {
@@ -24,7 +24,7 @@ const Cell = ({ note, sequencerActiveNot, step }) => {
 
   return (
     <button className={cellStyle} onClick={handleNote}>
-      {note}
+      {/* {note} */}
       <br />
     </button>
   );

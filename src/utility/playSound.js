@@ -1,8 +1,20 @@
 import * as Tone from "tone";
 
-const synth = new Tone.Synth({
+const crusher = new Tone.BitCrusher(4).toDestination();
+
+export const synth = new Tone.MonoSynth({
   oscillator: { type: "square" },
-}).toDestination();
+  envelope: {
+    attack: 0.001,
+    decay: 0.1,
+    sustain: 0.3,
+    release: 0.02,
+  },
+  filterEnvelope: {
+    baseFrequency: 10000,
+    octaves: 0,
+  },
+}).connect(crusher);
 
 const playSound = async note => {
   // Not play null note, for optimization
