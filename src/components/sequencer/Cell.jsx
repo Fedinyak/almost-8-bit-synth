@@ -1,18 +1,25 @@
 import { useDispatch } from "react-redux";
-import { setSequencerNote } from "../../slices/sequencerSlice";
+import {
+  setSequencerInstrumentNote,
+  // setSequencerNote,
+} from "../../slices/sequencerSlice";
 import cn from "classnames";
 
 // eslint-disable-next-line no-unused-vars
-const Cell = ({ note, sequencerActiveNote, step }) => {
+const Cell = ({ instrument, note, sequencerActiveNote, step }) => {
   const dispatch = useDispatch();
 
   const isSelectedNote = sequencerActiveNote.note === note;
 
   const handleNote = () => {
     if (isSelectedNote) {
-      return dispatch(setSequencerNote({ note: null, step }));
+      // return dispatch(setSequencerNote({ note: null, step }));
+      return dispatch(
+        setSequencerInstrumentNote({ instrument, note: null, step }),
+      );
     }
-    dispatch(setSequencerNote({ note, step }));
+    // dispatch(setSequencerNote({ note, step, }));
+    dispatch(setSequencerInstrumentNote({ instrument, note, step }));
   };
 
   const isKeyAccidental = note.includes("#");

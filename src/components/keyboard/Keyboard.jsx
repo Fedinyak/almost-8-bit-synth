@@ -61,11 +61,12 @@ const Keyboard = () => {
     <section>
       <OctaveSelector />
       <div className="keyboard">
-        {keyboardLetter.map(letter => (
+        {keyboardLetter.map((letter, i) => (
           <KeyboardKey
             keyboardLetter={letter}
             octave={octave}
             activeNote={activeNote}
+            key={i}
           />
         ))}
       </div>
