@@ -1,11 +1,25 @@
 import { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 // import { decrement, increment } from "../../slices/counterSlice";
-import { setActiveNote } from "../../slices/noteSlice.js";
+import {
+  decreaseOctave,
+  increaseOctave,
+  setActiveNote,
+} from "../../slices/noteSlice.js";
 // import playSound from "../../utility/playSound";
 import getNote from "../../utility/getNote";
 import KeyboardKey from "./KeyboardKey";
 import noteAndKeyMap from "../../constants.js/noteAndKeyMap.js";
+
+const OctaveSelector = () => {
+  const dispatch = useDispatch();
+  return (
+    <div>
+      <button onClick={() => dispatch(decreaseOctave())}>- octave</button>
+      <button onClick={() => dispatch(increaseOctave())}>+ octave</button>
+    </div>
+  );
+};
 
 const Keyboard = () => {
   // const count = useSelector(state => state.counter.value);
@@ -44,30 +58,18 @@ const Keyboard = () => {
   // }, [activeNote]);
 
   return (
-    <div className="keyboard">
-      {/* <div>
-        <button
-          aria-label="Increment value"
-          onClick={() => dispatch(increment())}
-        >
-          Increment
-        </button>
-        <span>{count}</span>
-        <button
-          aria-label="Decrement value"
-          onClick={() => dispatch(decrement())}
-        >
-          Decrement
-        </button>
-      </div> */}
-      {keyboardLetter.map(letter => (
-        <KeyboardKey
-          keyboardLetter={letter}
-          octave={octave}
-          activeNote={activeNote}
-        />
-      ))}
-    </div>
+    <section>
+      <OctaveSelector />
+      <div className="keyboard">
+        {keyboardLetter.map(letter => (
+          <KeyboardKey
+            keyboardLetter={letter}
+            octave={octave}
+            activeNote={activeNote}
+          />
+        ))}
+      </div>
+    </section>
   );
 };
 

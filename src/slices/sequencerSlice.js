@@ -1,8 +1,16 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+export const NOTES_COUNT = 96; // C0 - B7
+export const STEPS_PER_PAGE = 32;
+export const TOTAL_STEPS = 256;
+
 const initialState = {
   bpm: 120,
   sequencerPlayState: "stop",
+  grid: Array(NOTES_COUNT)
+    .fill(null)
+    .map(() => Array(TOTAL_STEPS).fill(0)),
+  totalSteps: TOTAL_STEPS,
   currentStep: 0,
   sequencerNoteGrid: [
     // { time: "0:0:0", note: "C4", duration: "4n", velocity: 0.9 },

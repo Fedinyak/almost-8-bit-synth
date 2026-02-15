@@ -1,5 +1,8 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+const MIN_OCTAVE = 1;
+const MAX_OCTAVE = 5;
+
 const initialState = {
   activeNote: null,
   octave: 3,
@@ -21,8 +24,7 @@ const initialState = {
   //   ".e",
   //   ";4",
   //   "/r",
-  //   "qt",
-  //   "6",
+  //   "qt", //   "6",
   //   "y",
   //   "7",
   //   "u",
@@ -111,12 +113,20 @@ export const noteSlice = createSlice({
     setActiveNote: (state, action) => {
       state.activeNote = action.payload;
     },
-    changeOctave: (state, action) => {
-      state.octave = action.payload;
+    decreaseOctave: state => {
+      if (state.octave > MIN_OCTAVE) {
+        state.octave -= 1;
+      }
+    },
+    increaseOctave: state => {
+      if (state.octave < MAX_OCTAVE) {
+        state.octave += 1;
+      }
     },
   },
 });
 
-export const { setActiveNote, changeOctave } = noteSlice.actions;
+export const { setActiveNote, decreaseOctave, increaseOctave } =
+  noteSlice.actions;
 
 export default noteSlice.reducer;

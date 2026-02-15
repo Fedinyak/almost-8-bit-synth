@@ -24,9 +24,9 @@ const noteAndKeyMap = {
     "u",
     "8",
     "i",
-    "o",
-    "0",
-    "p",
+    // "o",
+    // "0",
+    // "p",
   ],
   noteMap: {
     z: "C",
@@ -59,9 +59,9 @@ const noteAndKeyMap = {
     u: "A",
     8: "A#",
     i: "B",
-    o: "C",
-    0: "C#",
-    p: "D",
+    // o: "C",
+    // 0: "C#",
+    // p: "D",
   },
   noteOctaveIndexMap: {
     z: 0,
@@ -94,9 +94,9 @@ const noteAndKeyMap = {
     u: 1,
     8: 1,
     i: 1,
-    o: 2,
-    0: 2,
-    p: 2,
+    // o: 2,
+    // 0: 2,
+    // p: 2,
   },
 };
 
