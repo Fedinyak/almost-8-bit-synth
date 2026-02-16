@@ -34,7 +34,8 @@ const TimerTransport = () => {
               noise: { type: "white" },
               envelope: { attack: 0.001, decay: 0.2, sustain: 0 },
             }).toDestination(),
-            type: "drums", // Пометка, что это барабаны
+            // type: "drums", // Пометка, что это барабаны
+            isDrums: true,
           };
         }
         if (data.type === "synth") {
@@ -44,13 +45,15 @@ const TimerTransport = () => {
           }).toDestination();
         }
 
-        const currentId = instrument;
-        const currentType = data.type;
-
         // Создаем партию с логикой распределения нот
+        const currentId = instrument;
+        // const currentType = data.type;
+
         const newPart = new Tone.Part((time, value) => {
           const engine = enginesRef.current[currentId];
-          if (currentType === "drums") {
+          if (!engine) return;
+
+          if (engine.isDrums) {
             if (value.note === "C1") {
               engine.kick.triggerAttackRelease("C1", "8n", time);
             } else if (value.note === "D1") {
@@ -60,27 +63,10 @@ const TimerTransport = () => {
             engine.triggerAttackRelease(value.note, value.duration, time);
           }
         }, []).start(0);
+
         newPart.loop = true;
         newPart.loopEnd = "1m";
-
         partsRef.current[instrument] = newPart;
-      }
-
-      // ШАГ 3: Синхронизация данных сетки с Tone.js
-      // Получаем доступ к созданной партии для текущего инструмента
-      const currentPart = partsRef.current[instrument];
-
-      if (currentPart) {
-        // Очищаем старые ноты в расписании этого инструмента
-        currentPart.clear();
-
-        // Проходим по массиву sequencerNoteGrid и добавляем только активные ноты
-        data.sequencerNoteGrid.forEach(item => {
-          if (item.note) {
-            // Добавляем событие в расписание. Tone.js сам разберется, когда его играть.
-            currentPart.add(item.time, item);
-          }
-        });
       }
     });
 
@@ -92,7 +78,7 @@ const TimerTransport = () => {
         partsRef.current[item].dispose();
         // 2. Удаляем сам синтезатор из памяти аудио-контекста
         const engine = enginesRef.current[item];
-        if (engine.kick && engine.snare) {
+        if (engine.isDrums) {
           // Если это барабаны (объект), удаляем оба узла
           engine.kick.dispose();
           engine.snare.dispose();
@@ -108,6 +94,22 @@ const TimerTransport = () => {
       partsRef.current = {};
       enginesRef.current = {};
     };
+  }, [instrumentsList]);
+
+  useEffect(() => {
+    instrumentsList.forEach(instrument => {
+      const data = instrumentsData[instrument];
+      const currentPart = partsRef.current[instrument];
+
+      if (currentPart && data.sequencerNoteGrid) {
+        // Очищаем старые ноты в расписании этого инструмента
+        currentPart.clear(); // Очистка нот не трогает сам синтезатор
+        data.sequencerNoteGrid.forEach(item => {
+          // Проходим по массиву sequencerNoteGrid и добавляем только активные ноты
+          if (item.note) currentPart.add(item.time, item); // Добавляем событие в расписание. Tone.js сам разберется, когда его играть.
+        });
+      }
+    });
   }, [instrumentsData, instrumentsList]);
 
   useEffect(() => {
