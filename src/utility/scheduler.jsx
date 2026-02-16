@@ -6,6 +6,8 @@ import { setCurrentStep } from "../slices/sequencerSlice";
 const TimerTransport = () => {
   const dispatch = useDispatch();
 
+  const drumsData = useSelector(state => state.sequencer.drums);
+
   const instrumentsData = useSelector(state => state.sequencer.instrumentsData);
   const instrumentsList = useSelector(state => state.sequencer.instrumentsList);
   const bpm = useSelector(state => state.sequencer.bpm);
@@ -18,32 +20,36 @@ const TimerTransport = () => {
   const enginesRef = useRef({});
   const partsRef = useRef({});
 
+  const drumsEngineRef = useRef({});
+  const drumsPartRef = useRef({});
+
+  // Synth engine
   useEffect(() => {
     instrumentsList.forEach(instrument => {
-      const data = instrumentsData[instrument];
+      // const data = instrumentsData[instrument];
 
       // ШАГ 1: Инициализация инструмента (Ленивая загрузка)
       // Если в реестре ещё нет инструмента с таким ID — создаем его.
       if (!enginesRef.current[instrument]) {
         console.log(`Инициализация нового инструмента: ${instrument}`);
-        if (data.type === "drums") {
-          // Для барабанов мы создаем ОБЪЕКТ, содержащий два разных синтезатора
-          enginesRef.current[instrument] = {
-            kick: new Tone.MembraneSynth().toDestination(),
-            snare: new Tone.NoiseSynth({
-              noise: { type: "white" },
-              envelope: { attack: 0.001, decay: 0.2, sustain: 0 },
-            }).toDestination(),
-            // type: "drums", // Пометка, что это барабаны
-            isDrums: true,
-          };
-        }
-        if (data.type === "synth") {
-          enginesRef.current[instrument] = new Tone.MonoSynth({
-            oscillator: { type: "square" },
-            envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 },
-          }).toDestination();
-        }
+        // if (data.type === "drums") {
+        //   // Для барабанов мы создаем ОБЪЕКТ, содержащий два разных синтезатора
+        //   enginesRef.current[instrument] = {
+        //     kick: new Tone.MembraneSynth().toDestination(),
+        //     snare: new Tone.NoiseSynth({
+        //       noise: { type: "white" },
+        //       envelope: { attack: 0.001, decay: 0.2, sustain: 0 },
+        //     }).toDestination(),
+        //     // type: "drums", // Пометка, что это барабаны
+        //     isDrums: true,
+        //   };
+        // }
+        // if (data.type === "synth") {
+        enginesRef.current[instrument] = new Tone.MonoSynth({
+          oscillator: { type: "square" },
+          envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 },
+        }).toDestination();
+        // }
 
         // Создаем партию с логикой распределения нот
         const currentId = instrument;
@@ -53,15 +59,15 @@ const TimerTransport = () => {
           const engine = enginesRef.current[currentId];
           if (!engine) return;
 
-          if (engine.isDrums) {
-            if (value.note === "C1") {
-              engine.kick.triggerAttackRelease("C1", "8n", time);
-            } else if (value.note === "D1") {
-              engine.snare.triggerAttackRelease("16n", time);
-            }
-          } else {
-            engine.triggerAttackRelease(value.note, value.duration, time);
-          }
+          // if (engine.isDrums) {
+          //   if (value.note === "C1") {
+          //     engine.kick.triggerAttackRelease("C1", "8n", time);
+          //   } else if (value.note === "D1") {
+          //     engine.snare.triggerAttackRelease("16n", time);
+          //   }
+          // } else {
+          engine.triggerAttackRelease(value.note, value.duration, time);
+          // }
         }, []).start(0);
 
         newPart.loop = true;
@@ -96,6 +102,64 @@ const TimerTransport = () => {
     };
   }, [instrumentsList]);
 
+  // Drums engine
+  useEffect(() => {
+    if (!drumsEngineRef.current) {
+      console.log(`Инициализация нового инструмента: ${drumsEngineRef}`);
+      drumsEngineRef.current = {
+        kick: new Tone.MembraneSynth().toDestination(),
+        snare: new Tone.NoiseSynth({
+          noise: { type: "white" },
+          envelope: { attack: 0.001, decay: 0.2, sustain: 0 },
+        }).toDestination(),
+      };
+
+      drumsPartRef.current = new Tone.Part((time, value) => {
+        const engine = drumsEngineRef.current;
+
+        if (!engine) {
+          console.log("Движок барабанов еще не готов!");
+          return;
+        }
+
+        if (value.note === "C1") {
+          console.log("Бью в Бочку!");
+          drumsEngineRef.kick.triggerAttackRelease("C1", "8n", time);
+        } else if (value.note === "D1") {
+          drumsEngineRef.snare.triggerAttackRelease("16n", time);
+        }
+      }, []).start(0);
+
+      drumsPartRef.loop = true;
+      drumsPartRef.loopEnd = "1m";
+    }
+
+    // --- ФУНКЦИЯ ОЧИСТКИ (DISPOSE) ---
+    return () => {
+      // Сначала проверяем, существует ли ref, а затем — есть ли у него метод dispose
+      if (
+        drumsPartRef.current &&
+        typeof drumsPartRef.current.dispose === "function"
+      ) {
+        drumsPartRef.current.dispose();
+        drumsPartRef.current = null; // Обнуляем ссылку
+      }
+      if (drumsEngineRef.current) {
+        const { kick, snare } = drumsEngineRef.current;
+
+        if (kick && typeof kick.dispose === "function") {
+          kick.dispose();
+        }
+        if (snare && typeof snare.dispose === "function") {
+          snare.dispose();
+        }
+        console.log("Драм-машина удалена из памяти");
+      }
+      drumsEngineRef.current = {};
+    };
+  }, []);
+
+  // Synth
   useEffect(() => {
     instrumentsList.forEach(instrument => {
       const data = instrumentsData[instrument];
@@ -111,6 +175,22 @@ const TimerTransport = () => {
       }
     });
   }, [instrumentsData, instrumentsList]);
+
+  // Drums
+  useEffect(() => {
+    const currentPart = drumsPartRef.current;
+    // Проверяем: 1. Существует ли партия. 2. Есть ли у неё метод clear.
+    if (
+      currentPart &&
+      typeof currentPart.clear === "function" &&
+      drumsData.sequencerNoteGrid
+    ) {
+      currentPart.clear();
+      drumsData.sequencerNoteGrid.forEach(item => {
+        if (item.note) currentPart.add(item.time, item);
+      });
+    }
+  }, [drumsData]);
 
   useEffect(() => {
     if (sequencerPlayState === "start") {
