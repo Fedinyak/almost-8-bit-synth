@@ -20,6 +20,8 @@ const TimerTransport = ({ sequencerNoteGrid }) => {
   const drumsEngineRef = useRef(null);
   const drumsPartRef = useRef(null);
 
+  const drumsSequencesRef = useRef({});
+
   // --- ЭФФЕКТ №1: "ЖЕЛЕЗО" (Создание и Dispose) ---
   // Срабатывает только при изменении списка инструментов
   useEffect(() => {
@@ -49,9 +51,17 @@ const TimerTransport = ({ sequencerNoteGrid }) => {
     // 2. Инициализация БАРАБАНОВ
     if (!drumsEngineRef.current) {
       drumsEngineRef.current = {
+        // kick: new Tone.MembraneSynth().toDestination(),
+        // snare: new Tone.NoiseSynth({
+        //   envelope: { decay: 0.1 },
+        // }).toDestination(),
         kick: new Tone.MembraneSynth().toDestination(),
         snare: new Tone.NoiseSynth({
           envelope: { decay: 0.1 },
+        }).toDestination(),
+        hiHatClose: new Tone.MetalSynth({
+          envelope: { decay: 0.05 },
+          volume: -10,
         }).toDestination(),
       };
 
@@ -75,12 +85,18 @@ const TimerTransport = ({ sequencerNoteGrid }) => {
         enginesRef.current[id].dispose();
       });
       // Чистим барабаны
-      if (drumsPartRef.current) {
-        drumsPartRef.current.dispose();
+      if (drumsSequencesRef.current) {
+        Object.keys(drumsSequencesRef.current).forEach(drumName => {
+          drumsSequencesRef.current[drumName].dispose();
+        });
+        drumsSequencesRef.current = {};
       }
+      // Чистим движки барабанов
       if (drumsEngineRef.current) {
         drumsEngineRef.current.kick.dispose();
         drumsEngineRef.current.snare.dispose();
+        drumsEngineRef.current.hiHatClose.dispose();
+        drumsEngineRef.current = null;
       }
       // Обнуляем Ref, чтобы при перезапуске всё создалось чисто
       enginesRef.current = {};
@@ -105,16 +121,44 @@ const TimerTransport = ({ sequencerNoteGrid }) => {
       }
     });
 
-    // Обновляем ноты БАРАБАНОВ
-    const dPart = drumsPartRef.current;
-    if (dPart && drumsData?.sequencerNoteGrid) {
-      dPart.clear();
-      drumsData.sequencerNoteGrid.forEach(item => {
-        if (item.note) dPart.add(item.time, item);
-      });
-    }
+    // // Обновляем ноты БАРАБАНОВ
+    // const dPart = drumsPartRef.current;
+    // if (dPart && drumsData?.sequencerNoteGrid) {
+    //   dPart.clear();
+    //   drumsData.sequencerNoteGrid.forEach(item => {
+    //     if (item.note) dPart.add(item.time, item);
+    //   });
+    // }
+    if (!drumsData.tracks) return;
+    Object.keys(drumsData.tracks).forEach(drumName => {
+      // Очищаем старую последовательность, если она была
+      if (drumsSequencesRef.current[drumName]) {
+        drumsSequencesRef.current[drumName].dispose();
+      }
+
+      // Создаем новую последовательность для каждого трека
+      drumsSequencesRef.current[drumName] = new Tone.Sequence(
+        (time, hit) => {
+          if (hit === 1) {
+            const engine = drumsEngineRef.current[drumName];
+            if (drumName === "kick")
+              engine.triggerAttackRelease("C1", "8n", time);
+            if (drumName === "snare") engine.triggerAttackRelease("16n", time);
+            if (drumName === "hiHatClose")
+              engine.triggerAttackRelease("32n", time);
+          }
+        },
+        drumsData.tracks[drumName], // Массив типа [1, 0, 1...]
+        "16n", // Шаг сетки
+      ).start(0);
+    });
     // Зависимость от Ref гарантирует, что мы наполним партию сразу после её создания
-  }, [instrumentsData, drumsData, instrumentsList, drumsPartRef.current]);
+  }, [
+    instrumentsData,
+    drumsData.tracks,
+    instrumentsList,
+    drumsPartRef.current,
+  ]);
 
   // --- ЭФФЕКТЫ ТРАНСПОРТА (BPM, Play/Stop, Step Indicator) ---
   useEffect(() => {

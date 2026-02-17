@@ -86,33 +86,44 @@ const initialState = {
     drumKit: [
       "kick",
       "snare",
-      "hi-hat-close",
-      "hi-hat-open",
-      "crash",
-      "ride",
-      "tom",
+      "hiHatClose",
+      // "hi-hat-open",
+      // "crash",
+      // "ride",
+      // "tom",
     ],
     sequencerNoteGrid: [
-      { time: "0:0:0", note: "C1", duration: "8n" },
+      // { time: "0:0:0", note: "C1", duration: "8n" },
+      { time: "0:0:0", note: null },
       { time: "0:0:1", note: null },
       { time: "0:0:2", note: null },
       { time: "0:0:3", note: null },
 
-      { time: "0:1:0", note: "D1", duration: "8n" },
+      // { time: "0:1:0", note: "D1", duration: "8n" },
+      { time: "0:1:0", note: null },
       { time: "0:1:1", note: null },
       { time: "0:1:2", note: null },
       { time: "0:1:3", note: null },
 
-      { time: "0:2:0", note: "C1", duration: "8n" },
+      // { time: "0:2:0", note: "C1", duration: "8n" },
+      { time: "0:2:0", note: null },
       { time: "0:2:1", note: null },
       { time: "0:2:2", note: null },
-      { time: "0:2:3", note: "C1", duration: "8n" },
+      // { time: "0:2:3", note: "C1", duration: "8n" },
+      { time: "0:2:3", note: null },
 
-      { time: "0:3:0", note: "D1", duration: "8n" },
-      { time: "0:3:1", note: "C1", duration: "8n" },
+      // { time: "0:3:0", note: "D1", duration: "8n" },
+      { time: "0:3:0", note: null },
+      // { time: "0:3:1", note: "C1", duration: "8n" },
+      { time: "0:3:1", note: null },
       { time: "0:3:2", note: null },
       { time: "0:3:3", note: null },
     ],
+    tracks: {
+      kick: [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      hiHatClose: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    },
   },
 };
 
@@ -134,6 +145,11 @@ export const sequencerSlice = createSlice({
       const { instrument, step, note } = action.payload;
       state.instrumentsData[instrument].sequencerNoteGrid[step].note = note;
       state.instrumentsData[instrument].sequencerNoteGrid[step].duration = "8n";
+    },
+    toggleDrumStep: (state, action) => {
+      const { drumName, stepIndex } = action.payload;
+      const currentValue = state.drums.tracks[drumName][stepIndex];
+      state.drums.tracks[drumName][stepIndex] = currentValue === 1 ? 0 : 1;
     },
     // setSequencerDrumNote: (state, action) => {
     //   const { instrument, step, note } = action.payload;
@@ -157,6 +173,7 @@ export const {
   setSequencerPlayState,
   setCurrentStep,
   setSequencerInstrumentNote,
+  toggleDrumStep,
   toggleStep,
   resetGrid,
 } = sequencerSlice.actions;

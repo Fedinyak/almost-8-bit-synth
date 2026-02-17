@@ -50,39 +50,38 @@ const Sequencer = () => {
           <>
             <div>{instrument}</div>
             <div className="sequencer-cells">
-              {instrumentsData[instrument].sequencerNoteGrid.map((item, i) => {
-                return (
-                  <div
-                    className="sequencer-cells-row"
-                    key={`${i}-${instrument}`}
-                  >
-                    <StepIndicator
-                      key={`${i}-step-${instrument}`}
-                      stepIndex={i}
-                    />
-                    {keyboardLetter.map(letter => {
-                      // console.log(sequencerNoteGrid[i], "sequencerNoteGrid[i]");
-                      // console.log(
-                      //   instrumentsData[instrument].sequencerNoteGrid[i],
-                      //   " instrumentsData[instrument].sequencerNoteGrid[i]",
-                      // );
-                      return (
-                        <Cell
-                          className="sequencer-cell"
-                          key={`${instrument}-${letter}-${i}-${octave}`}
-                          instrument={instrument}
-                          note={getNote(letter, octave, noteMap, octaveMap)}
-                          sequencerActiveNote={
-                            instrumentsData[instrument].sequencerNoteGrid[i]
-                          }
-                          step={i}
-                        />
-                      );
-                    })}
-                    <br />
-                  </div>
-                );
-              })}
+              {instrumentsData[instrument].sequencerNoteGrid.map(
+                (item, stepIndex) => {
+                  return (
+                    <div
+                      className="sequencer-cells-row"
+                      key={`${stepIndex}-${instrument}`}
+                    >
+                      <StepIndicator
+                        key={`${stepIndex}-step-${instrument}`}
+                        stepIndex={stepIndex}
+                      />
+                      {keyboardLetter.map(letter => {
+                        return (
+                          <Cell
+                            className="sequencer-cell"
+                            key={`${instrument}-${letter}-${stepIndex}-${octave}`}
+                            instrument={instrument}
+                            note={getNote(letter, octave, noteMap, octaveMap)}
+                            sequencerActiveNote={
+                              instrumentsData[instrument].sequencerNoteGrid[
+                                stepIndex
+                              ]
+                            }
+                            step={stepIndex}
+                          />
+                        );
+                      })}
+                      <br />
+                    </div>
+                  );
+                },
+              )}
             </div>
           </>
         );
