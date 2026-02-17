@@ -1,11 +1,7 @@
 import { useDispatch } from "react-redux";
-import {
-  setSequencerInstrumentNote,
-  // setSequencerNote,
-} from "../../slices/sequencerSlice";
+import { setSequencerInstrumentNote } from "../../slices/sequencerSlice";
 import cn from "classnames";
 
-// eslint-disable-next-line no-unused-vars
 const Cell = ({ instrument, note, sequencerActiveNote, step }) => {
   const dispatch = useDispatch();
 
@@ -13,12 +9,10 @@ const Cell = ({ instrument, note, sequencerActiveNote, step }) => {
 
   const handleNote = () => {
     if (isSelectedNote) {
-      // return dispatch(setSequencerNote({ note: null, step }));
       return dispatch(
         setSequencerInstrumentNote({ instrument, note: null, step }),
       );
     }
-    // dispatch(setSequencerNote({ note, step, }));
     dispatch(setSequencerInstrumentNote({ instrument, note, step }));
   };
 

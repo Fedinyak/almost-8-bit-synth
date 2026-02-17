@@ -3,7 +3,7 @@ import * as Tone from "tone";
 import { useDispatch, useSelector } from "react-redux";
 import { setCurrentStep } from "../slices/sequencerSlice";
 
-const TimerTransport = ({ sequencerNoteGrid }) => {
+const TimerTransport = () => {
   const dispatch = useDispatch();
 
   const instrumentsData = useSelector(state => state.sequencer.instrumentsData);
@@ -51,10 +51,6 @@ const TimerTransport = ({ sequencerNoteGrid }) => {
     // 2. Инициализация БАРАБАНОВ
     if (!drumsEngineRef.current) {
       drumsEngineRef.current = {
-        // kick: new Tone.MembraneSynth().toDestination(),
-        // snare: new Tone.NoiseSynth({
-        //   envelope: { decay: 0.1 },
-        // }).toDestination(),
         kick: new Tone.MembraneSynth().toDestination(),
         snare: new Tone.NoiseSynth({
           envelope: { decay: 0.1 },
@@ -122,13 +118,6 @@ const TimerTransport = ({ sequencerNoteGrid }) => {
     });
 
     // // Обновляем ноты БАРАБАНОВ
-    // const dPart = drumsPartRef.current;
-    // if (dPart && drumsData?.sequencerNoteGrid) {
-    //   dPart.clear();
-    //   drumsData.sequencerNoteGrid.forEach(item => {
-    //     if (item.note) dPart.add(item.time, item);
-    //   });
-    // }
     if (!drumsData.tracks) return;
     Object.keys(drumsData.tracks).forEach(drumName => {
       // Очищаем старую последовательность, если она была
@@ -153,6 +142,7 @@ const TimerTransport = ({ sequencerNoteGrid }) => {
       ).start(0);
     });
     // Зависимость от Ref гарантирует, что мы наполним партию сразу после её создания
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     instrumentsData,
     drumsData.tracks,

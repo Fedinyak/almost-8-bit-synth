@@ -5,22 +5,14 @@ import TimerTransport from "../../utility/scheduler";
 import SequencerControlPanel from "./SequencerControlPanel";
 import StepIndicator from "./StepIndicator";
 import noteAndKeyMap from "../../constants.js/noteAndKeyMap";
-import SequencerGrid from "./SequencerGrid";
+// import SequencerGrid from "./-SequencerGrid";
 import SequencerDrumGrid from "./SequencerDrumGrid";
-// import * as Tone from "tone";
-// import { useEffect, useState } from "react";
 // import BpmVisualizer from "./BpmVisualizer";
 
 const Sequencer = () => {
-  // const keyboardLetter = useSelector(state => state.note.keyboardLetter);
   const octave = useSelector(state => state.note.octave);
-  const sequencerNoteGrid = useSelector(
-    state => state.sequencer.sequencerNoteGrid,
-  );
   const instrumentsData = useSelector(state => state.sequencer.instrumentsData);
   const instrumentsList = useSelector(state => state.sequencer.instrumentsList);
-  // const noteMap = useSelector(state => state.note.noteMap);
-  // const octaveMap = useSelector(state => state.note.noteOctaveIndexMap);
   const keyboardLetter = noteAndKeyMap.keyboardLetter;
   const noteMap = noteAndKeyMap.noteMap;
   const octaveMap = noteAndKeyMap.noteOctaveIndexMap;
@@ -29,7 +21,7 @@ const Sequencer = () => {
     <section className="sequencer">
       {/* <SequencerGrid /> */}
       <SequencerControlPanel />
-      <TimerTransport sequencerNoteGrid={sequencerNoteGrid} />
+      <TimerTransport />
       <SequencerDrumGrid />
       <div className="sequencer-note-title">
         {keyboardLetter.map(letter => {
@@ -41,17 +33,13 @@ const Sequencer = () => {
         })}
       </div>
       {instrumentsList.map(instrument => {
-        console.log(
-          // instrument,
-          instrumentsData[instrument].sequencerNoteGrid,
-          "instrument",
-        );
         return (
           <>
+            {/* Synth grid */}
             <div>{instrument}</div>
             <div className="sequencer-cells">
               {instrumentsData[instrument].sequencerNoteGrid.map(
-                (item, stepIndex) => {
+                (_, stepIndex) => {
                   return (
                     <div
                       className="sequencer-cells-row"

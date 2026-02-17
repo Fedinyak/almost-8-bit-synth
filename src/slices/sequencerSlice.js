@@ -5,6 +5,7 @@ export const NOTES_COUNT = 72; // C1-B6
 export const STEPS_PER_PAGE = 32;
 export const TOTAL_STEPS = 256;
 export const SEQUENCER_STEP = 16;
+export const PATTERN_MAX_COUNT = 16;
 
 const createGrid = () => {
   return Array(NOTES_COUNT)
@@ -18,6 +19,8 @@ const initialState = {
   grid: createGrid(),
   totalSteps: TOTAL_STEPS,
   sequencerStep: SEQUENCER_STEP,
+  patternMaxCount: PATTERN_MAX_COUNT,
+  currentPattern: 0,
   currentStep: 0,
   viewPage: 0,
   visibleNotesCount: 24,
@@ -92,37 +95,37 @@ const initialState = {
       // "ride",
       // "tom",
     ],
-    sequencerNoteGrid: [
-      // { time: "0:0:0", note: "C1", duration: "8n" },
-      { time: "0:0:0", note: null },
-      { time: "0:0:1", note: null },
-      { time: "0:0:2", note: null },
-      { time: "0:0:3", note: null },
+    // sequencerNoteGrid: [
+    //   // { time: "0:0:0", note: "C1", duration: "8n" },
+    //   { time: "0:0:0", note: null },
+    //   { time: "0:0:1", note: null },
+    //   { time: "0:0:2", note: null },
+    //   { time: "0:0:3", note: null },
 
-      // { time: "0:1:0", note: "D1", duration: "8n" },
-      { time: "0:1:0", note: null },
-      { time: "0:1:1", note: null },
-      { time: "0:1:2", note: null },
-      { time: "0:1:3", note: null },
+    //   // { time: "0:1:0", note: "D1", duration: "8n" },
+    //   { time: "0:1:0", note: null },
+    //   { time: "0:1:1", note: null },
+    //   { time: "0:1:2", note: null },
+    //   { time: "0:1:3", note: null },
 
-      // { time: "0:2:0", note: "C1", duration: "8n" },
-      { time: "0:2:0", note: null },
-      { time: "0:2:1", note: null },
-      { time: "0:2:2", note: null },
-      // { time: "0:2:3", note: "C1", duration: "8n" },
-      { time: "0:2:3", note: null },
+    //   // { time: "0:2:0", note: "C1", duration: "8n" },
+    //   { time: "0:2:0", note: null },
+    //   { time: "0:2:1", note: null },
+    //   { time: "0:2:2", note: null },
+    //   // { time: "0:2:3", note: "C1", duration: "8n" },
+    //   { time: "0:2:3", note: null },
 
-      // { time: "0:3:0", note: "D1", duration: "8n" },
-      { time: "0:3:0", note: null },
-      // { time: "0:3:1", note: "C1", duration: "8n" },
-      { time: "0:3:1", note: null },
-      { time: "0:3:2", note: null },
-      { time: "0:3:3", note: null },
-    ],
+    //   // { time: "0:3:0", note: "D1", duration: "8n" },
+    //   { time: "0:3:0", note: null },
+    //   // { time: "0:3:1", note: "C1", duration: "8n" },
+    //   { time: "0:3:1", note: null },
+    //   { time: "0:3:2", note: null },
+    //   { time: "0:3:3", note: null },
+    // ],
     tracks: {
-      kick: [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0],
       snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-      hiHatClose: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      hiHatClose: [1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0],
     },
   },
 };
@@ -151,11 +154,6 @@ export const sequencerSlice = createSlice({
       const currentValue = state.drums.tracks[drumName][stepIndex];
       state.drums.tracks[drumName][stepIndex] = currentValue === 1 ? 0 : 1;
     },
-    // setSequencerDrumNote: (state, action) => {
-    //   const { instrument, step, note } = action.payload;
-    //   state.instrumentsData[instrument].sequencerNoteGrid[step].note = note;
-    //   state.instrumentsData[instrument].sequencerNoteGrid[step].duration = "8n";
-    // },
     toggleStep: (state, action) => {
       console.log(action.payload, "toggleStep");
       const { noteIndex, stepIndex } = action.payload;

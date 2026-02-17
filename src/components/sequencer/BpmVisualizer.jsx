@@ -15,7 +15,7 @@ const BpmVisualizer = () => {
   useEffect(() => {
     // 2. Планируем цикл мигания на каждую четвертную ноту ("4n")
     const beatEvent = Tone.Transport.scheduleRepeat(time => {
-      console.log("Текущий музыкальный момент (в сек):", time);
+      // console.log("Текущий музыкальный момент (в сек):", time);
       triggerVisualBeat(time);
     }, "4n");
 
