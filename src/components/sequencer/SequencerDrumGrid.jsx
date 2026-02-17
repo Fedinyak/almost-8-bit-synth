@@ -5,7 +5,10 @@ import cn from "classnames";
 
 const SequencerDrumGrid = () => {
   const drumKit = useSelector(state => state.sequencer.drums.drumKit);
-  const tracks = useSelector(state => state.sequencer.drums.tracks);
+  const tracks = useSelector(state => state.sequencer.drums.patterns);
+  const currentPattern = useSelector(
+    state => state.sequencer.currentPatternIndex,
+  );
   const sequencerStep = useSelector(state => state.sequencer.sequencerStep);
   const dispatch = useDispatch();
 
@@ -20,7 +23,8 @@ const SequencerDrumGrid = () => {
                 stepIndex={stepIndex}
               />
               {drumKit.map(drumName => {
-                const isActive = tracks[drumName][stepIndex] !== 0;
+                const isActive =
+                  tracks[currentPattern][drumName][stepIndex] !== 0;
                 const cellStyle = cn("sequencer-cell", {
                   "sequencer-cell-active": isActive,
                 });
