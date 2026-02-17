@@ -98,6 +98,14 @@ const noteAndKeyMap = {
     // 0: 2,
     // p: 2,
   },
+  drumNoteMap: {
+    kick: "C1",
+    snare: "D1",
+    // x: "D",
+    // d: "D#",
+    // c: "E",
+    // v: "F"
+  },
 };
 
 export default noteAndKeyMap;

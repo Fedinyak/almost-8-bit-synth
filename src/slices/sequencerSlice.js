@@ -4,7 +4,7 @@ import { createSlice } from "@reduxjs/toolkit";
 export const NOTES_COUNT = 72; // C1-B6
 export const STEPS_PER_PAGE = 32;
 export const TOTAL_STEPS = 256;
-export const SEQUENCER_STEP = 12;
+export const SEQUENCER_STEP = 16;
 
 const createGrid = () => {
   return Array(NOTES_COUNT)
@@ -83,6 +83,15 @@ const initialState = {
   },
   drums: {
     type: "drums",
+    drumKit: [
+      "kick",
+      "snare",
+      "hi-hat-close",
+      "hi-hat-open",
+      "crash",
+      "ride",
+      "tom",
+    ],
     sequencerNoteGrid: [
       { time: "0:0:0", note: "C1", duration: "8n" },
       { time: "0:0:1", note: null },
@@ -126,6 +135,11 @@ export const sequencerSlice = createSlice({
       state.instrumentsData[instrument].sequencerNoteGrid[step].note = note;
       state.instrumentsData[instrument].sequencerNoteGrid[step].duration = "8n";
     },
+    // setSequencerDrumNote: (state, action) => {
+    //   const { instrument, step, note } = action.payload;
+    //   state.instrumentsData[instrument].sequencerNoteGrid[step].note = note;
+    //   state.instrumentsData[instrument].sequencerNoteGrid[step].duration = "8n";
+    // },
     toggleStep: (state, action) => {
       console.log(action.payload, "toggleStep");
       const { noteIndex, stepIndex } = action.payload;

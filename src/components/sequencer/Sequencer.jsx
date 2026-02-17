@@ -6,6 +6,7 @@ import SequencerControlPanel from "./SequencerControlPanel";
 import StepIndicator from "./StepIndicator";
 import noteAndKeyMap from "../../constants.js/noteAndKeyMap";
 import SequencerGrid from "./SequencerGrid";
+import SequencerDrumGrid from "./SequencerDrumGrid";
 // import * as Tone from "tone";
 // import { useEffect, useState } from "react";
 // import BpmVisualizer from "./BpmVisualizer";
@@ -29,6 +30,7 @@ const Sequencer = () => {
       {/* <SequencerGrid /> */}
       <SequencerControlPanel />
       <TimerTransport sequencerNoteGrid={sequencerNoteGrid} />
+      <SequencerDrumGrid />
       <div className="sequencer-note-title">
         {keyboardLetter.map(letter => {
           return (
@@ -85,28 +87,6 @@ const Sequencer = () => {
           </>
         );
       })}
-      {/* <div className="sequencer-cells">
-        {sequencerNoteGrid.map((item, i) => {
-          return (
-            <div className="sequencer-cells-row" key={i}>
-              <StepIndicator key={`${i}-step`} stepIndex={i} />
-              {keyboardLetter.map(letter => {
-                // console.log(sequencerNoteGrid[i], "sequencerNoteGrid[i]");
-                return (
-                  <Cell
-                    className="sequencer-cell"
-                    key={letter + i + octave}
-                    note={getNote(letter, octave, noteMap, octaveMap)}
-                    sequencerActiveNote={sequencerNoteGrid[i]}
-                    step={i}
-                  />
-                );
-              })}
-              <br />
-            </div>
-          );
-        })}
-      </div> */}
     </section>
   );
 };
