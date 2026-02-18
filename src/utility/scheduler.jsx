@@ -1,7 +1,10 @@
 import { useEffect, useRef } from "react";
 import * as Tone from "tone";
 import { useDispatch, useSelector } from "react-redux";
-import { setCurrentStep } from "../slices/sequencerSlice";
+import {
+  nextCurrentPatternIndex,
+  setCurrentStep,
+} from "../slices/sequencerSlice";
 import noteAndKeyMap from "../constants.js/noteAndKeyMap";
 
 const TimerTransport = () => {
@@ -14,10 +17,13 @@ const TimerTransport = () => {
   const sequencerPlayState = useSelector(
     state => state.sequencer.sequencerPlayState,
   );
+  const sequencerStep = useSelector(state => state.sequencer.sequencerStep);
+  const isLooping = useSelector(state => state.sequencer.isLooping);
+
   const drumNoteMap = noteAndKeyMap.drumNoteMap;
   // const drumNoteMap = useSelector(state=> )
   // Используем общую длину всех паттернов (16 шагов * количество тактов)
-  const totalSteps = (drumsData?.patterns?.length || 1) * 16;
+  // const totalSteps = (drumsData?.patterns?.length || 1) * 16;
 
   const enginesRef = useRef({});
   const partsRef = useRef({});
@@ -226,26 +232,70 @@ const TimerTransport = () => {
 
   // --- ТРАНСПОРТ И ШАГИ ---
   useEffect(() => {
-    if (sequencerPlayState === "start") Tone.Transport.start();
-    else Tone.Transport.stop();
-  }, [sequencerPlayState]);
+    switch (sequencerPlayState) {
+      case "start":
+        Tone.Transport.start();
+        break;
+
+      case "pause":
+        // Замораживает время (ticks), не сбрасывая его в ноль
+        Tone.Transport.pause();
+        break;
+
+      case "stop":
+        // Полностью останавливает и сбрасывает время в 0
+        Tone.Transport.stop();
+        // Опционально: сбрасываем индикацию шага в UI на первый шаг
+        // dispatch(setCurrentStep(0));
+        break;
+
+      default:
+        break;
+    }
+  }, [sequencerPlayState, dispatch]);
 
   useEffect(() => {
     Tone.Transport.bpm.value = bpm;
   }, [bpm]);
 
+  // предохранитель (ref)
+  const lastProcessedStep = useRef(-1);
+
   useEffect(() => {
     const repeatId = Tone.Transport.scheduleRepeat(time => {
       Tone.Draw.schedule(() => {
-        // Рассчитываем шаг с учетом всех тактов
-        const step = Math.floor(
-          (Tone.Transport.ticks / Tone.Transport.PPQ / 0.25) % totalSteps,
-        );
-        dispatch(setCurrentStep(step));
+        const ticks = Tone.Transport.ticks;
+        const ppq = Tone.Transport.PPQ;
+
+        // 1. Вычисляем текущий шаг в сетке 16-х нот
+        // (ticks / (ppq / 4)) — это сколько 16-х нот прошло
+        const current16thNote = Math.round(ticks / (ppq / 4));
+
+        // 2. ОГРАНИЧИВАЕМ индикатор строго 0-15
+        const step = current16thNote % sequencerStep;
+
+        if (step !== lastProcessedStep.current) {
+          // Диспатчим шаг (всегда 0-15)
+          dispatch(setCurrentStep(step));
+
+          // 3. ЛОГИКА ПЕРЕКЛЮЧЕНИЯ
+          // Если мы перешли с 15 на 0
+          if (step === 0 && lastProcessedStep.current === sequencerStep - 1) {
+            if (!isLooping) {
+              dispatch(nextCurrentPatternIndex());
+            }
+          }
+
+          lastProcessedStep.current = step;
+        }
       }, time);
     }, "16n");
-    return () => Tone.Transport.clear(repeatId);
-  }, [totalSteps, dispatch]);
+
+    return () => {
+      Tone.Transport.clear(repeatId);
+      lastProcessedStep.current = -1;
+    };
+  }, [isLooping, dispatch]); // Убрали totalSteps из зависимостей, чтобы не перезапускать цикл
 
   return null;
 };

@@ -7,16 +7,17 @@ export const TOTAL_STEPS = 256;
 export const SEQUENCER_STEP = 16;
 export const PATTERN_MAX_COUNT = 16;
 
-const createGrid = () => {
-  return Array(NOTES_COUNT)
-    .fill(null)
-    .map(() => Array(TOTAL_STEPS).fill(0));
-};
+// const createGrid = () => {
+//   return Array(NOTES_COUNT)
+//     .fill(null)
+//     .map(() => Array(TOTAL_STEPS).fill(0));
+// };
 
 const initialState = {
   bpm: 120,
   sequencerPlayState: "stop",
-  grid: createGrid(),
+  isLooping: false,
+  // grid: createGrid(),
   totalSteps: TOTAL_STEPS,
   sequencerStep: SEQUENCER_STEP,
   patternMaxCount: PATTERN_MAX_COUNT,
@@ -25,12 +26,9 @@ const initialState = {
   currentStep: 0,
   viewPage: 0,
   visibleNotesCount: 24,
-  // instrumentsList: ["synth1", "synth2"],
   instrumentsList: ["synth1", "synth2"],
   instrumentsData: {
     synth1: {
-      // instrument: "synth1",
-      // instrumentId: 1,
       type: "synth",
       patterns: [
         [
@@ -149,29 +147,6 @@ const initialState = {
           { time: "0:3:3", note: null },
         ],
       ],
-      // sequencerNoteGrid: [
-      //   // { time: "1:0:0", note: "C5", duration: "2n", velocity: 1.0 },
-
-      //   { time: "0:0:0", note: null },
-      //   { time: "0:0:1", note: null },
-      //   { time: "0:0:2", note: "E4", duration: "8n" },
-      //   { time: "0:0:3", note: null },
-
-      //   { time: "0:1:0", note: null },
-      //   { time: "0:1:1", note: null },
-      //   { time: "0:1:2", note: null },
-      //   { time: "0:1:3", note: null },
-
-      //   { time: "0:2:0", note: null },
-      //   { time: "0:2:1", note: null },
-      //   { time: "0:2:2", note: "E4", duration: "8n" },
-      //   { time: "0:2:3", note: null },
-
-      //   { time: "0:3:0", note: "C4", duration: "8n" },
-      //   { time: "0:3:1", note: null },
-      //   { time: "0:3:2", note: null },
-      //   { time: "0:3:3", note: null },
-      // ],
     },
   },
   drums: {
@@ -185,33 +160,6 @@ const initialState = {
       "ride",
       "tom",
     ],
-    // sequencerNoteGrid: [
-    //   // { time: "0:0:0", note: "C1", duration: "8n" },
-    //   { time: "0:0:0", note: null },
-    //   { time: "0:0:1", note: null },
-    //   { time: "0:0:2", note: null },
-    //   { time: "0:0:3", note: null },
-
-    //   // { time: "0:1:0", note: "D1", duration: "8n" },
-    //   { time: "0:1:0", note: null },
-    //   { time: "0:1:1", note: null },
-    //   { time: "0:1:2", note: null },
-    //   { time: "0:1:3", note: null },
-
-    //   // { time: "0:2:0", note: "C1", duration: "8n" },
-    //   { time: "0:2:0", note: null },
-    //   { time: "0:2:1", note: null },
-    //   { time: "0:2:2", note: null },
-    //   // { time: "0:2:3", note: "C1", duration: "8n" },
-    //   { time: "0:2:3", note: null },
-
-    //   // { time: "0:3:0", note: "D1", duration: "8n" },
-    //   { time: "0:3:0", note: null },
-    //   // { time: "0:3:1", note: "C1", duration: "8n" },
-    //   { time: "0:3:1", note: null },
-    //   { time: "0:3:2", note: null },
-    //   { time: "0:3:3", note: null },
-    // ],
     patterns: [
       {
         kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0],
@@ -247,6 +195,9 @@ export const sequencerSlice = createSlice({
     setBpm: (state, action) => {
       state.bpm = action.payload;
     },
+    setIsLooping: state => {
+      state.isLooping = !state.isLooping;
+    },
     setSequencerPlayState: (state, action) => {
       console.log(action.payload);
       state.sequencerPlayState = action.payload;
@@ -258,7 +209,8 @@ export const sequencerSlice = createSlice({
       state.currentPatternIndex = action.payload;
     },
     nextCurrentPatternIndex: state => {
-      if (state.currentPatternIndex < state.instrumentsData.patterns.length) {
+      // if (state.currentPatternIndex < state.instrumentsData.patterns.length()) {
+      if (state.currentPatternIndex < 1) {
         state.currentPatternIndex += 1;
       } else {
         state.currentPatternIndex = 0;
@@ -288,18 +240,20 @@ export const sequencerSlice = createSlice({
     //   const currentValue = state.grid[noteIndex][stepIndex];
     //   state.grid[noteIndex][stepIndex] = currentValue === 0 ? 1 : 0;
     // },
-    resetGrid: state => {
-      state.grid = createGrid();
-    },
+    // resetGrid: state => {
+    //   state.grid = createGrid();
+    // },
   },
 });
 
 export const {
   setBpm,
+  setIsLooping,
   setSequencerPlayState,
   setCurrentStep,
   setSequencerInstrumentNote,
   toggleDrumStep,
+  nextCurrentPatternIndex,
   // toggleStep,
   resetGrid,
 } = sequencerSlice.actions;
