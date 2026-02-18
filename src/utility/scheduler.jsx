@@ -64,10 +64,10 @@ const TimerTransport = () => {
         snare: new Tone.NoiseSynth({
           envelope: { decay: 0.1 },
         }).toDestination(),
-        hiHat: new Tone.MetalSynth({
-          envelope: { decay: 0.05 },
-          volume: -12,
-        }).toDestination(),
+        // hiHat: new Tone.MetalSynth({
+        //   envelope: { decay: 0.05 },
+        //   volume: -12,
+        // }).toDestination(),
         hiHatClose: new Tone.MetalSynth({
           envelope: { decay: 0.04 },
           volume: -12,
@@ -103,9 +103,9 @@ const TimerTransport = () => {
           case "D1":
             engine.snare.triggerAttackRelease("16n", playTime);
             break;
-          case "E1":
-            engine.hiHat.triggerAttackRelease("32n", playTime);
-            break;
+          // case "E1":
+          //   engine.hiHat.triggerAttackRelease("32n", playTime);
+          //   break;
           case "F1":
             engine.hiHatClose.triggerAttackRelease("32n", playTime);
             break;
@@ -190,19 +190,23 @@ const TimerTransport = () => {
       dPart.clear();
 
       drumsData.patterns.forEach((patternObj, measureIndex) => {
-        Object.keys(patternObj).forEach((drumName, drumIdx) => {
+        // CHANGED: Получаем массив ключей, чтобы иметь индекс (drumIdx) для смещения
+        const drumNames = Object.keys(patternObj);
+
+        drumNames.forEach((drumName, drumIdx) => {
           const trackSteps = patternObj[drumName];
 
           if (Array.isArray(trackSteps)) {
             trackSteps.forEach((isHit, stepIndex) => {
               if (isHit === 1) {
                 const stepTime = `0:0:${stepIndex}`;
-                // ГЛАВНОЕ ИЗМЕНЕНИЕ: Добавляем (drumIdx * 0.001)
-                // Это разносит инструменты на 1 миллисекунду друг от друга, убирая ошибку
+
+                // ADDED: (drumIdx * 0.005) — это "микро-очередь".
+                // Она разносит инструменты на одном шаге на 5мс, чтобы MetalSynth не падал в ошибку.
                 const absoluteTime =
                   Tone.Time(stepTime).toSeconds() +
                   Tone.Time(`${measureIndex}m`).toSeconds() +
-                  drumIdx * 0.001;
+                  drumIdx * 0.005;
 
                 const noteToPlay = drumNoteMap[drumName];
 
@@ -214,6 +218,7 @@ const TimerTransport = () => {
           }
         });
       });
+
       dPart.loopEnd = `${drumsData.patterns.length}m`;
     }
     // eslint-disable-next-line react-hooks/refs

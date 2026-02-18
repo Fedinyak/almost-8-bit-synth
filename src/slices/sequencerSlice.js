@@ -149,29 +149,29 @@ const initialState = {
           { time: "0:3:3", note: null },
         ],
       ],
-      sequencerNoteGrid: [
-        // { time: "1:0:0", note: "C5", duration: "2n", velocity: 1.0 },
+      // sequencerNoteGrid: [
+      //   // { time: "1:0:0", note: "C5", duration: "2n", velocity: 1.0 },
 
-        { time: "0:0:0", note: null },
-        { time: "0:0:1", note: null },
-        { time: "0:0:2", note: "E4", duration: "8n" },
-        { time: "0:0:3", note: null },
+      //   { time: "0:0:0", note: null },
+      //   { time: "0:0:1", note: null },
+      //   { time: "0:0:2", note: "E4", duration: "8n" },
+      //   { time: "0:0:3", note: null },
 
-        { time: "0:1:0", note: null },
-        { time: "0:1:1", note: null },
-        { time: "0:1:2", note: null },
-        { time: "0:1:3", note: null },
+      //   { time: "0:1:0", note: null },
+      //   { time: "0:1:1", note: null },
+      //   { time: "0:1:2", note: null },
+      //   { time: "0:1:3", note: null },
 
-        { time: "0:2:0", note: null },
-        { time: "0:2:1", note: null },
-        { time: "0:2:2", note: "E4", duration: "8n" },
-        { time: "0:2:3", note: null },
+      //   { time: "0:2:0", note: null },
+      //   { time: "0:2:1", note: null },
+      //   { time: "0:2:2", note: "E4", duration: "8n" },
+      //   { time: "0:2:3", note: null },
 
-        { time: "0:3:0", note: "C4", duration: "8n" },
-        { time: "0:3:1", note: null },
-        { time: "0:3:2", note: null },
-        { time: "0:3:3", note: null },
-      ],
+      //   { time: "0:3:0", note: "C4", duration: "8n" },
+      //   { time: "0:3:1", note: null },
+      //   { time: "0:3:2", note: null },
+      //   { time: "0:3:3", note: null },
+      // ],
     },
   },
   drums: {
@@ -179,7 +179,6 @@ const initialState = {
     drumKit: [
       "kick",
       "snare",
-      "hiHat",
       "hiHatClose",
       "hiHatOpen",
       "crash",
@@ -217,7 +216,6 @@ const initialState = {
       {
         kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0],
         snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-        hiHat: [1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0],
         hiHatClose: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
         hiHatOpen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         crash: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -227,7 +225,6 @@ const initialState = {
       {
         kick: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0],
         snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-        hiHat: [1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0],
         hiHatClose: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
         hiHatOpen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
         crash: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -257,22 +254,40 @@ export const sequencerSlice = createSlice({
     setCurrentStep: (state, action) => {
       state.currentStep = action.payload;
     },
+    setCurrentPatternIndex: (state, action) => {
+      state.currentPatternIndex = action.payload;
+    },
+    nextCurrentPatternIndex: state => {
+      if (state.currentPatternIndex < state.instrumentsData.patterns.length) {
+        state.currentPatternIndex += 1;
+      } else {
+        state.currentPatternIndex = 0;
+      }
+    },
     setSequencerInstrumentNote: (state, action) => {
-      const { instrument, step, note } = action.payload;
-      state.instrumentsData[instrument].sequencerNoteGrid[step].note = note;
-      state.instrumentsData[instrument].sequencerNoteGrid[step].duration = "8n";
+      const { instrument, step, note, patternIndex } = action.payload;
+      state.instrumentsData[instrument].patterns[patternIndex][step].note =
+        note;
+      state.instrumentsData[instrument].patterns[patternIndex][step].duration =
+        "8n";
+      console.log(
+        state.instrumentsData[instrument].patterns[patternIndex][step].note,
+        "state.instrumentsData[instrument].patterns[patternIndex][step]",
+      );
     },
     toggleDrumStep: (state, action) => {
-      const { drumName, stepIndex } = action.payload;
-      const currentValue = state.drums.tracks[drumName][stepIndex];
-      state.drums.tracks[drumName][stepIndex] = currentValue === 1 ? 0 : 1;
+      const { drumName, stepIndex, patternIndex } = action.payload;
+      const currentValue =
+        state.drums.patterns[patternIndex][drumName][stepIndex];
+      state.drums.patterns[patternIndex][drumName][stepIndex] =
+        currentValue === 1 ? 0 : 1;
     },
-    toggleStep: (state, action) => {
-      console.log(action.payload, "toggleStep");
-      const { noteIndex, stepIndex } = action.payload;
-      const currentValue = state.grid[noteIndex][stepIndex];
-      state.grid[noteIndex][stepIndex] = currentValue === 0 ? 1 : 0;
-    },
+    // toggleStep: (state, action) => {
+    //   console.log(action.payload, "toggleStep");
+    //   const { noteIndex, stepIndex } = action.payload;
+    //   const currentValue = state.grid[noteIndex][stepIndex];
+    //   state.grid[noteIndex][stepIndex] = currentValue === 0 ? 1 : 0;
+    // },
     resetGrid: state => {
       state.grid = createGrid();
     },
@@ -285,7 +300,7 @@ export const {
   setCurrentStep,
   setSequencerInstrumentNote,
   toggleDrumStep,
-  toggleStep,
+  // toggleStep,
   resetGrid,
 } = sequencerSlice.actions;
 

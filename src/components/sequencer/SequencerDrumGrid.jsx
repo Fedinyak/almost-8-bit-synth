@@ -28,13 +28,17 @@ const SequencerDrumGrid = () => {
                 const cellStyle = cn("sequencer-cell", {
                   "sequencer-cell-active": isActive,
                 });
-
+                console.log(currentPattern, "currentPattern");
                 return (
                   <button
                     className={cellStyle}
                     onClick={() =>
                       dispatch(
-                        toggleDrumStep({ drumName, stepIndex: stepIndex }),
+                        toggleDrumStep({
+                          drumName,
+                          stepIndex,
+                          patternIndex: currentPattern,
+                        }),
                       )
                     }
                     key={`${drumName}-${stepIndex}`}

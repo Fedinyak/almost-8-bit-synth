@@ -11,6 +11,9 @@ import SequencerDrumGrid from "./SequencerDrumGrid";
 
 const Sequencer = () => {
   const octave = useSelector(state => state.note.octave);
+  const currentPattern = useSelector(
+    state => state.sequencer.currentPatternIndex,
+  );
   const instrumentsData = useSelector(state => state.sequencer.instrumentsData);
   const instrumentsList = useSelector(state => state.sequencer.instrumentsList);
   const keyboardLetter = noteAndKeyMap.keyboardLetter;
@@ -19,7 +22,7 @@ const Sequencer = () => {
 
   return (
     <section className="sequencer">
-      {/* <SequencerGrid /> */}
+      <h3>Current pattern {currentPattern}</h3>
       <SequencerControlPanel />
       <TimerTransport />
       <SequencerDrumGrid />
@@ -35,10 +38,9 @@ const Sequencer = () => {
       {instrumentsList.map(instrument => {
         return (
           <>
-            {/* Synth grid */}
             <div>{instrument}</div>
             <div className="sequencer-cells">
-              {instrumentsData[instrument].sequencerNoteGrid.map(
+              {instrumentsData[instrument].patterns[currentPattern].map(
                 (_, stepIndex) => {
                   return (
                     <div
@@ -57,10 +59,11 @@ const Sequencer = () => {
                             instrument={instrument}
                             note={getNote(letter, octave, noteMap, octaveMap)}
                             sequencerActiveNote={
-                              instrumentsData[instrument].sequencerNoteGrid[
-                                stepIndex
-                              ]
+                              instrumentsData[instrument].patterns[
+                                currentPattern
+                              ][stepIndex]
                             }
+                            patternIndex={currentPattern}
                             step={stepIndex}
                           />
                         );
