@@ -1,47 +1,31 @@
 import { useEffect, useRef } from "react";
 import * as Tone from "tone";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  nextCurrentPatternIndex,
-  setCurrentStep,
-} from "../slices/sequencerSlice";
-import noteAndKeyMap from "../constants.js/noteAndKeyMap";
+import { setCurrentStep } from "../slices/sequencerSlice";
 
 const TimerTransport = () => {
   const dispatch = useDispatch();
 
   const instrumentsData = useSelector(state => state.sequencer.instrumentsData);
   const instrumentsList = useSelector(state => state.sequencer.instrumentsList);
-  const drumsData = useSelector(state => state.sequencer.drums);
+  const drumsData = useSelector(state => state.sequencer.drums); // Достаем барабаны
   const bpm = useSelector(state => state.sequencer.bpm);
   const sequencerPlayState = useSelector(
     state => state.sequencer.sequencerPlayState,
   );
   const sequencerStep = useSelector(state => state.sequencer.sequencerStep);
-  const isLooping = useSelector(state => state.sequencer.isLooping);
-
-  const drumNoteMap = noteAndKeyMap.drumNoteMap;
-  // const drumNoteMap = useSelector(state=> )
-  // Используем общую длину всех паттернов (16 шагов * количество тактов)
-  // const totalSteps = (drumsData?.patterns?.length || 1) * 16;
 
   const enginesRef = useRef({});
   const partsRef = useRef({});
   const drumsEngineRef = useRef(null);
   const drumsPartRef = useRef(null);
 
-  // Карта соответствия: какой трек в UI — в какой синт бьет
-  // const drumNoteMap = {
-  //   kick: "C1",
-  //   snare: "D1",
-  //   hiHatClose: "E1",
-  //   "hi-hat-close": "F1",
-  //   "hi-hat-open": "G1",
-  // };
+  const drumsSequencesRef = useRef({});
 
-  // --- ЭФФЕКТ №1: "ЖЕЛЕЗО" (Создание синтов) ---
+  // --- ЭФФЕКТ №1: "ЖЕЛЕЗО" (Создание и Dispose) ---
+  // Срабатывает только при изменении списка инструментов
   useEffect(() => {
-    // Инициализация синтезаторов
+    // 1. Инициализация СИНТОВ
     instrumentsList.forEach(id => {
       if (!enginesRef.current[id]) {
         enginesRef.current[id] = new Tone.MonoSynth({
@@ -59,243 +43,134 @@ const TimerTransport = () => {
         }, []).start(0);
 
         part.loop = true;
+        part.loopEnd = "1m";
         partsRef.current[id] = part;
       }
     });
 
-    // Инициализация БАРАБАНОВ
+    // 2. Инициализация БАРАБАНОВ
     if (!drumsEngineRef.current) {
       drumsEngineRef.current = {
         kick: new Tone.MembraneSynth().toDestination(),
         snare: new Tone.NoiseSynth({
           envelope: { decay: 0.1 },
         }).toDestination(),
-        // hiHat: new Tone.MetalSynth({
-        //   envelope: { decay: 0.05 },
-        //   volume: -12,
-        // }).toDestination(),
         hiHatClose: new Tone.MetalSynth({
-          envelope: { decay: 0.04 },
-          volume: -12,
-        }).toDestination(),
-        hiHatOpen: new Tone.MetalSynth({
-          envelope: { decay: 0.3 },
+          envelope: { decay: 0.05 },
           volume: -10,
-        }).toDestination(),
-        crash: new Tone.MetalSynth({
-          envelope: { attack: 0.01, decay: 1.5 },
-          volume: -8,
-        }).toDestination(),
-        ride: new Tone.MetalSynth({
-          envelope: { attack: 0.001, decay: 0.8 },
-          volume: -10,
-        }).toDestination(),
-        tom: new Tone.MembraneSynth({
-          pitchDecay: 0.08,
-          octaves: 4,
         }).toDestination(),
       };
 
       const dPart = new Tone.Part((time, value) => {
         const engine = drumsEngineRef.current;
-        // ГЛАВНЫЙ ФИКС: Используем Tone.Transport.seconds для синхронизации,
-        // но прибавляем крошечный буфер Tone.immediate(), чтобы избежать "прошлого"
-        const playTime = Math.max(time, Tone.now() + 0.01);
-
-        switch (value.note) {
-          case "C1":
-            engine.kick.triggerAttackRelease("C1", "8n", playTime);
-            break;
-          case "D1":
-            engine.snare.triggerAttackRelease("16n", playTime);
-            break;
-          // case "E1":
-          //   engine.hiHat.triggerAttackRelease("32n", playTime);
-          //   break;
-          case "F1":
-            engine.hiHatClose.triggerAttackRelease("32n", playTime);
-            break;
-          case "G1":
-            engine.hiHatOpen.triggerAttackRelease("8n", playTime);
-            break;
-          case "A1":
-            engine.crash.triggerAttackRelease("G2", "1n", playTime);
-            break;
-          case "B1":
-            engine.ride.triggerAttackRelease("A2", "4n", playTime);
-            break;
-          case "C2":
-            engine.tom.triggerAttackRelease("G2", "16n", playTime);
-            break;
-          default:
-            break;
-        }
-        // Логика распределения ударов по движкам
-        // if (value.note === "C1")
-        //   engine.kick.triggerAttackRelease("C1", "8n", time);
-        // else if (value.note === "D1")
-        //   engine.snare.triggerAttackRelease("16n", time);
-        // else if (value.note === "E1")
-        //   engine.hiHat.triggerAttackRelease("32n", time);
-        // else if (value.note === "F1")
-        //   engine.hiHatOpen.triggerAttackRelease("16n", time);
-        // else if (value.note === "G1")
-        //   engine.crash.triggerAttackRelease("G2", "1n", time);
-        // else if (value.note === "A1")
-        //   engine.ride.triggerAttackRelease("A2", "4n", time);
-        // else if (value.note === "B1")
-        //   engine.tom.triggerAttackRelease("G2", "16n", time);
-        // hiHatClose можно направить на тот же движок, что и обычный hiHat (E1)
+        if (value.note === "C1")
+          engine.kick.triggerAttackRelease("C1", "8n", time);
+        if (value.note === "D1") engine.snare.triggerAttackRelease("16n", time);
       }, []).start(0);
 
       dPart.loop = true;
+      dPart.loopEnd = "1m";
       drumsPartRef.current = dPart;
     }
 
+    // --- ПОЛНЫЙ DISPOSE (Очистка памяти) ---
     return () => {
+      // Чистим синты
       Object.keys(partsRef.current).forEach(id => {
         partsRef.current[id].dispose();
         enginesRef.current[id].dispose();
       });
-      if (drumsPartRef.current) drumsPartRef.current.dispose();
-      if (drumsEngineRef.current) {
-        Object.values(drumsEngineRef.current).forEach(synth => synth.dispose());
+      // Чистим барабаны
+      if (drumsSequencesRef.current) {
+        Object.keys(drumsSequencesRef.current).forEach(drumName => {
+          drumsSequencesRef.current[drumName].dispose();
+        });
+        drumsSequencesRef.current = {};
       }
+      // Чистим движки барабанов
+      if (drumsEngineRef.current) {
+        drumsEngineRef.current.kick.dispose();
+        drumsEngineRef.current.snare.dispose();
+        drumsEngineRef.current.hiHatClose.dispose();
+        drumsEngineRef.current = null;
+      }
+      // Обнуляем Ref, чтобы при перезапуске всё создалось чисто
       enginesRef.current = {};
       partsRef.current = {};
       drumsEngineRef.current = null;
       drumsPartRef.current = null;
     };
-  }, [instrumentsList]);
+  }, [instrumentsList]); // <--- Срабатывает только при изменении списка, не при кликах!
 
-  // --- ЭФФЕКТ №2: "ОБНОВЛЕНИЕ НОТ И ПАТТЕРНОВ" ---
+  // --- ЭФФЕКТ №2: "НОТЫ" (Обновление сетки) ---
+  // Срабатывает при каждом клике, НО НЕ вызываем Dispose (звук не заикается)
   useEffect(() => {
-    // 1. Обновляем СИНТЫ
+    // Обновляем ноты СИНТОВ
     instrumentsList.forEach(id => {
       const part = partsRef.current[id];
-      const instrument = instrumentsData[id];
-      if (part && instrument?.patterns) {
+      const data = instrumentsData[id];
+      if (part && data?.sequencerNoteGrid) {
         part.clear();
-        instrument.patterns.forEach((patternGrid, measureIndex) => {
-          patternGrid.forEach(item => {
-            if (item.note) {
-              const absoluteTime =
-                Tone.Time(item.time).toSeconds() +
-                Tone.Time(`${measureIndex}m`).toSeconds();
-              part.add(absoluteTime, item);
-            }
-          });
+        data.sequencerNoteGrid.forEach(item => {
+          if (item.note) part.add(item.time, item);
         });
-        part.loopEnd = `${instrument.patterns.length}m`;
       }
     });
 
-    // 2. Обновляем БАРАБАНЫ
-    const dPart = drumsPartRef.current;
-    if (dPart && drumsData?.patterns) {
-      dPart.clear();
+    // // Обновляем ноты БАРАБАНОВ
+    if (!drumsData.tracks) return;
+    Object.keys(drumsData.tracks).forEach(drumName => {
+      // Очищаем старую последовательность, если она была
+      if (drumsSequencesRef.current[drumName]) {
+        drumsSequencesRef.current[drumName].dispose();
+      }
 
-      drumsData.patterns.forEach((patternObj, measureIndex) => {
-        // CHANGED: Получаем массив ключей, чтобы иметь индекс (drumIdx) для смещения
-        const drumNames = Object.keys(patternObj);
-
-        drumNames.forEach((drumName, drumIdx) => {
-          const trackSteps = patternObj[drumName];
-
-          if (Array.isArray(trackSteps)) {
-            trackSteps.forEach((isHit, stepIndex) => {
-              if (isHit === 1) {
-                const stepTime = `0:0:${stepIndex}`;
-
-                // ADDED: (drumIdx * 0.005) — это "микро-очередь".
-                // Она разносит инструменты на одном шаге на 5мс, чтобы MetalSynth не падал в ошибку.
-                const absoluteTime =
-                  Tone.Time(stepTime).toSeconds() +
-                  Tone.Time(`${measureIndex}m`).toSeconds() +
-                  drumIdx * 0.005;
-
-                const noteToPlay = drumNoteMap[drumName];
-
-                if (noteToPlay) {
-                  dPart.add(absoluteTime, { note: noteToPlay });
-                }
-              }
-            });
+      // Создаем новую последовательность для каждого трека
+      drumsSequencesRef.current[drumName] = new Tone.Sequence(
+        (time, hit) => {
+          if (hit === 1) {
+            const engine = drumsEngineRef.current[drumName];
+            if (drumName === "kick")
+              engine.triggerAttackRelease("C1", "8n", time);
+            if (drumName === "snare") engine.triggerAttackRelease("16n", time);
+            if (drumName === "hiHatClose")
+              engine.triggerAttackRelease("32n", time);
           }
-        });
-      });
+        },
+        drumsData.tracks[drumName], // Массив типа [1, 0, 1...]
+        "16n", // Шаг сетки
+      ).start(0);
+    });
+    // Зависимость от Ref гарантирует, что мы наполним партию сразу после её создания
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    instrumentsData,
+    drumsData.tracks,
+    instrumentsList,
+    drumsPartRef.current,
+  ]);
 
-      dPart.loopEnd = `${drumsData.patterns.length}m`;
-    }
-    // eslint-disable-next-line react-hooks/refs
-  }, [instrumentsData, drumsData, instrumentsList, drumsPartRef.current]);
-
-  // --- ТРАНСПОРТ И ШАГИ ---
+  // --- ЭФФЕКТЫ ТРАНСПОРТА (BPM, Play/Stop, Step Indicator) ---
   useEffect(() => {
-    switch (sequencerPlayState) {
-      case "start":
-        Tone.Transport.start();
-        break;
-
-      case "pause":
-        // Замораживает время (ticks), не сбрасывая его в ноль
-        Tone.Transport.pause();
-        break;
-
-      case "stop":
-        // Полностью останавливает и сбрасывает время в 0
-        Tone.Transport.stop();
-        // Опционально: сбрасываем индикацию шага в UI на первый шаг
-        // dispatch(setCurrentStep(0));
-        break;
-
-      default:
-        break;
-    }
-  }, [sequencerPlayState, dispatch]);
+    if (sequencerPlayState === "start") Tone.Transport.start();
+    if (sequencerPlayState === "stop") Tone.Transport.stop();
+  }, [sequencerPlayState]);
 
   useEffect(() => {
     Tone.Transport.bpm.value = bpm;
   }, [bpm]);
 
-  // предохранитель (ref)
-  const lastProcessedStep = useRef(-1);
-
   useEffect(() => {
     const repeatId = Tone.Transport.scheduleRepeat(time => {
       Tone.Draw.schedule(() => {
-        const ticks = Tone.Transport.ticks;
-        const ppq = Tone.Transport.PPQ;
-
-        // 1. Вычисляем текущий шаг в сетке 16-х нот
-        // (ticks / (ppq / 4)) — это сколько 16-х нот прошло
-        const current16thNote = Math.round(ticks / (ppq / 4));
-
-        // 2. ОГРАНИЧИВАЕМ индикатор строго 0-15
-        const step = current16thNote % sequencerStep;
-
-        if (step !== lastProcessedStep.current) {
-          // Диспатчим шаг (всегда 0-15)
-          dispatch(setCurrentStep(step));
-
-          // 3. ЛОГИКА ПЕРЕКЛЮЧЕНИЯ
-          // Если мы перешли с 15 на 0
-          if (step === 0 && lastProcessedStep.current === sequencerStep - 1) {
-            if (!isLooping) {
-              dispatch(nextCurrentPatternIndex());
-            }
-          }
-
-          lastProcessedStep.current = step;
-        }
+        const step = Math.floor(
+          (Tone.Transport.ticks / Tone.Transport.PPQ / 0.25) % sequencerStep,
+        );
+        dispatch(setCurrentStep(step));
       }, time);
     }, "16n");
-
-    return () => {
-      Tone.Transport.clear(repeatId);
-      lastProcessedStep.current = -1;
-    };
-  }, [isLooping, dispatch]); // Убрали totalSteps из зависимостей, чтобы не перезапускать цикл
+    return () => Tone.Transport.clear(repeatId);
+  }, [sequencerStep, dispatch]);
 
   return null;
 };
