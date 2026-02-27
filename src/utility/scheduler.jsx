@@ -19,14 +19,6 @@ const TimerTransport = () => {
   );
   const sequencerStep = useSelector(state => state.sequencer.sequencerStep);
   const isLooping = useSelector(state => state.sequencer.isLooping);
-  const currentPatternIndex = useSelector(
-    state => state.sequencer.currentPatternIndex,
-  );
-
-  // Берем первый доступный инструмент, чтобы узнать, сколько всего паттернов в проекте
-  const firstInstrumentId = instrumentsList[0];
-  const totalPatternsCount =
-    instrumentsData[firstInstrumentId]?.patterns?.length || 0;
 
   const drumNoteMap = noteAndKeyMap.drumNoteMap;
   // const drumNoteMap = useSelector(state=> )
@@ -182,24 +174,11 @@ const TimerTransport = () => {
     instrumentsList.forEach(id => {
       const part = partsRef.current[id];
       const instrument = instrumentsData[id];
-
       if (part && instrument?.patterns) {
         part.clear();
-
-        // Выбираем: либо все паттерны (если луп выключен),
-        // либо только один текущий (если луп включен)
-        const patternsToRender = isLooping
-          ? [instrument.patterns[currentPatternIndex]]
-          : instrument.patterns;
-
-        patternsToRender.forEach((patternGrid, measureIndex) => {
-          if (!patternGrid) return; // защита от пустых данных
-
+        instrument.patterns.forEach((patternGrid, measureIndex) => {
           patternGrid.forEach(item => {
             if (item.note) {
-              // Если включен луп, measureIndex всегда будет 0,
-              // и ноты встанут в начало таймлайна
-
               const absoluteTime =
                 Tone.Time(item.time).toSeconds() +
                 Tone.Time(`${measureIndex}m`).toSeconds();
@@ -207,9 +186,7 @@ const TimerTransport = () => {
             }
           });
         });
-        // Устанавливаем конец петли в зависимости от количества загруженных паттернов
-        part.loop = true; // Включаем внутренний луп самого Part
-        part.loopEnd = isLooping ? "1m" : `${instrument.patterns.length}m`;
+        part.loopEnd = `${instrument.patterns.length}m`;
       }
     });
 
@@ -218,13 +195,8 @@ const TimerTransport = () => {
     if (dPart && drumsData?.patterns) {
       dPart.clear();
 
-      const targetDrums = isLooping
-        ? [drumsData.patterns[currentPatternIndex]]
-        : drumsData.patterns;
-
-      targetDrums.forEach((patternObj, measureIndex) => {
+      drumsData.patterns.forEach((patternObj, measureIndex) => {
         // CHANGED: Получаем массив ключей, чтобы иметь индекс (drumIdx) для смещения
-        if (!patternObj) return;
         const drumNames = Object.keys(patternObj);
 
         drumNames.forEach((drumName, drumIdx) => {
@@ -253,18 +225,10 @@ const TimerTransport = () => {
         });
       });
 
-      dPart.loop = true;
-      dPart.loopEnd = isLooping ? "1m" : `${drumsData.patterns.length}m`;
+      dPart.loopEnd = `${drumsData.patterns.length}m`;
     }
     // eslint-disable-next-line react-hooks/refs
-  }, [
-    instrumentsData,
-    drumsData,
-    instrumentsList,
-    drumsPartRef.current,
-    currentPatternIndex,
-    isLooping,
-  ]);
+  }, [instrumentsData, drumsData, instrumentsList, drumsPartRef.current]);
 
   // --- ТРАНСПОРТ И ШАГИ ---
   useEffect(() => {
@@ -298,47 +262,40 @@ const TimerTransport = () => {
   const lastProcessedStep = useRef(-1);
 
   useEffect(() => {
-    const STEPS_IN_PATTERN = 16;
-
     const repeatId = Tone.Transport.scheduleRepeat(time => {
-      const ticks = Tone.Transport.ticks;
-      const ppq = Tone.Transport.PPQ;
-      const current16thNote = Math.round(ticks / (ppq / 4));
-      const step = current16thNote % STEPS_IN_PATTERN;
+      Tone.Draw.schedule(() => {
+        const ticks = Tone.Transport.ticks;
+        const ppq = Tone.Transport.PPQ;
 
-      if (step !== lastProcessedStep.current) {
-        Tone.Draw.schedule(() => {
+        // 1. Вычисляем текущий шаг в сетке 16-х нот
+        // (ticks / (ppq / 4)) — это сколько 16-х нот прошло
+        const current16thNote = Math.round(ticks / (ppq / 4));
+
+        // 2. ОГРАНИЧИВАЕМ индикатор строго 0-15
+        const step = current16thNote % sequencerStep;
+
+        if (step !== lastProcessedStep.current) {
+          // Диспатчим шаг (всегда 0-15)
           dispatch(setCurrentStep(step));
-        }, time);
 
-        // МОМЕНТ ПЕРЕХОДА (15 -> 0)
-        if (step === 0 && lastProcessedStep.current === STEPS_IN_PATTERN - 1) {
-          if (isLooping) {
-            // Если включен ЛУП: прыгаем в начало ТЕКУЩЕГО такта
-            // Нам не нужно перерисовывать Part, мы просто перематываем "пленку" назад
-            const startOfCurrentPattern = currentPatternIndex * (ppq * 4);
-            Tone.Transport.ticks = startOfCurrentPattern;
-
-            // Индекс паттерна НЕ меняем (dispatch не нужен)
-          } else {
-            // Если НЕ ЛУП:
-            if (currentPatternIndex === totalPatternsCount - 1) {
-              // Если это был конец всей песни — прыгаем в самый 0
-              Tone.Transport.ticks = 0;
-              dispatch(nextCurrentPatternIndex());
-            } else {
-              // Если это просто переход с 0 на 1 такт — НИЧЕГО не трогаем в Transport
-              // Он сам въедет во второй такт, где уже лежат ноты
+          // 3. ЛОГИКА ПЕРЕКЛЮЧЕНИЯ
+          // Если мы перешли с 15 на 0
+          if (step === 0 && lastProcessedStep.current === sequencerStep - 1) {
+            if (!isLooping) {
               dispatch(nextCurrentPatternIndex());
             }
           }
+
+          lastProcessedStep.current = step;
         }
-        lastProcessedStep.current = step;
-      }
+      }, time);
     }, "16n");
 
-    return () => Tone.Transport.clear(repeatId);
-  }, [dispatch, isLooping, currentPatternIndex, totalPatternsCount]);
+    return () => {
+      Tone.Transport.clear(repeatId);
+      lastProcessedStep.current = -1;
+    };
+  }, [isLooping, dispatch]); // Убрали totalSteps из зависимостей, чтобы не перезапускать цикл
 
   return null;
 };
