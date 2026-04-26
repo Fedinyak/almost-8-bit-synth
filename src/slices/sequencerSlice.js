@@ -149,17 +149,26 @@ const initialState = {
       ],
     },
   },
+  drumKitList: [
+    "kick",
+    "snare",
+    "hiHatClose",
+    "hiHatOpen",
+    "crash",
+    "ride",
+    "tom",
+  ],
   drumsData: {
     type: "drums",
-    drumKit: [
-      "kick",
-      "snare",
-      "hiHatClose",
-      "hiHatOpen",
-      "crash",
-      "ride",
-      "tom",
-    ],
+    // drumKit: [
+    //   "kick",
+    //   "snare",
+    //   "hiHatClose",
+    //   "hiHatOpen",
+    //   "crash",
+    //   "ride",
+    //   "tom",
+    // ],
     patterns: [
       {
         kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0],
