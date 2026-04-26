@@ -11,7 +11,7 @@ const TimerTransport = () => {
 
   const synthData = useSelector(state => state.sequencer.synthData);
   const synthList = useSelector(state => state.sequencer.synthList);
-  const drumsList = useSelector(state => state.sequencer.drums);
+  const drumsList = useSelector(state => state.sequencer.drumsData);
   const bpm = useSelector(state => state.sequencer.bpm);
   const sequencerPlayState = useSelector(
     state => state.sequencer.sequencerPlayState,

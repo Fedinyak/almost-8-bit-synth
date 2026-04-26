@@ -149,7 +149,7 @@ const initialState = {
       ],
     },
   },
-  drums: {
+  drumsData: {
     type: "drums",
     drumKit: [
       "kick",
@@ -228,8 +228,8 @@ export const sequencerSlice = createSlice({
     toggleDrumStep: (state, action) => {
       const { drumName, stepIndex, patternIndex } = action.payload;
       const currentValue =
-        state.drums.patterns[patternIndex][drumName][stepIndex];
-      state.drums.patterns[patternIndex][drumName][stepIndex] =
+        state.drumsData.patterns[patternIndex][drumName][stepIndex];
+      state.drumsData.patterns[patternIndex][drumName][stepIndex] =
         currentValue === 1 ? 0 : 1;
     },
     // toggleStep: (state, action) => {

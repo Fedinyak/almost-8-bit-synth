@@ -4,8 +4,8 @@ import { toggleDrumStep } from "../../slices/sequencerSlice";
 import cn from "classnames";
 
 const SequencerDrumGrid = () => {
-  const drumKit = useSelector(state => state.sequencer.drums.drumKit);
-  const tracks = useSelector(state => state.sequencer.drums.patterns);
+  const drumKit = useSelector(state => state.sequencer.drumsData.drumKit);
+  const tracks = useSelector(state => state.sequencer.drumsData.patterns);
   const currentPattern = useSelector(
     state => state.sequencer.currentPatternIndex,
   );
