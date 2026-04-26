@@ -14,8 +14,8 @@ const Sequencer = () => {
   const currentPattern = useSelector(
     state => state.sequencer.currentPatternIndex,
   );
-  const instrumentsData = useSelector(state => state.sequencer.instrumentsData);
-  const instrumentsList = useSelector(state => state.sequencer.instrumentsList);
+  const synthData = useSelector(state => state.sequencer.synthData);
+  const synthList = useSelector(state => state.sequencer.synthList);
   const keyboardLetter = noteAndKeyMap.keyboardLetter;
   const noteMap = noteAndKeyMap.noteMap;
   const octaveMap = noteAndKeyMap.noteOctaveIndexMap;
@@ -35,12 +35,12 @@ const Sequencer = () => {
           );
         })}
       </div>
-      {instrumentsList.map(instrument => {
+      {synthList.map(instrument => {
         return (
           <>
             <div>{instrument}</div>
             <div className="sequencer-cells">
-              {instrumentsData[instrument].patterns[currentPattern].map(
+              {synthData[instrument].patterns[currentPattern].map(
                 (_, stepIndex) => {
                   return (
                     <div
@@ -59,9 +59,9 @@ const Sequencer = () => {
                             instrument={instrument}
                             note={getNote(letter, octave, noteMap, octaveMap)}
                             sequencerActiveNote={
-                              instrumentsData[instrument].patterns[
-                                currentPattern
-                              ][stepIndex]
+                              synthData[instrument].patterns[currentPattern][
+                                stepIndex
+                              ]
                             }
                             patternIndex={currentPattern}
                             step={stepIndex}

@@ -101,12 +101,20 @@ const noteAndKeyMap = {
   drumNoteMap: {
     kick: "C1",
     snare: "D1",
-    hiHat: "E1",
-    hiHatClose: "E1", // Тот же хэт
-    hiHatOpen: "F1", // Открытый хэт
+    // hiHat: "E1",
+    hiHatClose: "E1",
+    hiHatOpen: "F1",
     crash: "G1",
     ride: "A1",
     tom: "B1",
+    C1: "kick",
+    D1: "snare",
+    // "E1":"hiHat",
+    E1: "hiHatClose",
+    F1: "hiHatOpen",
+    G1: "crash",
+    A1: "ride",
+    B1: "tom",
   },
 };
 

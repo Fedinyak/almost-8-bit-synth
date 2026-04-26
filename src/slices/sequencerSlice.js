@@ -26,8 +26,8 @@ const initialState = {
   currentStep: 0,
   viewPage: 0,
   visibleNotesCount: 24,
-  instrumentsList: ["synth1", "synth2"],
-  instrumentsData: {
+  synthList: ["synth1", "synth2"],
+  synthData: {
     synth1: {
       type: "synth",
       patterns: [
@@ -209,7 +209,7 @@ export const sequencerSlice = createSlice({
       state.currentPatternIndex = action.payload;
     },
     nextCurrentPatternIndex: state => {
-      // if (state.currentPatternIndex < state.instrumentsData.patterns.length()) {
+      // if (state.currentPatternIndex < state.synthData.patterns.length()) {
       if (state.currentPatternIndex < 1) {
         state.currentPatternIndex += 1;
       } else {
@@ -218,13 +218,11 @@ export const sequencerSlice = createSlice({
     },
     setSequencerInstrumentNote: (state, action) => {
       const { instrument, step, note, patternIndex } = action.payload;
-      state.instrumentsData[instrument].patterns[patternIndex][step].note =
-        note;
-      state.instrumentsData[instrument].patterns[patternIndex][step].duration =
-        "8n";
+      state.synthData[instrument].patterns[patternIndex][step].note = note;
+      state.synthData[instrument].patterns[patternIndex][step].duration = "8n";
       console.log(
-        state.instrumentsData[instrument].patterns[patternIndex][step].note,
-        "state.instrumentsData[instrument].patterns[patternIndex][step]",
+        state.synthData[instrument].patterns[patternIndex][step].note,
+        "state.synthData[instrument].patterns[patternIndex][step]",
       );
     },
     toggleDrumStep: (state, action) => {
