@@ -30,17 +30,17 @@ const TimerTransport = () => {
 
   // Synth and drum create
   useEffect(() => {
+    // Synth create
     synthList.forEach(id => {
-      // Synth create
       if (!synthEnginesRef.current[id]) {
         synthEnginesRef.current[id] = createSynth();
       }
-
-      // Drums create
-      if (!drumsEngineRef.current) {
-        drumsEngineRef.current = createDrums();
-      }
     });
+
+    // Drums create
+    if (!drumsEngineRef.current) {
+      drumsEngineRef.current = createDrums();
+    }
   }, [synthList]);
 
   useEffect(() => {
@@ -55,7 +55,6 @@ const TimerTransport = () => {
 
       part.loop = true;
       partsRef.current[id] = part;
-      // }
     });
 
     const drumPart = new Tone.Part((time, value) => {
@@ -103,7 +102,6 @@ const TimerTransport = () => {
 
     drumPart.loop = true;
     drumsPartRef.current = drumPart;
-    // }
 
     return () => {
       Object.keys(partsRef.current).forEach(id => {
