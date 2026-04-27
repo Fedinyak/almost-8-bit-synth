@@ -3,6 +3,8 @@ import * as Tone from "tone";
 import { useDispatch, useSelector } from "react-redux";
 import { setCurrentStep } from "../slices/sequencerSlice";
 import noteAndKeyMap from "../constants.js/noteAndKeyMap";
+import createSynth from "./synthEngine";
+import createDrums from "./drumEngine";
 
 const steps = 16;
 
@@ -26,51 +28,17 @@ const TimerTransport = () => {
   const drumsEngineRef = useRef(null);
   const drumsPartRef = useRef(null);
 
-  // Synth and drum init
+  // Synth and drum create
   useEffect(() => {
     synthList.forEach(id => {
-      // Synth init
+      // Synth create
       if (!synthEnginesRef.current[id]) {
-        synthEnginesRef.current[id] = new Tone.MonoSynth({
-          oscillator: { type: "square" },
-          envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 },
-        }).toDestination();
+        synthEnginesRef.current[id] = createSynth();
       }
 
-      // Drum init
+      // Drums create
       if (!drumsEngineRef.current) {
-        const drumsEngine = {
-          kick: new Tone.MembraneSynth().toDestination(),
-          snare: new Tone.NoiseSynth({
-            envelope: { decay: 0.1 },
-          }).toDestination(),
-          hiHat: new Tone.MetalSynth({
-            envelope: { decay: 0.05 },
-            volume: -12,
-          }).toDestination(),
-          hiHatClose: new Tone.MetalSynth({
-            envelope: { decay: 0.04 },
-            volume: -12,
-          }).toDestination(),
-          hiHatOpen: new Tone.MetalSynth({
-            envelope: { decay: 0.3 },
-            volume: -10,
-          }).toDestination(),
-          crash: new Tone.MetalSynth({
-            envelope: { attack: 0.01, decay: 1.5 },
-            volume: -8,
-          }).toDestination(),
-          ride: new Tone.MetalSynth({
-            envelope: { attack: 0.001, decay: 0.8 },
-            volume: -10,
-          }).toDestination(),
-          tom: new Tone.MembraneSynth({
-            pitchDecay: 0.08,
-            octaves: 4,
-          }).toDestination(),
-        };
-
-        drumsEngineRef.current = drumsEngine;
+        drumsEngineRef.current = createDrums();
       }
     });
   }, [synthList]);

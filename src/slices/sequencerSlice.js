@@ -29,7 +29,7 @@ const initialState = {
   synthList: ["synth1", "synth2"],
   synthData: {
     synth1: {
-      type: "synth",
+      // type: "synth",
       patterns: [
         [
           // { time: "1:0:0", note: "C5", duration: "2n", velocity: 1.0 },
@@ -102,7 +102,7 @@ const initialState = {
     synth2: {
       // instrument: "synth2",
       // instrumentId: 2,
-      type: "synth",
+      // type: "synth",
       patterns: [
         [
           { time: "0:0:0", note: "C4", duration: "8n" },
@@ -159,7 +159,7 @@ const initialState = {
     "tom",
   ],
   drumsData: {
-    type: "drums",
+    // type: "drums",
     // drumKit: [
     //   "kick",
     //   "snare",
