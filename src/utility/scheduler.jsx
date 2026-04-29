@@ -24,16 +24,16 @@ const TimerTransport = () => {
   const totalSteps = (drumsList?.patterns?.length || 1) * steps;
 
   const synthEnginesRef = useRef({});
-  const partsRef = useRef({});
+  const synthPartRef = useRef({});
   const drumsEngineRef = useRef(null);
   const drumsPartRef = useRef(null);
 
   // Synth and drum create
   useEffect(() => {
     // Synth create
-    synthList.forEach(id => {
-      if (!synthEnginesRef.current[id]) {
-        synthEnginesRef.current[id] = createSynth();
+    synthList.forEach(synthName => {
+      if (!synthEnginesRef.current[synthName]) {
+        synthEnginesRef.current[synthName] = createSynth();
       }
     });
 
@@ -41,20 +41,31 @@ const TimerTransport = () => {
     if (!drumsEngineRef.current) {
       drumsEngineRef.current = createDrums();
     }
-  }, [synthList]);
+  }, []);
 
+  // const playSynthNote = (synth, time, value) => {};
+
+  // Make pattern
   useEffect(() => {
-    synthList.forEach(id => {
-      const part = new Tone.Part((time, value) => {
-        synthEnginesRef.current[id].triggerAttackRelease(
+    synthList.forEach(synthName => {
+      const synthPart = new Tone.Part((time, value) => {
+        // console.log(
+        //   time,
+        //   value,
+        //   synthEnginesRef,
+        //   synthEnginesRef.current[synthName],
+        //   synthName,
+        //   "synthEnginesRef.current[synthName]",
+        // );
+        synthEnginesRef.current[synthName].triggerAttackRelease(
           value.note,
           value.duration,
           time,
         );
       }, []).start(0);
 
-      part.loop = true;
-      partsRef.current[id] = part;
+      synthPart.loop = true;
+      synthPartRef.current[synthName] = synthPart;
     });
 
     const drumPart = new Tone.Part((time, value) => {
@@ -104,38 +115,53 @@ const TimerTransport = () => {
     drumsPartRef.current = drumPart;
 
     return () => {
-      Object.keys(partsRef.current).forEach(id => {
-        partsRef.current[id].dispose();
-        synthEnginesRef.current[id].dispose();
-      });
-      if (drumsPartRef.current) drumsPartRef.current.dispose();
-      if (drumsEngineRef.current) {
-        Object.values(drumsEngineRef.current).forEach(synth => synth.dispose());
-      }
+      // Clean audio and refs
+
+      // Object.keys(synthPartRef.current).forEach(id => {
+      //   synthPartRef.current[id].dispose();
+      //   synthEnginesRef.current[id].dispose();
+      // });
+      // if (drumsPartRef.current) drumsPartRef.current.dispose();
+      // if (drumsEngineRef.current) {
+      //   Object.values(drumsEngineRef.current).forEach(synth => synth.dispose());
+      // }
+      Object.values(synthPartRef.current).forEach(part => part?.dispose());
+      Object.values(synthEnginesRef.current).forEach(synth => synth?.dispose());
+
+      drumsPartRef.current?.dispose();
+      Object.values(drumsEngineRef.current || {}).forEach(synth =>
+        synth?.dispose(),
+      );
+
       synthEnginesRef.current = {};
-      partsRef.current = {};
+      synthPartRef.current = {};
       drumsEngineRef.current = null;
       drumsPartRef.current = null;
     };
-  }, [synthList]);
+  }, []);
 
   // Note and patterns list
+
+  const calculateAbsoluteTime = (time, measureIndex) => {
+    return (
+      Tone.Time(time).toSeconds() + Tone.Time(`${measureIndex}m`).toSeconds()
+    );
+  };
+
   useEffect(() => {
     // Synth
-    synthList.forEach(id => {
-      const part = partsRef.current[id];
-      const instrument = synthData[id];
+    synthList.forEach(synthName => {
+      const part = synthPartRef.current[synthName];
+      const instrument = synthData[synthName];
+
       if (part && instrument?.patterns) {
         part.clear();
         instrument.patterns.forEach((patternGrid, measureIndex) => {
-          patternGrid.forEach(item => {
-            if (item.note) {
-              const absoluteTime =
-                Tone.Time(item.time).toSeconds() +
-                Tone.Time(`${measureIndex}m`).toSeconds();
-              part.add(absoluteTime, item);
-            }
-          });
+          patternGrid
+            .filter(item => item.note)
+            .forEach(item => {
+              part.add(calculateAbsoluteTime(item.time, measureIndex), item);
+            });
         });
         part.loopEnd = `${instrument.patterns.length}m`;
       }
