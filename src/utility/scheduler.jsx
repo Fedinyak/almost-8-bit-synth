@@ -33,6 +33,23 @@ const TimerTransport = () => {
     return drumIndex * DRUM_PHASE_OFFSET;
   };
 
+  const calculateAbsoluteTime = (time, measureIndex) => {
+    return (
+      Tone.Time(time).toSeconds() + Tone.Time(`${measureIndex}m`).toSeconds()
+    );
+  };
+
+  const cleanupAudioResources = ({ synths, parts, drumEngine, drumPart }) => {
+    const audioResources = [
+      ...Object.values(parts),
+      ...Object.values(synths),
+      ...Object.values(drumEngine || {}),
+      drumPart,
+    ];
+
+    audioResources.filter(Boolean).forEach(res => res.dispose());
+  };
+
   // Synth and drum create
   useEffect(() => {
     // Synth create
@@ -54,14 +71,6 @@ const TimerTransport = () => {
   useEffect(() => {
     synthList.forEach(synthName => {
       const synthPart = new Tone.Part((time, value) => {
-        // console.log(
-        //   time,
-        //   value,
-        //   synthEnginesRef,
-        //   synthEnginesRef.current[synthName],
-        //   synthName,
-        //   "synthEnginesRef.current[synthName]",
-        // );
         synthEnginesRef.current[synthName].triggerAttackRelease(
           value.note,
           value.duration,
@@ -119,39 +128,23 @@ const TimerTransport = () => {
     drumPart.loop = true;
     drumsPartRef.current = drumPart;
 
-    return () => {
-      // Clean audio and refs
-
-      // Object.keys(synthPartRef.current).forEach(id => {
-      //   synthPartRef.current[id].dispose();
-      //   synthEnginesRef.current[id].dispose();
-      // });
-      // if (drumsPartRef.current) drumsPartRef.current.dispose();
-      // if (drumsEngineRef.current) {
-      //   Object.values(drumsEngineRef.current).forEach(synth => synth.dispose());
-      // }
-      Object.values(synthPartRef.current).forEach(part => part?.dispose());
-      Object.values(synthEnginesRef.current).forEach(synth => synth?.dispose());
-
-      drumsPartRef.current?.dispose();
-      Object.values(drumsEngineRef.current || {}).forEach(synth =>
-        synth?.dispose(),
-      );
-
+    const shutdownEngine = () => {
+      cleanupAudioResources({
+        synths: synthEnginesRef.current,
+        parts: synthPartRef.current,
+        drumEngine: drumsEngineRef.current,
+        drumPart: drumsPartRef.current,
+      });
       synthEnginesRef.current = {};
       synthPartRef.current = {};
       drumsEngineRef.current = null;
       drumsPartRef.current = null;
     };
-  }, []);
+
+    return () => shutdownEngine();
+  }, [synthList]);
 
   // Note and patterns list
-
-  const calculateAbsoluteTime = (time, measureIndex) => {
-    return (
-      Tone.Time(time).toSeconds() + Tone.Time(`${measureIndex}m`).toSeconds()
-    );
-  };
 
   useEffect(() => {
     // Synth
@@ -182,8 +175,8 @@ const TimerTransport = () => {
           ([drumName, trackSteps], drumIndex) => {
             if (!Array.isArray(trackSteps)) return;
 
-            const noteToPlay = drumNoteMap[drumName];
-            if (!noteToPlay) return;
+            const note = drumNoteMap[drumName];
+            if (!note) return;
 
             trackSteps.forEach((isHit, stepIndex) => {
               if (isHit === 1) {
@@ -192,7 +185,7 @@ const TimerTransport = () => {
                   calculateAbsoluteTime(stepTime, measureIndex) +
                   microTimingOffset(drumIndex);
 
-                drumPart.add(startTime, { note: noteToPlay });
+                drumPart.add(startTime, { note });
               }
             });
           },
