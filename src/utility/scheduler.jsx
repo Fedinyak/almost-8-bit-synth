@@ -7,6 +7,7 @@ import createSynth from "./synthEngine";
 import createDrums from "./drumEngine";
 
 const steps = 16;
+const drumNoteMap = noteAndKeyMap.drumNoteMap;
 
 const TimerTransport = () => {
   const dispatch = useDispatch();
@@ -18,7 +19,6 @@ const TimerTransport = () => {
   const sequencerPlayState = useSelector(
     state => state.sequencer.sequencerPlayState,
   );
-  const drumNoteMap = noteAndKeyMap.drumNoteMap;
 
   // Используем общую длину всех паттернов (16 шагов * количество тактов)
   const totalSteps = (drumsList?.patterns?.length || 1) * steps;
@@ -27,6 +27,11 @@ const TimerTransport = () => {
   const synthPartRef = useRef({});
   const drumsEngineRef = useRef(null);
   const drumsPartRef = useRef(null);
+
+  const microTimingOffset = drumIndex => {
+    const DRUM_PHASE_OFFSET = 0.001;
+    return drumIndex * DRUM_PHASE_OFFSET;
+  };
 
   // Synth and drum create
   useEffect(() => {
@@ -172,35 +177,30 @@ const TimerTransport = () => {
     if (drumPart && drumsList?.patterns) {
       drumPart.clear();
 
-      drumsList.patterns.forEach((patternObj, measureIndex) => {
-        Object.keys(patternObj).forEach((drumName, drumIdx) => {
-          const trackSteps = patternObj[drumName];
+      drumsList.patterns.forEach((drumsInMeasure, measureIndex) => {
+        Object.entries(drumsInMeasure).forEach(
+          ([drumName, trackSteps], drumIndex) => {
+            if (!Array.isArray(trackSteps)) return;
 
-          if (Array.isArray(trackSteps)) {
+            const noteToPlay = drumNoteMap[drumName];
+            if (!noteToPlay) return;
+
             trackSteps.forEach((isHit, stepIndex) => {
               if (isHit === 1) {
                 const stepTime = `0:0:${stepIndex}`;
-                // add (drumIdx * 0.001)
-                // Это разносит инструменты на 1 миллисекунду друг от друга, убирая ошибку
-                const absoluteTime =
-                  Tone.Time(stepTime).toSeconds() +
-                  Tone.Time(`${measureIndex}m`).toSeconds() +
-                  drumIdx * 0.001;
+                const startTime =
+                  calculateAbsoluteTime(stepTime, measureIndex) +
+                  microTimingOffset(drumIndex);
 
-                const noteToPlay = drumNoteMap[drumName];
-
-                if (noteToPlay) {
-                  drumPart.add(absoluteTime, { note: noteToPlay });
-                }
+                drumPart.add(startTime, { note: noteToPlay });
               }
             });
-          }
-        });
+          },
+        );
       });
       drumPart.loopEnd = `${drumsList.patterns.length}m`;
     }
-    // eslint-disable-next-line react-hooks/refs
-  }, [synthData, drumsList, synthList, drumsPartRef.current]);
+  }, [synthData, drumsList, synthList]);
 
   // Transport controller
   useEffect(() => {
