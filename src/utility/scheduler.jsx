@@ -5,9 +5,18 @@ import { setCurrentStep } from "../slices/sequencerSlice";
 import noteAndKeyMap from "../constants.js/noteAndKeyMap";
 import createSynth from "./synthEngine";
 import createDrums from "./drumEngine";
+import {
+  calculateAbsoluteTime,
+  cleanupAudioResources,
+  compensateLatency,
+  microTimingOffset,
+  playDrumHit,
+  playSynthNote,
+} from "./audioEngineUtils";
 
 const steps = 16;
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
+const DEFAULT_DRUM_DURATION = "32n";
 
 const TimerTransport = () => {
   const dispatch = useDispatch();
@@ -28,28 +37,6 @@ const TimerTransport = () => {
   const drumsEngineRef = useRef(null);
   const drumsPartRef = useRef(null);
 
-  const microTimingOffset = drumIndex => {
-    const DRUM_PHASE_OFFSET = 0.001;
-    return drumIndex * DRUM_PHASE_OFFSET;
-  };
-
-  const calculateAbsoluteTime = (time, measureIndex) => {
-    return (
-      Tone.Time(time).toSeconds() + Tone.Time(`${measureIndex}m`).toSeconds()
-    );
-  };
-
-  const cleanupAudioResources = ({ synths, parts, drumEngine, drumPart }) => {
-    const audioResources = [
-      ...Object.values(parts),
-      ...Object.values(synths),
-      ...Object.values(drumEngine || {}),
-      drumPart,
-    ];
-
-    audioResources.filter(Boolean).forEach(res => res.dispose());
-  };
-
   // Synth and drum create
   useEffect(() => {
     // Synth create
@@ -65,31 +52,32 @@ const TimerTransport = () => {
     }
   }, []);
 
-  // const playSynthNote = (synth, time, value) => {};
-
   // Make pattern
   useEffect(() => {
     synthList.forEach(synthName => {
-      const synthPart = new Tone.Part((time, value) => {
-        synthEnginesRef.current[synthName].triggerAttackRelease(
-          value.note,
-          value.duration,
-          time,
-        );
+      const synthPart = new Tone.Part((time, noteData) => {
+        const currentSynth = synthEnginesRef.current[synthName];
+
+        if (currentSynth) {
+          playSynthNote(currentSynth, time, noteData);
+        }
       }, []).start(0);
 
       synthPart.loop = true;
       synthPartRef.current[synthName] = synthPart;
     });
 
-    const drumPart = new Tone.Part((time, value) => {
-      const engine = drumsEngineRef.current;
-      // Используем Tone.Transport.seconds для синхронизации,
-      // но прибавляем крошечный буфер Tone.immediate(), чтобы избежать "прошлого"
-      const playTime = Math.max(time, Tone.now() + 0.01);
+    const drumPart = new Tone.Part((time, noteData) => {
+      const drumEngine = drumsEngineRef.current;
+      if (!drumEngine) return;
 
-      const drumNote = drumNoteMap[value.note];
-      engine[drumNote].triggerAttackRelease("32n", playTime);
+      const playTime = compensateLatency(time);
+      const noteKey = drumNoteMap[noteData.note];
+      const drumInstrument = drumEngine[noteKey];
+
+      if (drumInstrument) {
+        playDrumHit(drumInstrument, DEFAULT_DRUM_DURATION, playTime);
+      }
       // console.log(
       //   engine[drumNote],
       //   // value,
@@ -145,7 +133,6 @@ const TimerTransport = () => {
   }, [synthList]);
 
   // Note and patterns list
-
   useEffect(() => {
     // Synth
     synthList.forEach(synthName => {
