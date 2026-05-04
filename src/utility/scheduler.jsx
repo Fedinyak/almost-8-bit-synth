@@ -3,18 +3,20 @@ import * as Tone from "tone";
 import { useDispatch, useSelector } from "react-redux";
 import { setCurrentStep } from "../slices/sequencerSlice";
 import noteAndKeyMap from "../constants.js/noteAndKeyMap";
-import createSynth from "./synthEngine";
-import createDrums from "./drumEngine";
 import {
   calculateAbsoluteTime,
   calculateCurrentStep,
   cleanupAudioResources,
   compensateLatency,
   getTotalSteps,
+  initializeDrums,
+  initializeSynths,
   microTimingOffset,
   playDrumHit,
   playSynthNote,
   scheduleFrame,
+  setEngineBpm,
+  setPlayState,
   startDrawingLoop,
   stopDrawingLoop,
 } from "./audioEngineUtils";
@@ -35,8 +37,6 @@ const TimerTransport = () => {
     state => state.sequencer.sequencerPlayState,
   );
 
-  // Используем общую длину всех паттернов (16 шагов * количество тактов)
-  // const totalSteps = (drumsList?.patterns?.length || 1) * steps;
   const totalSteps = getTotalSteps(drumsList?.patterns, STEPS_IN_MEASURE);
 
   const synthEnginesRef = useRef({});
@@ -52,19 +52,22 @@ const TimerTransport = () => {
     });
   };
 
-  // Synth and drum create
-  useEffect(() => {
-    // Synth create
-    synthList.forEach(synthName => {
-      if (!synthEnginesRef.current[synthName]) {
-        synthEnginesRef.current[synthName] = createSynth();
-      }
+  const shutdownEngine = () => {
+    cleanupAudioResources({
+      synths: synthEnginesRef.current,
+      parts: synthPartRef.current,
+      drumEngine: drumsEngineRef.current,
+      drumPart: drumsPartRef.current,
     });
+    synthEnginesRef.current = {};
+    synthPartRef.current = {};
+    drumsEngineRef.current = null;
+    drumsPartRef.current = null;
+  };
 
-    // Drums create
-    if (!drumsEngineRef.current) {
-      drumsEngineRef.current = createDrums();
-    }
+  useEffect(() => {
+    initializeSynths(synthList, synthEnginesRef.current);
+    initializeDrums(drumsEngineRef);
   }, []);
 
   // Make pattern
@@ -131,19 +134,6 @@ const TimerTransport = () => {
     drumPart.loop = true;
     drumsPartRef.current = drumPart;
 
-    const shutdownEngine = () => {
-      cleanupAudioResources({
-        synths: synthEnginesRef.current,
-        parts: synthPartRef.current,
-        drumEngine: drumsEngineRef.current,
-        drumPart: drumsPartRef.current,
-      });
-      synthEnginesRef.current = {};
-      synthPartRef.current = {};
-      drumsEngineRef.current = null;
-      drumsPartRef.current = null;
-    };
-
     return () => shutdownEngine();
   }, [synthList]);
 
@@ -208,13 +198,12 @@ const TimerTransport = () => {
 
   // Transport controller
   useEffect(() => {
-    if (sequencerPlayState === "start") Tone.Transport.start();
-    else Tone.Transport.stop();
+    setPlayState(sequencerPlayState);
   }, [sequencerPlayState]);
 
   // BPM
   useEffect(() => {
-    Tone.Transport.bpm.value = bpm;
+    setEngineBpm(bpm);
   }, [bpm]);
 
   return null;

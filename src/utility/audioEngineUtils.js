@@ -1,4 +1,6 @@
 import * as Tone from "tone";
+import createSynth from "./synthEngine";
+import createDrums from "./drumEngine";
 
 const STEPS_PER_BEAT = 4;
 
@@ -34,6 +36,20 @@ export const compensateLatency = plannedTime => {
   return Math.max(plannedTime, Tone.now() + SCHEDULING_LOOKAHEAD_SEC);
 };
 
+export const initializeSynths = (synthList, enginesRef) => {
+  synthList.forEach(synthName => {
+    if (!enginesRef[synthName]) {
+      enginesRef[synthName] = createSynth();
+    }
+  });
+};
+
+export const initializeDrums = drumsRef => {
+  if (!drumsRef.current) {
+    drumsRef.current = createDrums();
+  }
+};
+
 export const playSynthNote = (synth, time, noteData) => {
   synth.triggerAttackRelease(noteData.note, noteData.duration, time);
 };
@@ -61,3 +77,15 @@ export const startDrawingLoop = (callback, rate) =>
   Tone.Transport.scheduleRepeat(callback, rate);
 
 export const stopDrawingLoop = id => Tone.Transport.clear(id);
+
+export const setEngineBpm = bpmValue => {
+  Tone.Transport.bpm.value = bpmValue;
+};
+
+export const setPlayState = state => {
+  if (state === "start") {
+    Tone.Transport.start();
+  } else {
+    Tone.Transport.stop();
+  }
+};
