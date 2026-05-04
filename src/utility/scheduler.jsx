@@ -7,16 +7,22 @@ import createSynth from "./synthEngine";
 import createDrums from "./drumEngine";
 import {
   calculateAbsoluteTime,
+  calculateCurrentStep,
   cleanupAudioResources,
   compensateLatency,
+  getTotalSteps,
   microTimingOffset,
   playDrumHit,
   playSynthNote,
+  scheduleFrame,
+  startDrawingLoop,
+  stopDrawingLoop,
 } from "./audioEngineUtils";
 
-const steps = 16;
+const STEPS_IN_MEASURE = 16;
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
-const DEFAULT_DRUM_DURATION = "32n";
+const DEFAULT_DRUM_RELEASE = "32n";
+const STEP_DURATION_NOTATION = "16n";
 
 const TimerTransport = () => {
   const dispatch = useDispatch();
@@ -30,12 +36,21 @@ const TimerTransport = () => {
   );
 
   // Используем общую длину всех паттернов (16 шагов * количество тактов)
-  const totalSteps = (drumsList?.patterns?.length || 1) * steps;
+  // const totalSteps = (drumsList?.patterns?.length || 1) * steps;
+  const totalSteps = getTotalSteps(drumsList?.patterns, STEPS_IN_MEASURE);
 
   const synthEnginesRef = useRef({});
   const synthPartRef = useRef({});
   const drumsEngineRef = useRef(null);
   const drumsPartRef = useRef(null);
+
+  const handleStepSync = (time, totalSteps, dispatch) => {
+    const currentStep = calculateCurrentStep(time, totalSteps);
+
+    scheduleFrame(time, () => {
+      dispatch(setCurrentStep(currentStep));
+    });
+  };
 
   // Synth and drum create
   useEffect(() => {
@@ -76,7 +91,7 @@ const TimerTransport = () => {
       const drumInstrument = drumEngine[noteKey];
 
       if (drumInstrument) {
-        playDrumHit(drumInstrument, DEFAULT_DRUM_DURATION, playTime);
+        playDrumHit(drumInstrument, DEFAULT_DRUM_RELEASE, playTime);
       }
       // console.log(
       //   engine[drumNote],
@@ -182,6 +197,15 @@ const TimerTransport = () => {
     }
   }, [synthData, drumsList, synthList]);
 
+  useEffect(() => {
+    const drawingProcess = startDrawingLoop(
+      time => handleStepSync(time, totalSteps, dispatch),
+      STEP_DURATION_NOTATION,
+    );
+
+    return () => stopDrawingLoop(drawingProcess);
+  }, [totalSteps, dispatch]);
+
   // Transport controller
   useEffect(() => {
     if (sequencerPlayState === "start") Tone.Transport.start();
@@ -192,20 +216,6 @@ const TimerTransport = () => {
   useEffect(() => {
     Tone.Transport.bpm.value = bpm;
   }, [bpm]);
-
-  // Scheduler
-  useEffect(() => {
-    const repeatId = Tone.Transport.scheduleRepeat(time => {
-      Tone.Draw.schedule(() => {
-        // Рассчитываем шаг с учетом всех тактов
-        const step = Math.floor(
-          (Tone.Transport.ticks / Tone.Transport.PPQ / 0.25) % totalSteps,
-        );
-        dispatch(setCurrentStep(step));
-      }, time);
-    }, "16n");
-    return () => Tone.Transport.clear(repeatId);
-  }, [totalSteps, dispatch]);
 
   return null;
 };

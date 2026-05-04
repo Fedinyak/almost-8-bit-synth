@@ -1,5 +1,7 @@
 import * as Tone from "tone";
 
+const STEPS_PER_BEAT = 4;
+
 export const microTimingOffset = drumIndex => {
   const DRUM_PHASE_OFFSET = 0.001;
   return drumIndex * DRUM_PHASE_OFFSET;
@@ -39,3 +41,23 @@ export const playSynthNote = (synth, time, noteData) => {
 export const playDrumHit = (drumInstrument, drumDuration, playTime) => {
   drumInstrument.triggerAttackRelease(drumDuration, playTime);
 };
+
+export const getTotalSteps = (patterns, stepsPerMeasure = 16) => {
+  const patternsCount = patterns?.length || 1;
+  return patternsCount * stepsPerMeasure;
+};
+
+export const calculateCurrentStep = (time, totalSteps) => {
+  const ticksPerStep = Tone.Transport.PPQ / STEPS_PER_BEAT;
+  const currentTick = Tone.Transport.getTicksAtTime(time);
+
+  return Math.floor(currentTick / ticksPerStep) % totalSteps;
+};
+
+export const scheduleFrame = (time, drawFunction) =>
+  Tone.Draw.schedule(drawFunction, time);
+
+export const startDrawingLoop = (callback, rate) =>
+  Tone.Transport.scheduleRepeat(callback, rate);
+
+export const stopDrawingLoop = id => Tone.Transport.clear(id);
