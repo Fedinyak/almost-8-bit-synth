@@ -4,18 +4,11 @@ import { useDispatch, useSelector } from "react-redux";
 import { setCurrentStep } from "../slices/sequencerSlice";
 import noteAndKeyMap from "../constants.js/noteAndKeyMap";
 import {
-  calculateAbsoluteTime,
   calculateCurrentStep,
   cleanupAudioResources,
-  // compensateLatency,
-  // createDrumPart,
-  // createSynthPart,
   getTotalSteps,
   initializeDrums,
   initializeSynths,
-  microTimingOffset,
-  // playDrumHit,
-  // playSynthNote,
   scheduleFrame,
   setEngineBpm,
   setPlayState,
@@ -23,6 +16,8 @@ import {
   setupSynthPlayback,
   startDrawingLoop,
   stopDrawingLoop,
+  syncDrumPatternsToTrack,
+  syncInstrumentPatternsToTrack,
 } from "./audioEngineUtils";
 
 const STEPS_IN_MEASURE = 16;
@@ -91,52 +86,14 @@ const TimerTransport = () => {
 
   // Note and patterns list
   useEffect(() => {
-    // Synth
     synthList.forEach(synthName => {
-      const part = synthPartRef.current[synthName];
-      const instrument = synthData[synthName];
-
-      if (part && instrument?.patterns) {
-        part.clear();
-        instrument.patterns.forEach((patternGrid, measureIndex) => {
-          patternGrid
-            .filter(item => item.note)
-            .forEach(item => {
-              part.add(calculateAbsoluteTime(item.time, measureIndex), item);
-            });
-        });
-        part.loopEnd = `${instrument.patterns.length}m`;
-      }
+      syncInstrumentPatternsToTrack(
+        synthPartRef.current[synthName],
+        synthData[synthName],
+      );
     });
 
-    // Drum
-    const drumPart = drumsPartRef.current;
-    if (drumPart && drumsList?.patterns) {
-      drumPart.clear();
-
-      drumsList.patterns.forEach((drumsInMeasure, measureIndex) => {
-        Object.entries(drumsInMeasure).forEach(
-          ([drumName, trackSteps], drumIndex) => {
-            if (!Array.isArray(trackSteps)) return;
-
-            const note = drumNoteMap[drumName];
-            if (!note) return;
-
-            trackSteps.forEach((isHit, stepIndex) => {
-              if (isHit === 1) {
-                const stepTime = `0:0:${stepIndex}`;
-                const startTime =
-                  calculateAbsoluteTime(stepTime, measureIndex) +
-                  microTimingOffset(drumIndex);
-
-                drumPart.add(startTime, { note });
-              }
-            });
-          },
-        );
-      });
-      drumPart.loopEnd = `${drumsList.patterns.length}m`;
-    }
+    syncDrumPatternsToTrack(drumsPartRef.current, drumsList, drumNoteMap);
   }, [synthData, drumsList, synthList]);
 
   useEffect(() => {
@@ -153,7 +110,6 @@ const TimerTransport = () => {
     setPlayState(sequencerPlayState);
   }, [sequencerPlayState]);
 
-  // BPM
   useEffect(() => {
     setEngineBpm(bpm);
   }, [bpm]);

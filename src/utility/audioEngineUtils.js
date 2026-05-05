@@ -124,3 +124,63 @@ export const setPlayState = state => {
     Tone.Transport.stop();
   }
 };
+
+export const clearTrackNotes = track => {
+  track.clear();
+};
+
+// Записать конкретную ноту на дорожку в нужное время
+export const writeNoteToTrack = (track, time, noteData) => {
+  track.add(time, noteData);
+};
+
+export const setTrackLoopDuration = (track, numberOfMeasures) => {
+  track.loopEnd = `${numberOfMeasures}m`;
+};
+
+export const syncInstrumentPatternsToTrack = (track, instrumentData) => {
+  if (!track || !instrumentData?.patterns) return;
+
+  clearTrackNotes(track);
+
+  // 2. Проходим по каждому такту (measure)
+  instrumentData.patterns.forEach((patternGrid, measureIndex) => {
+    patternGrid
+      .filter(item => item.note)
+      .forEach(item => {
+        const startTime = calculateAbsoluteTime(item.time, measureIndex);
+        writeNoteToTrack(track, startTime, item);
+      });
+  });
+
+  setTrackLoopDuration(track, instrumentData.patterns.length);
+};
+
+export const syncDrumPatternsToTrack = (track, drumsData, drumNoteMap) => {
+  if (!track || !drumsData?.patterns) return;
+  clearTrackNotes(track);
+
+  drumsData.patterns.forEach((drumsInMeasure, measureIndex) => {
+    Object.entries(drumsInMeasure).forEach(
+      ([drumName, trackSteps], drumIndex) => {
+        if (!Array.isArray(trackSteps)) return;
+
+        const note = drumNoteMap[drumName];
+        if (!note) return;
+
+        trackSteps.forEach((isHit, stepIndex) => {
+          if (isHit === 1) {
+            const stepTime = `0:0:${stepIndex}`;
+            const startTime =
+              calculateAbsoluteTime(stepTime, measureIndex) +
+              microTimingOffset(drumIndex);
+
+            writeNoteToTrack(track, startTime, { note });
+          }
+        });
+      },
+    );
+  });
+
+  setTrackLoopDuration(track, drumsData.patterns.length);
+};
