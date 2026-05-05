@@ -184,3 +184,17 @@ export const syncDrumPatternsToTrack = (track, drumsData, drumNoteMap) => {
 
   setTrackLoopDuration(track, drumsData.patterns.length);
 };
+
+export const stopAllAudio = refs => {
+  cleanupAudioResources({
+    synths: refs.synths.current,
+    parts: refs.parts.current,
+    drumEngine: refs.drumsEngine.current,
+    drumPart: refs.drumsPart.current,
+  });
+
+  refs.synths.current = {};
+  refs.parts.current = {};
+  refs.drumsEngine.current = null;
+  refs.drumsPart.current = null;
+};

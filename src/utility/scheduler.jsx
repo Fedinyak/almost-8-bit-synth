@@ -1,11 +1,9 @@
 import { useEffect, useRef } from "react";
-import * as Tone from "tone";
 import { useDispatch, useSelector } from "react-redux";
 import { setCurrentStep } from "../slices/sequencerSlice";
 import noteAndKeyMap from "../constants.js/noteAndKeyMap";
 import {
   calculateCurrentStep,
-  cleanupAudioResources,
   getTotalSteps,
   initializeDrums,
   initializeSynths,
@@ -15,6 +13,7 @@ import {
   setupDrumsPlayback,
   setupSynthPlayback,
   startDrawingLoop,
+  stopAllAudio,
   stopDrawingLoop,
   syncDrumPatternsToTrack,
   syncInstrumentPatternsToTrack,
@@ -24,6 +23,14 @@ const STEPS_IN_MEASURE = 16;
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
 const DEFAULT_DRUM_RELEASE = "32n";
 const STEP_DURATION_NOTATION = "16n";
+
+const handleStepSync = (time, totalSteps, dispatch) => {
+  const currentStep = calculateCurrentStep(time, totalSteps);
+
+  scheduleFrame(time, () => {
+    dispatch(setCurrentStep(currentStep));
+  });
+};
 
 const TimerTransport = () => {
   const dispatch = useDispatch();
@@ -43,27 +50,6 @@ const TimerTransport = () => {
   const drumsEngineRef = useRef(null);
   const drumsPartRef = useRef(null);
 
-  const handleStepSync = (time, totalSteps, dispatch) => {
-    const currentStep = calculateCurrentStep(time, totalSteps);
-
-    scheduleFrame(time, () => {
-      dispatch(setCurrentStep(currentStep));
-    });
-  };
-
-  const stopAllPlayback = () => {
-    cleanupAudioResources({
-      synths: synthEnginesRef.current,
-      parts: synthPartRef.current,
-      drumEngine: drumsEngineRef.current,
-      drumPart: drumsPartRef.current,
-    });
-    synthEnginesRef.current = {};
-    synthPartRef.current = {};
-    drumsEngineRef.current = null;
-    drumsPartRef.current = null;
-  };
-
   useEffect(() => {
     initializeSynths(synthList, synthEnginesRef.current);
     initializeDrums(drumsEngineRef);
@@ -81,10 +67,15 @@ const TimerTransport = () => {
       DEFAULT_DRUM_RELEASE,
     );
 
-    return () => stopAllPlayback();
+    return () =>
+      stopAllAudio({
+        synths: synthEnginesRef,
+        parts: synthPartRef,
+        drumsEngine: drumsEngineRef,
+        drumsPart: drumsPartRef,
+      });
   }, [synthList]);
 
-  // Note and patterns list
   useEffect(() => {
     synthList.forEach(synthName => {
       syncInstrumentPatternsToTrack(
