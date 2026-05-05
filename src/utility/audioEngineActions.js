@@ -1,19 +1,19 @@
 import * as Tone from "tone";
 import createSynth from "./synthEngine";
 import createDrums from "./drumEngine";
+import {
+  clearTrackNotes,
+  createPlaybackTrack,
+  setTrackLoopDuration,
+  writeNoteToTrack,
+} from "./audioEngineCore";
+import {
+  calculateAbsoluteTime,
+  compensateLatency,
+  microTimingOffset,
+} from "./audioMathUtils";
 
 const STEPS_PER_BEAT = 4;
-
-export const microTimingOffset = drumIndex => {
-  const DRUM_PHASE_OFFSET = 0.001;
-  return drumIndex * DRUM_PHASE_OFFSET;
-};
-
-export const calculateAbsoluteTime = (time, measureIndex) => {
-  return (
-    Tone.Time(time).toSeconds() + Tone.Time(`${measureIndex}m`).toSeconds()
-  );
-};
 
 export const cleanupAudioResources = ({
   synths,
@@ -31,11 +31,6 @@ export const cleanupAudioResources = ({
   audioResources.filter(Boolean).forEach(res => res.dispose());
 };
 
-export const compensateLatency = plannedTime => {
-  const SCHEDULING_LOOKAHEAD_SEC = 0.01;
-  return Math.max(plannedTime, Tone.now() + SCHEDULING_LOOKAHEAD_SEC);
-};
-
 export const initializeSynths = (synthList, enginesRef) => {
   synthList.forEach(synthName => {
     if (!enginesRef[synthName]) {
@@ -50,11 +45,6 @@ export const initializeDrums = drumsRef => {
   }
 };
 
-const createPlaybackTrack = onStepAction => {
-  const track = new Tone.Part(onStepAction, []).start(0);
-  track.loop = true;
-  return track;
-};
 export const setupSynthPlayback = (synthName, enginesRef, tracksRef) => {
   if (tracksRef[synthName]) return;
 
@@ -91,51 +81,6 @@ export const playSynthNote = (synth, time, noteData) => {
 
 export const playDrumHit = (drumInstrument, drumDuration, playTime) => {
   drumInstrument.triggerAttackRelease(drumDuration, playTime);
-};
-
-export const getTotalSteps = (patterns, stepsPerMeasure = 16) => {
-  const patternsCount = patterns?.length || 1;
-  return patternsCount * stepsPerMeasure;
-};
-
-export const calculateCurrentStep = (time, totalSteps) => {
-  const ticksPerStep = Tone.Transport.PPQ / STEPS_PER_BEAT;
-  const currentTick = Tone.Transport.getTicksAtTime(time);
-
-  return Math.floor(currentTick / ticksPerStep) % totalSteps;
-};
-
-export const scheduleFrame = (time, drawFunction) =>
-  Tone.Draw.schedule(drawFunction, time);
-
-export const startDrawingLoop = (callback, rate) =>
-  Tone.Transport.scheduleRepeat(callback, rate);
-
-export const stopDrawingLoop = id => Tone.Transport.clear(id);
-
-export const setEngineBpm = bpmValue => {
-  Tone.Transport.bpm.value = bpmValue;
-};
-
-export const setPlayState = state => {
-  if (state === "start") {
-    Tone.Transport.start();
-  } else {
-    Tone.Transport.stop();
-  }
-};
-
-export const clearTrackNotes = track => {
-  track.clear();
-};
-
-// Записать конкретную ноту на дорожку в нужное время
-export const writeNoteToTrack = (track, time, noteData) => {
-  track.add(time, noteData);
-};
-
-export const setTrackLoopDuration = (track, numberOfMeasures) => {
-  track.loopEnd = `${numberOfMeasures}m`;
 };
 
 export const syncInstrumentPatternsToTrack = (track, instrumentData) => {

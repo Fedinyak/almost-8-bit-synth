@@ -7,22 +7,23 @@ import {
   DEFAULT_DRUM_RELEASE,
   STEP_DURATION_NOTATION,
 } from "../constants/constants";
+import { calculateCurrentStep, getTotalSteps } from "./audioMathUtils";
 import {
-  calculateCurrentStep,
-  getTotalSteps,
-  initializeDrums,
-  initializeSynths,
   scheduleFrame,
   setEngineBpm,
   setPlayState,
+  startDrawingLoop,
+  stopDrawingLoop,
+} from "./audioEngineCore";
+import {
+  initializeDrums,
+  initializeSynths,
   setupDrumsPlayback,
   setupSynthPlayback,
-  startDrawingLoop,
   stopAllAudio,
-  stopDrawingLoop,
   syncDrumPatternsToTrack,
   syncInstrumentPatternsToTrack,
-} from "./audioEngineUtils";
+} from "./audioEngineActions";
 
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
 
