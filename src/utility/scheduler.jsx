@@ -7,16 +7,20 @@ import {
   calculateAbsoluteTime,
   calculateCurrentStep,
   cleanupAudioResources,
-  compensateLatency,
+  // compensateLatency,
+  // createDrumPart,
+  // createSynthPart,
   getTotalSteps,
   initializeDrums,
   initializeSynths,
   microTimingOffset,
-  playDrumHit,
-  playSynthNote,
+  // playDrumHit,
+  // playSynthNote,
   scheduleFrame,
   setEngineBpm,
   setPlayState,
+  setupDrumsPlayback,
+  setupSynthPlayback,
   startDrawingLoop,
   stopDrawingLoop,
 } from "./audioEngineUtils";
@@ -52,7 +56,7 @@ const TimerTransport = () => {
     });
   };
 
-  const shutdownEngine = () => {
+  const stopAllPlayback = () => {
     cleanupAudioResources({
       synths: synthEnginesRef.current,
       parts: synthPartRef.current,
@@ -70,71 +74,19 @@ const TimerTransport = () => {
     initializeDrums(drumsEngineRef);
   }, []);
 
-  // Make pattern
   useEffect(() => {
-    synthList.forEach(synthName => {
-      const synthPart = new Tone.Part((time, noteData) => {
-        const currentSynth = synthEnginesRef.current[synthName];
-
-        if (currentSynth) {
-          playSynthNote(currentSynth, time, noteData);
-        }
-      }, []).start(0);
-
-      synthPart.loop = true;
-      synthPartRef.current[synthName] = synthPart;
+    synthList.forEach(name => {
+      setupSynthPlayback(name, synthEnginesRef.current, synthPartRef.current);
     });
 
-    const drumPart = new Tone.Part((time, noteData) => {
-      const drumEngine = drumsEngineRef.current;
-      if (!drumEngine) return;
+    setupDrumsPlayback(
+      drumsEngineRef,
+      drumsPartRef,
+      drumNoteMap,
+      DEFAULT_DRUM_RELEASE,
+    );
 
-      const playTime = compensateLatency(time);
-      const noteKey = drumNoteMap[noteData.note];
-      const drumInstrument = drumEngine[noteKey];
-
-      if (drumInstrument) {
-        playDrumHit(drumInstrument, DEFAULT_DRUM_RELEASE, playTime);
-      }
-      // console.log(
-      //   engine[drumNote],
-      //   // value,
-      //   "engine[drumNote].engine[drumNote].engine[drumNote].engine[drumNote].",
-      // );
-      // switch (value.note) {
-      //   case "C1":
-      //     engine.kick.triggerAttackRelease("C1", "8n", playTime);
-      //     break;
-      //   case "D1":
-      //     engine.snare.triggerAttackRelease("16n", playTime);
-      //     break;
-      //   case "E1":
-      //     engine.hiHat.triggerAttackRelease("32n", playTime);
-      //     break;
-      //   case "F1":
-      //     engine.hiHatClose.triggerAttackRelease("32n", playTime);
-      //     break;
-      //   case "G1":
-      //     engine.hiHatOpen.triggerAttackRelease("8n", playTime);
-      //     break;
-      //   case "A1":
-      //     engine.crash.triggerAttackRelease("G2", "1n", playTime);
-      //     break;
-      //   case "B1":
-      //     engine.ride.triggerAttackRelease("A2", "4n", playTime);
-      //     break;
-      //   case "C2":
-      //     engine.tom.triggerAttackRelease("G2", "16n", playTime);
-      //     break;
-      //   default:
-      //     break;
-      // }
-    }, []).start(0);
-
-    drumPart.loop = true;
-    drumsPartRef.current = drumPart;
-
-    return () => shutdownEngine();
+    return () => stopAllPlayback();
   }, [synthList]);
 
   // Note and patterns list

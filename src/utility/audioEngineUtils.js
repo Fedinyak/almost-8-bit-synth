@@ -50,6 +50,41 @@ export const initializeDrums = drumsRef => {
   }
 };
 
+const createPlaybackTrack = onStepAction => {
+  const track = new Tone.Part(onStepAction, []).start(0);
+  track.loop = true;
+  return track;
+};
+export const setupSynthPlayback = (synthName, enginesRef, tracksRef) => {
+  if (tracksRef[synthName]) return;
+
+  tracksRef[synthName] = createPlaybackTrack((time, noteData) => {
+    const engine = enginesRef[synthName];
+    if (engine) playSynthNote(engine, time, noteData);
+  });
+};
+
+export const setupDrumsPlayback = (
+  drumsEngineRef,
+  drumsTrackRef,
+  drumNoteMap,
+  release,
+) => {
+  if (drumsTrackRef.current) return;
+
+  drumsTrackRef.current = createPlaybackTrack((time, noteData) => {
+    const engine = drumsEngineRef.current;
+    if (!engine) return;
+
+    const instrumentName = drumNoteMap[noteData.note];
+    const instrument = engine[instrumentName];
+
+    if (instrument) {
+      const playTime = compensateLatency(time);
+      playDrumHit(instrument, release, playTime);
+    }
+  });
+};
 export const playSynthNote = (synth, time, noteData) => {
   synth.triggerAttackRelease(noteData.note, noteData.duration, time);
 };
