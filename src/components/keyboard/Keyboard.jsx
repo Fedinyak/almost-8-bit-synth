@@ -9,7 +9,7 @@ import {
 // import playSound from "../../utility/playSound";
 import getNote from "../../utility/getNote";
 import KeyboardKey from "./KeyboardKey";
-import noteAndKeyMap from "../../constants.js/noteAndKeyMap.js";
+import noteAndKeyMap from "../../constants/noteAndKeyMap.js";
 
 const OctaveSelector = () => {
   const dispatch = useDispatch();

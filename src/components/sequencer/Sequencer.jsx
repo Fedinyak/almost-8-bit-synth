@@ -4,7 +4,7 @@ import Cell from "./Cell";
 import TimerTransport from "../../utility/scheduler";
 import SequencerControlPanel from "./SequencerControlPanel";
 import StepIndicator from "./StepIndicator";
-import noteAndKeyMap from "../../constants.js/noteAndKeyMap";
+import noteAndKeyMap from "../../constants/noteAndKeyMap";
 // import SequencerGrid from "./-SequencerGrid";
 import SequencerDrumGrid from "./SequencerDrumGrid";
 // import BpmVisualizer from "./BpmVisualizer";

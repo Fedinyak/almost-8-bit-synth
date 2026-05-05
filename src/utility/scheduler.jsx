@@ -1,7 +1,12 @@
 import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setCurrentStep } from "../slices/sequencerSlice";
-import noteAndKeyMap from "../constants.js/noteAndKeyMap";
+import noteAndKeyMap from "../constants/noteAndKeyMap";
+import {
+  STEPS_IN_MEASURE,
+  DEFAULT_DRUM_RELEASE,
+  STEP_DURATION_NOTATION,
+} from "../constants/constants";
 import {
   calculateCurrentStep,
   getTotalSteps,
@@ -19,10 +24,7 @@ import {
   syncInstrumentPatternsToTrack,
 } from "./audioEngineUtils";
 
-const STEPS_IN_MEASURE = 16;
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
-const DEFAULT_DRUM_RELEASE = "32n";
-const STEP_DURATION_NOTATION = "16n";
 
 const handleStepSync = (time, totalSteps, dispatch) => {
   const currentStep = calculateCurrentStep(time, totalSteps);
