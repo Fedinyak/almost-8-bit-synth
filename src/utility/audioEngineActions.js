@@ -13,8 +13,6 @@ import {
   microTimingOffset,
 } from "./audioMathUtils";
 
-const STEPS_PER_BEAT = 4;
-
 export const cleanupAudioResources = ({
   synths,
   parts,
