@@ -1,21 +1,22 @@
-import { useSelector } from "react-redux";
-import getNote from "../../utility/getNote";
-import Cell from "./Cell";
-import TimerTransport from "../../utility/scheduler";
-import SequencerControlPanel from "./SequencerControlPanel";
-import StepIndicator from "./StepIndicator";
-import noteAndKeyMap from "../../constants/noteAndKeyMap";
+import { useSelector } from 'react-redux';
+import getNote from '../../utility/getNote';
+import Cell from './Cell';
+import TimerTransport from '../../utility/scheduler';
+import SequencerControlPanel from './SequencerControlPanel';
+import StepIndicator from './StepIndicator';
+import noteAndKeyMap from '../../constants/noteAndKeyMap';
 // import SequencerGrid from "./-SequencerGrid";
-import SequencerDrumGrid from "./SequencerDrumGrid";
+import SequencerDrumGrid from './SequencerDrumGrid';
+import { SYNTH_LIST } from '../../constants/constants';
 // import BpmVisualizer from "./BpmVisualizer";
 
 const Sequencer = () => {
-  const octave = useSelector(state => state.note.octave);
+  const octave = useSelector((state) => state.note.octave);
   const currentPattern = useSelector(
-    state => state.sequencer.currentPatternIndex,
+    (state) => state.sequencer.currentPatternIndex,
   );
-  const synthData = useSelector(state => state.sequencer.synthData);
-  const synthList = useSelector(state => state.sequencer.synthList);
+  const synthData = useSelector((state) => state.sequencer.synthData);
+  // const synthList = useSelector(state => state.sequencer.synthList);
   const keyboardLetter = noteAndKeyMap.keyboardLetter;
   const noteMap = noteAndKeyMap.noteMap;
   const octaveMap = noteAndKeyMap.noteOctaveIndexMap;
@@ -27,7 +28,7 @@ const Sequencer = () => {
       <TimerTransport />
       <SequencerDrumGrid />
       <div className="sequencer-note-title">
-        {keyboardLetter.map(letter => {
+        {keyboardLetter.map((letter) => {
           return (
             <p className="sequencer-note-title-item" key={letter}>
               {getNote(letter, octave, noteMap, octaveMap)}
@@ -35,7 +36,7 @@ const Sequencer = () => {
           );
         })}
       </div>
-      {synthList.map(instrument => {
+      {SYNTH_LIST.map((instrument) => {
         return (
           <>
             <div>{instrument}</div>
@@ -51,7 +52,7 @@ const Sequencer = () => {
                         key={`${stepIndex}-step-${instrument}`}
                         stepIndex={stepIndex}
                       />
-                      {keyboardLetter.map(letter => {
+                      {keyboardLetter.map((letter) => {
                         return (
                           <Cell
                             className="sequencer-cell"

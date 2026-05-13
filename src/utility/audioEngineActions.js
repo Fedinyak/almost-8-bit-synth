@@ -1,17 +1,16 @@
-import * as Tone from "tone";
-import createSynth from "./synthEngine";
-import createDrums from "./drumEngine";
+import createSynth from './synthEngine';
+import createDrums from './drumEngine';
 import {
   clearTrackNotes,
   createPlaybackTrack,
   setTrackLoopDuration,
   writeNoteToTrack,
-} from "./audioEngineCore";
+} from './audioEngineCore';
 import {
   calculateAbsoluteTime,
   compensateLatency,
   microTimingOffset,
-} from "./audioMathUtils";
+} from './audioMathUtils';
 
 export const cleanupAudioResources = ({
   synths,
@@ -26,18 +25,18 @@ export const cleanupAudioResources = ({
     drumPart,
   ];
 
-  audioResources.filter(Boolean).forEach(res => res.dispose());
+  audioResources.filter(Boolean).forEach((res) => res.dispose());
 };
 
 export const initializeSynths = (synthList, enginesRef) => {
-  synthList.forEach(synthName => {
+  synthList.forEach((synthName) => {
     if (!enginesRef[synthName]) {
       enginesRef[synthName] = createSynth();
     }
   });
 };
 
-export const initializeDrums = drumsRef => {
+export const initializeDrums = (drumsRef) => {
   if (!drumsRef.current) {
     drumsRef.current = createDrums();
   }
@@ -89,8 +88,8 @@ export const syncInstrumentPatternsToTrack = (track, instrumentData) => {
   // 2. Проходим по каждому такту (measure)
   instrumentData.patterns.forEach((patternGrid, measureIndex) => {
     patternGrid
-      .filter(item => item.note)
-      .forEach(item => {
+      .filter((item) => item.note)
+      .forEach((item) => {
         const startTime = calculateAbsoluteTime(item.time, measureIndex);
         writeNoteToTrack(track, startTime, item);
       });
@@ -128,7 +127,7 @@ export const syncDrumPatternsToTrack = (track, drumsData, drumNoteMap) => {
   setTrackLoopDuration(track, drumsData.patterns.length);
 };
 
-export const stopAllAudio = refs => {
+export const stopAllAudio = (refs) => {
   cleanupAudioResources({
     synths: refs.synths.current,
     parts: refs.parts.current,

@@ -1,8 +1,8 @@
-import cn from "classnames";
-import { useDispatch } from "react-redux";
-import { setActiveNote } from "../../slices/noteSlice";
-import getNote from "../../utility/getNote";
-import noteAndKeyMap from "../../constants/noteAndKeyMap";
+import cn from 'classnames';
+import { useDispatch } from 'react-redux';
+import { setActiveNote } from '../../slices/noteSlice';
+import getNote from '../../utility/getNote';
+import noteAndKeyMap from '../../constants/noteAndKeyMap';
 
 const KeyboardKey = ({ keyboardLetter, octave, activeNote }) => {
   const dispatch = useDispatch();
@@ -15,7 +15,7 @@ const KeyboardKey = ({ keyboardLetter, octave, activeNote }) => {
   const note = getNote(keyboardLetter, octave, noteMap, octaveMap);
 
   const isKeyAccidental = (keyboardLetter, octave) => {
-    return getNote(keyboardLetter, octave, noteMap, octaveMap).includes("#");
+    return getNote(keyboardLetter, octave, noteMap, octaveMap).includes('#');
   };
 
   const isNoteActive = (letterNote, activeNote) => {
@@ -26,7 +26,7 @@ const KeyboardKey = ({ keyboardLetter, octave, activeNote }) => {
     return false;
   };
 
-  const keyboardStyle = cn("keyboardKey", {
+  const keyboardStyle = cn('keyboardKey', {
     pianoWhiteKey: !isKeyAccidental(keyboardLetter, octave),
     pianoBlackKey: isKeyAccidental(keyboardLetter, octave),
     keyboardActiveKey: isNoteActive(note, activeNote),

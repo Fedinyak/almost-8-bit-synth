@@ -1,4 +1,4 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice } from '@reduxjs/toolkit';
 // import { synth } from "../utility/playSound";
 
 export const NOTES_COUNT = 72; // C1-B6
@@ -15,7 +15,7 @@ export const PATTERN_MAX_COUNT = 16;
 
 const initialState = {
   bpm: 120,
-  sequencerPlayState: "stop",
+  sequencerPlayState: 'stop',
   isLooping: false,
   // grid: createGrid(),
   totalSteps: TOTAL_STEPS,
@@ -26,53 +26,53 @@ const initialState = {
   currentStep: 0,
   viewPage: 0,
   visibleNotesCount: 24,
-  synthList: ["synth1", "synth2"],
+  // synthList: ["synth1", "synth2"],
   synthData: {
     synth1: {
       // type: "synth",
       patterns: [
         [
           // { time: "1:0:0", note: "C5", duration: "2n", velocity: 1.0 },
-          { time: "0:0:0", note: "C4", duration: "8n" },
-          { time: "0:0:1", note: null },
-          { time: "0:0:2", note: null },
-          { time: "0:0:3", note: null },
+          { time: '0:0:0', note: 'C4', duration: '8n' },
+          { time: '0:0:1', note: null },
+          { time: '0:0:2', note: null },
+          { time: '0:0:3', note: null },
 
-          { time: "0:1:0", note: "C4", duration: "8n" },
-          { time: "0:1:1", note: null },
-          { time: "0:1:2", note: null },
-          { time: "0:1:3", note: null },
+          { time: '0:1:0', note: 'C4', duration: '8n' },
+          { time: '0:1:1', note: null },
+          { time: '0:1:2', note: null },
+          { time: '0:1:3', note: null },
 
-          { time: "0:2:0", note: "C4", duration: "8n" },
-          { time: "0:2:1", note: null },
-          { time: "0:2:2", note: null },
-          { time: "0:2:3", note: null },
+          { time: '0:2:0', note: 'C4', duration: '8n' },
+          { time: '0:2:1', note: null },
+          { time: '0:2:2', note: null },
+          { time: '0:2:3', note: null },
 
-          { time: "0:3:0", note: "E4", duration: "8n" },
-          { time: "0:3:1", note: null },
-          { time: "0:3:2", note: null },
-          { time: "0:3:3", note: null },
+          { time: '0:3:0', note: 'E4', duration: '8n' },
+          { time: '0:3:1', note: null },
+          { time: '0:3:2', note: null },
+          { time: '0:3:3', note: null },
         ],
         [
-          { time: "0:0:0", note: "C2", duration: "8n" },
-          { time: "0:0:1", note: null },
-          { time: "0:0:2", note: null },
-          { time: "0:0:3", note: null },
+          { time: '0:0:0', note: 'C2', duration: '8n' },
+          { time: '0:0:1', note: null },
+          { time: '0:0:2', note: null },
+          { time: '0:0:3', note: null },
 
-          { time: "0:1:0", note: "C2", duration: "8n" },
-          { time: "0:1:1", note: null },
-          { time: "0:1:2", note: null },
-          { time: "0:1:3", note: null },
+          { time: '0:1:0', note: 'C2', duration: '8n' },
+          { time: '0:1:1', note: null },
+          { time: '0:1:2', note: null },
+          { time: '0:1:3', note: null },
 
-          { time: "0:2:0", note: "C2", duration: "8n" },
-          { time: "0:2:1", note: null },
-          { time: "0:2:2", note: null },
-          { time: "0:2:3", note: null },
+          { time: '0:2:0', note: 'C2', duration: '8n' },
+          { time: '0:2:1', note: null },
+          { time: '0:2:2', note: null },
+          { time: '0:2:3', note: null },
 
-          { time: "0:3:0", note: "E2", duration: "8n" },
-          { time: "0:3:1", note: null },
-          { time: "0:3:2", note: null },
-          { time: "0:3:3", note: null },
+          { time: '0:3:0', note: 'E2', duration: '8n' },
+          { time: '0:3:1', note: null },
+          { time: '0:3:2', note: null },
+          { time: '0:3:3', note: null },
         ],
       ],
       // sequencerNoteGrid: [
@@ -105,58 +105,58 @@ const initialState = {
       // type: "synth",
       patterns: [
         [
-          { time: "0:0:0", note: "C4", duration: "8n" },
-          { time: "0:0:1", note: null },
-          { time: "0:0:2", note: null },
-          { time: "0:0:3", note: null },
+          { time: '0:0:0', note: 'C4', duration: '8n' },
+          { time: '0:0:1', note: null },
+          { time: '0:0:2', note: null },
+          { time: '0:0:3', note: null },
 
-          { time: "0:1:0", note: "C4", duration: "8n" },
-          { time: "0:1:1", note: null },
-          { time: "0:1:2", note: null },
-          { time: "0:1:3", note: null },
+          { time: '0:1:0', note: 'C4', duration: '8n' },
+          { time: '0:1:1', note: null },
+          { time: '0:1:2', note: null },
+          { time: '0:1:3', note: null },
 
-          { time: "0:2:0", note: "C4", duration: "8n" },
-          { time: "0:2:1", note: null },
-          { time: "0:2:2", note: null },
-          { time: "0:2:3", note: null },
+          { time: '0:2:0', note: 'C4', duration: '8n' },
+          { time: '0:2:1', note: null },
+          { time: '0:2:2', note: null },
+          { time: '0:2:3', note: null },
 
-          { time: "0:3:0", note: "E4", duration: "8n" },
-          { time: "0:3:1", note: null },
-          { time: "0:3:2", note: null },
-          { time: "0:3:3", note: null },
+          { time: '0:3:0', note: 'E4', duration: '8n' },
+          { time: '0:3:1', note: null },
+          { time: '0:3:2', note: null },
+          { time: '0:3:3', note: null },
         ],
         [
-          { time: "0:0:0", note: "C1", duration: "8n" },
-          { time: "0:0:1", note: null },
-          { time: "0:0:2", note: null },
-          { time: "0:0:3", note: null },
+          { time: '0:0:0', note: 'C1', duration: '8n' },
+          { time: '0:0:1', note: null },
+          { time: '0:0:2', note: null },
+          { time: '0:0:3', note: null },
 
-          { time: "0:1:0", note: "C1", duration: "8n" },
-          { time: "0:1:1", note: null },
-          { time: "0:1:2", note: null },
-          { time: "0:1:3", note: null },
+          { time: '0:1:0', note: 'C1', duration: '8n' },
+          { time: '0:1:1', note: null },
+          { time: '0:1:2', note: null },
+          { time: '0:1:3', note: null },
 
-          { time: "0:2:0", note: "C1", duration: "8n" },
-          { time: "0:2:1", note: null },
-          { time: "0:2:2", note: null },
-          { time: "0:2:3", note: null },
+          { time: '0:2:0', note: 'C1', duration: '8n' },
+          { time: '0:2:1', note: null },
+          { time: '0:2:2', note: null },
+          { time: '0:2:3', note: null },
 
-          { time: "0:3:0", note: "E1", duration: "8n" },
-          { time: "0:3:1", note: null },
-          { time: "0:3:2", note: null },
-          { time: "0:3:3", note: null },
+          { time: '0:3:0', note: 'E1', duration: '8n' },
+          { time: '0:3:1', note: null },
+          { time: '0:3:2', note: null },
+          { time: '0:3:3', note: null },
         ],
       ],
     },
   },
   drumKitList: [
-    "kick",
-    "snare",
-    "hiHatClose",
-    "hiHatOpen",
-    "crash",
-    "ride",
-    "tom",
+    'kick',
+    'snare',
+    'hiHatClose',
+    'hiHatOpen',
+    'crash',
+    'ride',
+    'tom',
   ],
   drumsData: {
     // type: "drums",
@@ -198,13 +198,13 @@ const initialState = {
 };
 
 export const sequencerSlice = createSlice({
-  name: "sequencer",
+  name: 'sequencer',
   initialState,
   reducers: {
     setBpm: (state, action) => {
       state.bpm = action.payload;
     },
-    setIsLooping: state => {
+    setIsLooping: (state) => {
       state.isLooping = !state.isLooping;
     },
     setSequencerPlayState: (state, action) => {
@@ -217,7 +217,7 @@ export const sequencerSlice = createSlice({
     setCurrentPatternIndex: (state, action) => {
       state.currentPatternIndex = action.payload;
     },
-    nextCurrentPatternIndex: state => {
+    nextCurrentPatternIndex: (state) => {
       // if (state.currentPatternIndex < state.synthData.patterns.length()) {
       if (state.currentPatternIndex < 1) {
         state.currentPatternIndex += 1;
@@ -228,10 +228,10 @@ export const sequencerSlice = createSlice({
     setSequencerInstrumentNote: (state, action) => {
       const { instrument, step, note, patternIndex } = action.payload;
       state.synthData[instrument].patterns[patternIndex][step].note = note;
-      state.synthData[instrument].patterns[patternIndex][step].duration = "8n";
+      state.synthData[instrument].patterns[patternIndex][step].duration = '8n';
       console.log(
         state.synthData[instrument].patterns[patternIndex][step].note,
-        "state.synthData[instrument].patterns[patternIndex][step]",
+        'state.synthData[instrument].patterns[patternIndex][step]',
       );
     },
     toggleDrumStep: (state, action) => {

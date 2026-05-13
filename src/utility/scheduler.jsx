@@ -1,20 +1,21 @@
-import { useEffect, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { setCurrentStep } from "../slices/sequencerSlice";
-import noteAndKeyMap from "../constants/noteAndKeyMap";
+import { useEffect, useRef } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { setCurrentStep } from '../slices/sequencerSlice';
+import noteAndKeyMap from '../constants/noteAndKeyMap';
 import {
   STEPS_IN_MEASURE,
   DEFAULT_DRUM_RELEASE,
   STEP_DURATION_NOTATION,
-} from "../constants/constants";
-import { calculateCurrentStep, getTotalSteps } from "./audioMathUtils";
+  SYNTH_LIST,
+} from '../constants/constants';
+import { calculateCurrentStep, getTotalSteps } from './audioMathUtils';
 import {
   scheduleFrame,
   setEngineBpm,
   setPlayState,
   startDrawingLoop,
   stopDrawingLoop,
-} from "./audioEngineCore";
+} from './audioEngineCore';
 import {
   initializeDrums,
   initializeSynths,
@@ -23,7 +24,7 @@ import {
   stopAllAudio,
   syncDrumPatternsToTrack,
   syncInstrumentPatternsToTrack,
-} from "./audioEngineActions";
+} from './audioEngineActions';
 
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
 
@@ -38,12 +39,12 @@ const handleStepSync = (time, totalSteps, dispatch) => {
 const TimerTransport = () => {
   const dispatch = useDispatch();
 
-  const synthData = useSelector(state => state.sequencer.synthData);
-  const synthList = useSelector(state => state.sequencer.synthList);
-  const drumsList = useSelector(state => state.sequencer.drumsData);
-  const bpm = useSelector(state => state.sequencer.bpm);
+  const synthData = useSelector((state) => state.sequencer.synthData);
+  // const SYNTH_LIST = useSelector((state) => state.sequencer.SYNTH_LIST);
+  const drumsList = useSelector((state) => state.sequencer.drumsData);
+  const bpm = useSelector((state) => state.sequencer.bpm);
   const sequencerPlayState = useSelector(
-    state => state.sequencer.sequencerPlayState,
+    (state) => state.sequencer.sequencerPlayState,
   );
 
   const totalSteps = getTotalSteps(drumsList?.patterns, STEPS_IN_MEASURE);
@@ -54,12 +55,12 @@ const TimerTransport = () => {
   const drumsPartRef = useRef(null);
 
   useEffect(() => {
-    initializeSynths(synthList, synthEnginesRef.current);
+    initializeSynths(SYNTH_LIST, synthEnginesRef.current);
     initializeDrums(drumsEngineRef);
   }, []);
 
   useEffect(() => {
-    synthList.forEach(name => {
+    SYNTH_LIST.forEach((name) => {
       setupSynthPlayback(name, synthEnginesRef.current, synthPartRef.current);
     });
 
@@ -77,10 +78,11 @@ const TimerTransport = () => {
         drumsEngine: drumsEngineRef,
         drumsPart: drumsPartRef,
       });
-  }, [synthList]);
+  }, []);
+  // }, [SYNTH_LIST]);
 
   useEffect(() => {
-    synthList.forEach(synthName => {
+    SYNTH_LIST.forEach((synthName) => {
       syncInstrumentPatternsToTrack(
         synthPartRef.current[synthName],
         synthData[synthName],
@@ -88,11 +90,12 @@ const TimerTransport = () => {
     });
 
     syncDrumPatternsToTrack(drumsPartRef.current, drumsList, drumNoteMap);
-  }, [synthData, drumsList, synthList]);
+  }, [synthData, drumsList]);
+  // }, [synthData, drumsList, SYNTH_LIST]);
 
   useEffect(() => {
     const drawingProcess = startDrawingLoop(
-      time => handleStepSync(time, totalSteps, dispatch),
+      (time) => handleStepSync(time, totalSteps, dispatch),
       STEP_DURATION_NOTATION,
     );
 
