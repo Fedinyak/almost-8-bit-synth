@@ -8,6 +8,7 @@ import noteAndKeyMap from '../../constants/noteAndKeyMap';
 // import SequencerGrid from "./-SequencerGrid";
 import SequencerDrumGrid from './SequencerDrumGrid';
 import { SYNTH_LIST } from '../../constants/constants';
+import PatternList from './PatternsList';
 // import BpmVisualizer from "./BpmVisualizer";
 
 const Sequencer = () => {
@@ -26,6 +27,7 @@ const Sequencer = () => {
       <h3>Current pattern {currentPattern}</h3>
       <SequencerControlPanel />
       <TimerTransport />
+      <PatternList />
       <SequencerDrumGrid />
       <div className="sequencer-note-title">
         {keyboardLetter.map((letter) => {

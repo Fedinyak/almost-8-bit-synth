@@ -1,5 +1,4 @@
 import { createSlice } from '@reduxjs/toolkit';
-// import { synth } from "../utility/playSound";
 
 export const NOTES_COUNT = 72; // C1-B6
 export const STEPS_PER_PAGE = 32;
@@ -7,29 +6,20 @@ export const TOTAL_STEPS = 256;
 export const SEQUENCER_STEP = 16;
 export const PATTERN_MAX_COUNT = 16;
 
-// const createGrid = () => {
-//   return Array(NOTES_COUNT)
-//     .fill(null)
-//     .map(() => Array(TOTAL_STEPS).fill(0));
-// };
-
 const initialState = {
   bpm: 120,
   sequencerPlayState: 'stop',
   isLooping: false,
-  // grid: createGrid(),
   totalSteps: TOTAL_STEPS,
   sequencerStep: SEQUENCER_STEP,
+  patternCount: 2,
   patternMaxCount: PATTERN_MAX_COUNT,
   currentPatternIndex: 0,
-  // patternsSequence: [0, 1],
   currentStep: 0,
-  viewPage: 0,
+  // viewPage: 0,
   visibleNotesCount: 24,
-  // synthList: ["synth1", "synth2"],
   synthData: {
     synth1: {
-      // type: "synth",
       patterns: [
         [
           // { time: "1:0:0", note: "C5", duration: "2n", velocity: 1.0 },
@@ -75,34 +65,8 @@ const initialState = {
           { time: '0:3:3', note: null },
         ],
       ],
-      // sequencerNoteGrid: [
-      //   // { time: "1:0:0", note: "C5", duration: "2n", velocity: 1.0 },
-
-      //   { time: "0:0:0", note: "C4", duration: "8n" },
-      //   { time: "0:0:1", note: null },
-      //   { time: "0:0:2", note: null },
-      //   { time: "0:0:3", note: null },
-
-      //   { time: "0:1:0", note: "C4", duration: "8n" },
-      //   { time: "0:1:1", note: null },
-      //   { time: "0:1:2", note: null },
-      //   { time: "0:1:3", note: null },
-
-      //   { time: "0:2:0", note: "C4", duration: "8n" },
-      //   { time: "0:2:1", note: null },
-      //   { time: "0:2:2", note: null },
-      //   { time: "0:2:3", note: null },
-
-      //   { time: "0:3:0", note: "E4", duration: "8n" },
-      //   { time: "0:3:1", note: null },
-      //   { time: "0:3:2", note: null },
-      //   { time: "0:3:3", note: null },
-      // ],
     },
     synth2: {
-      // instrument: "synth2",
-      // instrumentId: 2,
-      // type: "synth",
       patterns: [
         [
           { time: '0:0:0', note: 'C4', duration: '8n' },
@@ -159,16 +123,6 @@ const initialState = {
     'tom',
   ],
   drumsData: {
-    // type: "drums",
-    // drumKit: [
-    //   "kick",
-    //   "snare",
-    //   "hiHatClose",
-    //   "hiHatOpen",
-    //   "crash",
-    //   "ride",
-    //   "tom",
-    // ],
     patterns: [
       {
         kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0],
@@ -189,11 +143,6 @@ const initialState = {
         tom: [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0],
       },
     ],
-    // tracks: {
-    //   kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0],
-    //   snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-    //   hiHat: [1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0],
-    // },
   },
 };
 
@@ -214,17 +163,17 @@ export const sequencerSlice = createSlice({
     setCurrentStep: (state, action) => {
       state.currentStep = action.payload;
     },
-    setCurrentPatternIndex: (state, action) => {
-      state.currentPatternIndex = action.payload;
-    },
-    nextCurrentPatternIndex: (state) => {
-      // if (state.currentPatternIndex < state.synthData.patterns.length()) {
-      if (state.currentPatternIndex < 1) {
-        state.currentPatternIndex += 1;
-      } else {
-        state.currentPatternIndex = 0;
-      }
-    },
+    // setCurrentPatternIndex: (state, action) => {
+    //   state.currentPatternIndex = action.payload;
+    // },
+    // nextCurrentPatternIndex: (state) => {
+    //   // if (state.currentPatternIndex < state.synthData.patterns.length()) {
+    //   if (state.currentPatternIndex < 1) {
+    //     state.currentPatternIndex += 1;
+    //   } else {
+    //     state.currentPatternIndex = 0;
+    //   }
+    // },
     setSequencerInstrumentNote: (state, action) => {
       const { instrument, step, note, patternIndex } = action.payload;
       state.synthData[instrument].patterns[patternIndex][step].note = note;
@@ -260,7 +209,7 @@ export const {
   setCurrentStep,
   setSequencerInstrumentNote,
   toggleDrumStep,
-  nextCurrentPatternIndex,
+  // nextCurrentPatternIndex,
   // toggleStep,
   resetGrid,
 } = sequencerSlice.actions;
