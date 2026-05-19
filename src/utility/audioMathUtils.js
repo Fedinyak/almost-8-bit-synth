@@ -1,6 +1,6 @@
-import * as Tone from "tone";
+import * as Tone from 'tone';
 
-export const microTimingOffset = drumIndex => {
+export const microTimingOffset = (drumIndex) => {
   const DRUM_PHASE_OFFSET = 0.001;
   return drumIndex * DRUM_PHASE_OFFSET;
 };
@@ -11,7 +11,7 @@ export const calculateAbsoluteTime = (time, measureIndex) => {
   );
 };
 
-export const compensateLatency = plannedTime => {
+export const compensateLatency = (plannedTime) => {
   const SCHEDULING_LOOKAHEAD_SEC = 0.01;
   return Math.max(plannedTime, Tone.now() + SCHEDULING_LOOKAHEAD_SEC);
 };
@@ -27,4 +27,8 @@ export const calculateCurrentStep = (time, totalSteps) => {
   const currentTick = Tone.Transport.getTicksAtTime(time);
 
   return Math.floor(currentTick / ticksPerStep) % totalSteps;
+};
+
+export const calculateCurrentPlayPattern = (step, stepsInMeasure) => {
+  return Math.floor(step / stepsInMeasure);
 };

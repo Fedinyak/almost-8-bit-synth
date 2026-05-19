@@ -82,7 +82,7 @@
 .sequencer-cells
   .sequencer-cells-row:nth-child(4n + 1)
   .sequencer-cell-accidental::after {
-  content: "";
+  content: '';
   position: absolute;
   top: 50%;
   left: 50%;
@@ -130,5 +130,22 @@
 }
 
 .step-indicator-button-active {
+  background-color: var(--violet-stain);
+}
+
+.patten-list {
+  display: flex;
+  list-style-type: none;
+}
+
+.follow-mode-btn {
+  display: none;
+}
+
+.follow-mode-btn-active {
+  display: flex;
+}
+
+.patten-list-btn-select {
   background-color: var(--violet-stain);
 }

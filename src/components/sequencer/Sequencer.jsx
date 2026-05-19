@@ -13,8 +13,8 @@ import PatternList from './PatternsList';
 
 const Sequencer = () => {
   const octave = useSelector((state) => state.note.octave);
-  const currentPattern = useSelector(
-    (state) => state.sequencer.currentPatternIndex,
+  const currentPlayPatternIndex = useSelector(
+    (state) => state.sequencer.currentPlayPatternIndex,
   );
   const synthData = useSelector((state) => state.sequencer.synthData);
   // const synthList = useSelector(state => state.sequencer.synthList);
@@ -22,9 +22,22 @@ const Sequencer = () => {
   const noteMap = noteAndKeyMap.noteMap;
   const octaveMap = noteAndKeyMap.noteOctaveIndexMap;
 
+  const isFollowMode = useSelector((state) => state.sequencer.isFollowMode);
+
+  // const currentPlayPattern = useSelector(
+  //   (state) => state.sequencer.currentPlayPatternIndex,
+  // );
+  const selectedPatternIndex = useSelector(
+    (state) => state.sequencer.selectedPatternIndex,
+  );
+
+  const activeVisualPattern = isFollowMode
+    ? currentPlayPatternIndex
+    : selectedPatternIndex;
+
   return (
     <section className="sequencer">
-      <h3>Current pattern {currentPattern}</h3>
+      <h3>currentPlayPatternIndex {currentPlayPatternIndex}</h3>
       <SequencerControlPanel />
       <TimerTransport />
       <PatternList />
@@ -43,7 +56,7 @@ const Sequencer = () => {
           <>
             <div>{instrument}</div>
             <div className="sequencer-cells">
-              {synthData[instrument].patterns[currentPattern].map(
+              {synthData[instrument].patterns[activeVisualPattern].map(
                 (_, stepIndex) => {
                   return (
                     <div
@@ -62,11 +75,11 @@ const Sequencer = () => {
                             instrument={instrument}
                             note={getNote(letter, octave, noteMap, octaveMap)}
                             sequencerActiveNote={
-                              synthData[instrument].patterns[currentPattern][
-                                stepIndex
-                              ]
+                              synthData[instrument].patterns[
+                                activeVisualPattern
+                              ][stepIndex]
                             }
-                            patternIndex={currentPattern}
+                            patternIndex={activeVisualPattern}
                             step={stepIndex}
                           />
                         );

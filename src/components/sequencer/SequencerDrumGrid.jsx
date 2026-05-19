@@ -1,19 +1,31 @@
-import { useDispatch, useSelector } from "react-redux";
-import StepIndicator from "./StepIndicator";
-import { toggleDrumStep } from "../../slices/sequencerSlice";
-import cn from "classnames";
+import { useDispatch, useSelector } from 'react-redux';
+import StepIndicator from './StepIndicator';
+import { toggleDrumStep } from '../../slices/sequencerSlice';
+import cn from 'classnames';
 
 const SequencerDrumGrid = () => {
-  const drumKit = useSelector(state => state.sequencer.drumKitList);
-  const tracks = useSelector(state => state.sequencer.drumsData.patterns);
-  const currentPattern = useSelector(
-    state => state.sequencer.currentPatternIndex,
-  );
-  const sequencerStep = useSelector(state => state.sequencer.sequencerStep);
   const dispatch = useDispatch();
+
+  const drumKit = useSelector((state) => state.sequencer.drumKitList);
+  const tracks = useSelector((state) => state.sequencer.drumsData.patterns);
+  const isFollowMode = useSelector((state) => state.sequencer.isFollowMode);
+
+  const currentPlayPattern = useSelector(
+    (state) => state.sequencer.currentPlayPatternIndex,
+  );
+  const selectedPatternIndex = useSelector(
+    (state) => state.sequencer.selectedPatternIndex,
+  );
+
+  const activeVisualPattern = isFollowMode
+    ? currentPlayPattern
+    : selectedPatternIndex;
+
+  const sequencerStep = useSelector((state) => state.sequencer.sequencerStep);
 
   return (
     <section className="sequencer">
+      <h3>isFollowMode {`${isFollowMode}`}</h3>
       <div className="sequencer-cells">
         {Array.from({ length: sequencerStep }).map((_, stepIndex) => {
           return (
@@ -22,13 +34,15 @@ const SequencerDrumGrid = () => {
                 key={`${stepIndex}-step-drum`}
                 stepIndex={stepIndex}
               />
-              {drumKit.map(drumName => {
+              {drumKit.map((drumName) => {
                 const isActive =
-                  tracks[currentPattern][drumName][stepIndex] !== 0;
-                const cellStyle = cn("sequencer-cell", {
-                  "sequencer-cell-active": isActive,
+                  tracks[activeVisualPattern][drumName][stepIndex] !== 0;
+
+                const cellStyle = cn('sequencer-cell', {
+                  'sequencer-cell-active': isActive,
                 });
-                console.log(currentPattern, "currentPattern");
+
+                // console.log(currentPattern, 'currentPattern');
                 return (
                   <button
                     className={cellStyle}
@@ -37,7 +51,7 @@ const SequencerDrumGrid = () => {
                         toggleDrumStep({
                           drumName,
                           stepIndex,
-                          patternIndex: currentPattern,
+                          patternIndex: activeVisualPattern,
                         }),
                       )
                     }

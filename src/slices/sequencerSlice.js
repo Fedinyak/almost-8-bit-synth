@@ -12,9 +12,12 @@ const initialState = {
   isLooping: false,
   totalSteps: TOTAL_STEPS,
   sequencerStep: SEQUENCER_STEP,
-  patternCount: 2,
+  isFollowMode: true,
+  patternCount: 3,
   patternMaxCount: PATTERN_MAX_COUNT,
-  currentPatternIndex: 0,
+  currentPlayPatternIndex: 0,
+  selectedPatternIndex: false,
+  pendingPatternIndex: null,
   currentStep: 0,
   // viewPage: 0,
   visibleNotesCount: 24,
@@ -60,6 +63,27 @@ const initialState = {
           { time: '0:2:3', note: null },
 
           { time: '0:3:0', note: 'E2', duration: '8n' },
+          { time: '0:3:1', note: null },
+          { time: '0:3:2', note: null },
+          { time: '0:3:3', note: null },
+        ],
+        [
+          { time: '0:0:0', note: 'C1', duration: '8n' },
+          { time: '0:0:1', note: null },
+          { time: '0:0:2', note: null },
+          { time: '0:0:3', note: null },
+
+          { time: '0:1:0', note: 'C1', duration: '8n' },
+          { time: '0:1:1', note: null },
+          { time: '0:1:2', note: null },
+          { time: '0:1:3', note: null },
+
+          { time: '0:2:0', note: 'C1', duration: '8n' },
+          { time: '0:2:1', note: null },
+          { time: '0:2:2', note: null },
+          { time: '0:2:3', note: null },
+
+          { time: '0:3:0', note: 'E1', duration: '8n' },
           { time: '0:3:1', note: null },
           { time: '0:3:2', note: null },
           { time: '0:3:3', note: null },
@@ -110,6 +134,27 @@ const initialState = {
           { time: '0:3:2', note: null },
           { time: '0:3:3', note: null },
         ],
+        [
+          { time: '0:0:0', note: 'C2', duration: '8n' },
+          { time: '0:0:1', note: null },
+          { time: '0:0:2', note: null },
+          { time: '0:0:3', note: null },
+
+          { time: '0:1:0', note: 'C2', duration: '8n' },
+          { time: '0:1:1', note: null },
+          { time: '0:1:2', note: null },
+          { time: '0:1:3', note: null },
+
+          { time: '0:2:0', note: 'C2', duration: '8n' },
+          { time: '0:2:1', note: null },
+          { time: '0:2:2', note: null },
+          { time: '0:2:3', note: null },
+
+          { time: '0:3:0', note: 'E2', duration: '8n' },
+          { time: '0:3:1', note: null },
+          { time: '0:3:2', note: null },
+          { time: '0:3:3', note: null },
+        ],
       ],
     },
   },
@@ -142,6 +187,15 @@ const initialState = {
         ride: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],
         tom: [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0],
       },
+      {
+        kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0],
+        snare: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0],
+        hiHatClose: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+        hiHatOpen: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        crash: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        ride: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],
+        tom: [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0],
+      },
     ],
   },
 };
@@ -157,15 +211,15 @@ export const sequencerSlice = createSlice({
       state.isLooping = !state.isLooping;
     },
     setSequencerPlayState: (state, action) => {
-      console.log(action.payload);
+      // console.log(action.payload);
       state.sequencerPlayState = action.payload;
     },
     setCurrentStep: (state, action) => {
       state.currentStep = action.payload;
     },
-    // setCurrentPatternIndex: (state, action) => {
-    //   state.currentPatternIndex = action.payload;
-    // },
+    setCurrentPlayPatternIndex: (state, action) => {
+      state.currentPlayPatternIndex = action.payload;
+    },
     // nextCurrentPatternIndex: (state) => {
     //   // if (state.currentPatternIndex < state.synthData.patterns.length()) {
     //   if (state.currentPatternIndex < 1) {
@@ -178,10 +232,10 @@ export const sequencerSlice = createSlice({
       const { instrument, step, note, patternIndex } = action.payload;
       state.synthData[instrument].patterns[patternIndex][step].note = note;
       state.synthData[instrument].patterns[patternIndex][step].duration = '8n';
-      console.log(
-        state.synthData[instrument].patterns[patternIndex][step].note,
-        'state.synthData[instrument].patterns[patternIndex][step]',
-      );
+      // console.log(
+      //   state.synthData[instrument].patterns[patternIndex][step].note,
+      //   'state.synthData[instrument].patterns[patternIndex][step]',
+      // );
     },
     toggleDrumStep: (state, action) => {
       const { drumName, stepIndex, patternIndex } = action.payload;
@@ -189,6 +243,15 @@ export const sequencerSlice = createSlice({
         state.drumsData.patterns[patternIndex][drumName][stepIndex];
       state.drumsData.patterns[patternIndex][drumName][stepIndex] =
         currentValue === 1 ? 0 : 1;
+    },
+    setSelectedPatternIndex: (state, action) => {
+      state.selectedPatternIndex = action.payload;
+    },
+    setFollowModeTrue: (state) => {
+      state.isFollowMode = true;
+    },
+    setFollowModeFalse: (state) => {
+      state.isFollowMode = false;
     },
     // toggleStep: (state, action) => {
     //   console.log(action.payload, "toggleStep");
@@ -199,6 +262,13 @@ export const sequencerSlice = createSlice({
     // resetGrid: state => {
     //   state.grid = createGrid();
     // },
+    setPendingPattern: (state, action) => {
+      state.pendingPatternIndex = action.payload;
+    },
+
+    clearPendingPattern: (state) => {
+      state.pendingPatternIndex = null;
+    },
   },
 });
 
@@ -209,9 +279,12 @@ export const {
   setCurrentStep,
   setSequencerInstrumentNote,
   toggleDrumStep,
-  // nextCurrentPatternIndex,
-  // toggleStep,
-  resetGrid,
+  setCurrentPlayPatternIndex,
+  setSelectedPatternIndex,
+  setFollowModeTrue,
+  setFollowModeFalse,
+  setPendingPattern,
+  clearPendingPattern,
 } = sequencerSlice.actions;
 
 export default sequencerSlice.reducer;
