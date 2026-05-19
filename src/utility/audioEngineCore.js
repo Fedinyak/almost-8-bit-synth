@@ -47,3 +47,17 @@ export const setEnginePosition = (measureIndex) => {
   // Игла прыгнет на 1m, но на волосок раньше первой ноты!
   Tone.Transport.seconds = Math.max(0, targetSeconds - 0.005);
 };
+
+// audioEngineCore.js
+
+// Включить нативный луп транспорта на конкретном такте
+export const enableEngineLoop = (measureIndex) => {
+  Tone.Transport.loopStart = `${measureIndex}m`; // Начало такта (например, "1m")
+  Tone.Transport.loopEnd = `${measureIndex + 1}m`; // Конец такта (например, "2m")
+  Tone.Transport.loop = true; // Включаем петлю встроенным C++ мотором
+};
+
+// Выключить нативный луп транспорта
+export const disableEngineLoop = () => {
+  Tone.Transport.loop = false; // Отключаем петлю, пусть транспорт едет дальше по колбасе
+};

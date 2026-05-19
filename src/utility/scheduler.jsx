@@ -18,6 +18,8 @@ import {
   getTotalSteps,
 } from './audioMathUtils';
 import {
+  disableEngineLoop,
+  enableEngineLoop,
   // scheduleEngineJump,
   scheduleFrame,
   setEngineBpm,
@@ -38,7 +40,6 @@ import {
 } from './audioEngineActions';
 
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
-
 const handleStepSync = (
   time,
   totalSteps,
@@ -53,13 +54,16 @@ const handleStepSync = (
   );
   const stepInPattern = currentStep % STEPS_IN_MEASURE;
 
+  // ЛОВИМ 15-Й ШАГ (стык тактов)
   if (stepInPattern === 15) {
     const nextPattern = pendingPatternRef.current;
-    const isLoopActive = isPatternLoopRef.current; // Наш новый флаг лупа
+    const isLoopActive = isPatternLoopRef.current;
 
-    // Сценарий 1: Юзер принудительно выбрал другой паттерн для врыва (приоритет)
+    // Сценарий 1: Юзер принудительно выбрал другой паттерн для врыва (Приоритет)
     if (nextPattern !== null) {
-      setEnginePosition(nextPattern);
+      disableEngineLoop(); // Выключаем луп, если он был включен
+      setEnginePosition(nextPattern); // Перематываем иглу на новый паттерн
+
       scheduleFrame(time, () => {
         dispatch(setCurrentPlayPatternIndex(nextPattern));
         dispatch(setCurrentStep(nextPattern * STEPS_IN_MEASURE));
@@ -68,21 +72,24 @@ const handleStepSync = (
       return;
     }
 
-    // Сценарий 2: Ворваться никто не просил, но ВКЛЮЧЕН ЛУП текущего паттерна!
+    // Сценарий 2: Ворваться никто не просил, но юзер включил кнопку ЛУП на текущем паттерне!
     if (isLoopActive) {
-      // Прыгаем иглой Tone.js на начало ЭТОГО ЖЕ самого такта
-      setEnginePosition(currentPlayPattern);
+      // Заставляем Tone.Transport зациклить текущий такт нативными средствами!
+      enableEngineLoop(currentPlayPattern);
 
       scheduleFrame(time, () => {
-        // Сбрасываем визуальный шаг на начало текущего паттерна
-        dispatch(setCurrentStep(currentPlayPattern * STEPS_IN_MEASURE));
-        // Индекс играющего паттерна не меняется, он тот же самый
+        // Мы НЕ мутируем позицию! Поезд времени крутится внутри нативного лупа Tone.js.
+        // Мы просто держим визуальный шаг в рамках текущего паттерна (например, 16-31)
+        dispatch(setCurrentStep(currentStep));
       });
-      return; // Выходим, чтобы транспорт не уехал на следующий такт
+      return;
+    } else {
+      // Если луп БЫЛ активен, но юзер его ОТЖАЛ — размыкаем петлю, едем по колбасе дальше
+      disableEngineLoop();
     }
   }
 
-  // console.log(currentPlayPattern, 'currentPlayPattern');
+  // Обычный ход времени по длинной колбасе (если нет врыва и нет лупа)
   scheduleFrame(time, () => {
     dispatch(setCurrentStep(currentStep));
     dispatch(setCurrentPlayPatternIndex(currentPlayPattern));
