@@ -2,6 +2,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   setFollowModeFalse,
   setFollowModeTrue,
+  setIsLoopingFalse,
+  // setIsLooping,
+  setIsLoopingTrue,
   setPendingPattern,
   setSelectedPatternIndex,
 } from '../../slices/sequencerSlice';
@@ -30,8 +33,13 @@ const PatternList = () => {
 
   const handlePlayPatternIndex = (index) => {
     dispatch(setPendingPattern(index));
+    dispatch(setIsLoopingFalse());
   };
 
+  const handleLoopPatternIndex = (index) => {
+    dispatch(setPendingPattern(index));
+    dispatch(setIsLoopingTrue());
+  };
   const handleFollowModeTrue = () => {
     dispatch(setFollowModeTrue());
     dispatch(setSelectedPatternIndex(false));
@@ -51,7 +59,7 @@ const PatternList = () => {
             >
               ▶
             </button>
-            <button>loop</button>
+            <button onClick={() => handleLoopPatternIndex(index)}>loop</button>
             <button
               className={[
                 selectedPatternIndex === index ? 'patten-list-btn-select' : '',

@@ -207,8 +207,11 @@ export const sequencerSlice = createSlice({
     setBpm: (state, action) => {
       state.bpm = action.payload;
     },
-    setIsLooping: (state) => {
-      state.isLooping = !state.isLooping;
+    setIsLoopingTrue: (state) => {
+      state.isLooping = true;
+    },
+    setIsLoopingFalse: (state) => {
+      state.isLooping = false;
     },
     setSequencerPlayState: (state, action) => {
       // console.log(action.payload);
@@ -274,7 +277,8 @@ export const sequencerSlice = createSlice({
 
 export const {
   setBpm,
-  setIsLooping,
+  setIsLoopingTrue,
+  setIsLoopingFalse,
   setSequencerPlayState,
   setCurrentStep,
   setSequencerInstrumentNote,

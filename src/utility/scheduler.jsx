@@ -20,11 +20,9 @@ import {
 import {
   disableEngineLoop,
   enableEngineLoop,
-  // scheduleEngineJump,
   scheduleFrame,
   setEngineBpm,
   setEnginePosition,
-  // scheduleEngineJump,
   setPlayState,
   startDrawingLoop,
   stopDrawingLoop,
@@ -42,27 +40,25 @@ import {
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
 const handleStepSync = (
   time,
-  totalSteps,
+  totalStepsRef,
   pendingPatternRef,
   isPatternLoopRef,
   dispatch,
 ) => {
-  const currentStep = calculateCurrentStep(time, totalSteps);
+  const currentStep = calculateCurrentStep(time, totalStepsRef.current);
   const currentPlayPattern = calculateCurrentPlayPattern(
     currentStep,
     STEPS_IN_MEASURE,
   );
   const stepInPattern = currentStep % STEPS_IN_MEASURE;
 
-  // ЛОВИМ 15-Й ШАГ (стык тактов)
   if (stepInPattern === 15) {
     const nextPattern = pendingPatternRef.current;
     const isLoopActive = isPatternLoopRef.current;
 
-    // Сценарий 1: Юзер принудительно выбрал другой паттерн для врыва (Приоритет)
     if (nextPattern !== null) {
-      disableEngineLoop(); // Выключаем луп, если он был включен
-      setEnginePosition(nextPattern); // Перематываем иглу на новый паттерн
+      disableEngineLoop();
+      setEnginePosition(nextPattern);
 
       scheduleFrame(time, () => {
         dispatch(setCurrentPlayPatternIndex(nextPattern));
@@ -72,24 +68,18 @@ const handleStepSync = (
       return;
     }
 
-    // Сценарий 2: Ворваться никто не просил, но юзер включил кнопку ЛУП на текущем паттерне!
     if (isLoopActive) {
-      // Заставляем Tone.Transport зациклить текущий такт нативными средствами!
       enableEngineLoop(currentPlayPattern);
 
       scheduleFrame(time, () => {
-        // Мы НЕ мутируем позицию! Поезд времени крутится внутри нативного лупа Tone.js.
-        // Мы просто держим визуальный шаг в рамках текущего паттерна (например, 16-31)
         dispatch(setCurrentStep(currentStep));
       });
       return;
     } else {
-      // Если луп БЫЛ активен, но юзер его ОТЖАЛ — размыкаем петлю, едем по колбасе дальше
       disableEngineLoop();
     }
   }
 
-  // Обычный ход времени по длинной колбасе (если нет врыва и нет лупа)
   scheduleFrame(time, () => {
     dispatch(setCurrentStep(currentStep));
     dispatch(setCurrentPlayPatternIndex(currentPlayPattern));
@@ -103,23 +93,24 @@ const TimerTransport = () => {
     (state) => state.sequencer.pendingPatternIndex,
   );
   const isLooping = useSelector((state) => state.sequencer.isLooping);
-
   const synthData = useSelector((state) => state.sequencer.synthData);
-  // const SYNTH_LIST = useSelector((state) => state.sequencer.SYNTH_LIST);
   const drumsList = useSelector((state) => state.sequencer.drumsData);
   const bpm = useSelector((state) => state.sequencer.bpm);
   const sequencerPlayState = useSelector(
     (state) => state.sequencer.sequencerPlayState,
   );
-
   const totalSteps = getTotalSteps(drumsList?.patterns, STEPS_IN_MEASURE);
-
   const synthEnginesRef = useRef({});
   const synthPartRef = useRef({});
   const drumsEngineRef = useRef(null);
   const drumsPartRef = useRef(null);
   const pendingPatternRef = useRef(null);
   const isPatternLoopRef = useRef(null);
+  const totalStepsRef = useRef(totalSteps);
+
+  useEffect(() => {
+    totalStepsRef.current = totalSteps;
+  }, [totalSteps]);
 
   useEffect(() => {
     pendingPatternRef.current = pendingPatternIndex;
@@ -154,7 +145,6 @@ const TimerTransport = () => {
         drumsPart: drumsPartRef,
       });
   }, []);
-  // }, [SYNTH_LIST]);
 
   useEffect(() => {
     SYNTH_LIST.forEach((synthName) => {
@@ -166,14 +156,13 @@ const TimerTransport = () => {
 
     syncDrumPatternsToTrack(drumsPartRef.current, drumsList, drumNoteMap);
   }, [synthData, drumsList]);
-  // }, [synthData, drumsList, SYNTH_LIST]);
 
   useEffect(() => {
     const drawingProcess = startDrawingLoop(
       (time) =>
         handleStepSync(
           time,
-          totalSteps,
+          totalStepsRef,
           pendingPatternRef,
           isPatternLoopRef,
           dispatch,
@@ -182,9 +171,8 @@ const TimerTransport = () => {
     );
 
     return () => stopDrawingLoop(drawingProcess);
-  }, [totalSteps, dispatch]);
+  }, [dispatch]);
 
-  // Transport controller
   useEffect(() => {
     setPlayState(sequencerPlayState);
   }, [sequencerPlayState]);

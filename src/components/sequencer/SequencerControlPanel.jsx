@@ -1,29 +1,38 @@
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch, useSelector } from 'react-redux';
 import {
   setBpm,
-  setIsLooping,
+  // setIsLooping,
+  setIsLoopingFalse,
+  setIsLoopingTrue,
   setSequencerPlayState,
-} from "../../slices/sequencerSlice";
-import BpmVisualizer from "./BpmVisualizer";
+} from '../../slices/sequencerSlice';
+import BpmVisualizer from './BpmVisualizer';
 
 const SequencerControlPanel = () => {
   const dispatch = useDispatch();
-  const isLooping = useSelector(state => state.sequencer.isLooping);
+  const isLooping = useSelector((state) => state.sequencer.isLooping);
 
   return (
     <div>
-      <button onClick={() => dispatch(setSequencerPlayState("start"))}>
+      <button onClick={() => dispatch(setSequencerPlayState('start'))}>
         start
       </button>
-      <button onClick={() => dispatch(setSequencerPlayState("stop"))}>
+      <button onClick={() => dispatch(setSequencerPlayState('stop'))}>
         stop
       </button>
-      <button onClick={() => dispatch(setSequencerPlayState("pause"))}>
+      <button onClick={() => dispatch(setSequencerPlayState('pause'))}>
         pause
       </button>
-      <button onClick={() => dispatch(setIsLooping())}>
-        Loop {isLooping ? "true" : "false"}
-      </button>
+      {
+        <>
+          <button onClick={() => dispatch(setIsLoopingFalse())}>
+            Loop false {isLooping ? 'true' : 'false'}
+          </button>
+          <button onClick={() => dispatch(setIsLoopingTrue())}>
+            Loop true {isLooping ? 'true' : 'false'}
+          </button>
+        </>
+      }
       <button onClick={() => dispatch(setBpm(100))}>100</button>
       <button onClick={() => dispatch(setBpm(200))}>200</button>
       <BpmVisualizer />

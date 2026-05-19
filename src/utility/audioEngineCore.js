@@ -1,4 +1,5 @@
 import * as Tone from 'tone';
+import { LOOKAHEAD_OFFSET_SEC } from '../constants/constants';
 
 export const createPlaybackTrack = (onStepAction) => {
   const track = new Tone.Part(onStepAction, []).start(0);
@@ -30,7 +31,6 @@ export const clearTrackNotes = (track) => {
   track.clear();
 };
 
-// Записать конкретную ноту на дорожку в нужное время
 export const writeNoteToTrack = (track, time, noteData) => {
   track.add(time, noteData);
 };
@@ -39,25 +39,27 @@ export const setTrackLoopDuration = (track, numberOfMeasures) => {
   track.loopEnd = `${numberOfMeasures}m`;
 };
 
-export const setEnginePosition = (measureIndex) => {
-  // Вычисляем точное время в секундах для начала такта
-  const targetSeconds = Tone.Time(`${measureIndex}m`).toSeconds();
+export const setEnginePosition = (patternIndex) => {
+  const patternStartTimeInSeconds = Tone.Time(`${patternIndex}m`).toSeconds();
 
-  // ЧИТ: Вычитаем из этого времени крошечную погрешность (0.005 секунды)
-  // Игла прыгнет на 1m, но на волосок раньше первой ноты!
-  Tone.Transport.seconds = Math.max(0, targetSeconds - 0.005);
+  const quantizedJumpTime = Math.max(
+    0,
+    patternStartTimeInSeconds - LOOKAHEAD_OFFSET_SEC,
+  );
+
+  setGlobalTransportTime(quantizedJumpTime);
 };
 
-// audioEngineCore.js
-
-// Включить нативный луп транспорта на конкретном такте
-export const enableEngineLoop = (measureIndex) => {
-  Tone.Transport.loopStart = `${measureIndex}m`; // Начало такта (например, "1m")
-  Tone.Transport.loopEnd = `${measureIndex + 1}m`; // Конец такта (например, "2m")
-  Tone.Transport.loop = true; // Включаем петлю встроенным C++ мотором
+export const setGlobalTransportTime = (seconds) => {
+  Tone.Transport.seconds = seconds;
 };
 
-// Выключить нативный луп транспорта
+export const enableEngineLoop = (patternIndex) => {
+  Tone.Transport.loopStart = `${patternIndex}m`;
+  Tone.Transport.loopEnd = `${patternIndex + 1}m`;
+  Tone.Transport.loop = true;
+};
+
 export const disableEngineLoop = () => {
-  Tone.Transport.loop = false; // Отключаем петлю, пусть транспорт едет дальше по колбасе
+  Tone.Transport.loop = false;
 };
