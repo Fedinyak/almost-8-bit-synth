@@ -1,20 +1,21 @@
 import { createSlice } from '@reduxjs/toolkit';
+import { SEQUENCER_CONFIG } from '../constants/sequencerConfig';
 
-export const NOTES_COUNT = 72; // C1-B6
-export const STEPS_PER_PAGE = 32;
-export const TOTAL_STEPS = 256;
-export const SEQUENCER_STEP = 16;
-export const PATTERN_MAX_COUNT = 16;
+// export const NOTES_COUNT = 72; // C1-B6
+// export const STEPS_PER_PAGE = 32;
+// export const TOTAL_STEPS = 256;
+// export const SEQUENCER_STEP = 16;
+// export const PATTERN_MAX_COUNT = 16;
 
 const initialState = {
   bpm: 120,
   sequencerPlayState: 'stop',
   isLooping: false,
-  totalSteps: TOTAL_STEPS,
-  sequencerStep: SEQUENCER_STEP,
+  totalSteps: SEQUENCER_CONFIG.TOTAL_STEPS,
+  sequencerStep: SEQUENCER_CONFIG.SEQUENCER_STEP,
   isFollowMode: true,
   patternCount: 3,
-  patternMaxCount: PATTERN_MAX_COUNT,
+  patternMaxCount: SEQUENCER_CONFIG.PATTERN_MAX_COUNT,
   currentPlayPatternIndex: 0,
   selectedPatternIndex: false,
   pendingPatternIndex: null,
