@@ -1,5 +1,6 @@
 import { useDispatch, useSelector } from 'react-redux';
 import {
+  setCurrentPlayPatternIndex,
   setFollowModeFalse,
   setFollowModeTrue,
   setIsLoopingFalse,
@@ -7,6 +8,7 @@ import {
   setIsLoopingTrue,
   setPendingPattern,
   setSelectedPatternIndex,
+  setSequencerPlayState,
 } from '../../slices/sequencerSlice';
 import classNames from 'classnames';
 
@@ -20,6 +22,9 @@ const PatternList = () => {
   const currentPlayPatternIndex = useSelector(
     (state) => state.sequencer.currentPlayPatternIndex,
   );
+  const sequencerPlayState = useSelector(
+    (state) => state.sequencer.sequencerPlayState,
+  );
   const selectedPatternIndex = useSelector(
     (state) => state.sequencer.selectedPatternIndex,
   );
@@ -32,8 +37,15 @@ const PatternList = () => {
   };
 
   const handlePlayPatternIndex = (index) => {
-    dispatch(setPendingPattern(index));
-    dispatch(setIsLoopingFalse());
+    if (sequencerPlayState === 'start') {
+      dispatch(setPendingPattern(index));
+      dispatch(setIsLoopingFalse());
+    }
+    if (sequencerPlayState === 'stop') {
+      dispatch(setCurrentPlayPatternIndex(index));
+      dispatch(setIsLoopingFalse());
+      dispatch(setSequencerPlayState('start'));
+    }
   };
 
   const handleLoopPatternIndex = (index) => {
