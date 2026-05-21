@@ -18,13 +18,12 @@ import {
   disableEngineLoop,
   enableEngineLoop,
   scheduleFrame,
-  setEngineBpm,
   setEnginePosition,
-  setPlayState,
   startDrawingLoop,
   stopDrawingLoop,
 } from './audioEngineCore';
 import { useAudioEngineSync } from '../hooks/useAudioEngineSync';
+import { useAudioPlaybackControl } from '../hooks/useAudioPlaybackControl';
 
 const handleStepSync = (
   time,
@@ -82,10 +81,6 @@ const TimerTransport = () => {
   );
   const isLooping = useSelector((state) => state.sequencer.isLooping);
   const drumsList = useSelector((state) => state.sequencer.drumsData);
-  const bpm = useSelector((state) => state.sequencer.bpm);
-  const sequencerPlayState = useSelector(
-    (state) => state.sequencer.sequencerPlayState,
-  );
   const totalSteps = getTotalSteps(drumsList?.patterns, STEPS_IN_MEASURE);
   const synthEnginesRef = useRef({});
   const synthPartRef = useRef({});
@@ -101,6 +96,8 @@ const TimerTransport = () => {
     drumsEngineRef,
     drumsPartRef,
   );
+
+  useAudioPlaybackControl();
 
   useEffect(() => {
     totalStepsRef.current = totalSteps;
@@ -129,14 +126,6 @@ const TimerTransport = () => {
 
     return () => stopDrawingLoop(drawingProcess);
   }, [dispatch]);
-
-  useEffect(() => {
-    setPlayState(sequencerPlayState);
-  }, [sequencerPlayState]);
-
-  useEffect(() => {
-    setEngineBpm(bpm);
-  }, [bpm]);
 
   return null;
 };
