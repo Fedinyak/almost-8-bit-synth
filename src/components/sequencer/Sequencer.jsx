@@ -1,7 +1,7 @@
 import { useSelector } from 'react-redux';
 import getNote from '../../utility/getNote';
 import Cell from './Cell';
-import TimerTransport from '../../utility/scheduler';
+import TimerTransport from './TimerTransport';
 import SequencerControlPanel from './SequencerControlPanel';
 import StepIndicator from './StepIndicator';
 import noteAndKeyMap from '../../constants/noteAndKeyMap';
