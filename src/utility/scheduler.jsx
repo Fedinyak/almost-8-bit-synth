@@ -5,12 +5,12 @@ import {
   setCurrentPlayPatternIndex,
   setCurrentStep,
 } from '../slices/sequencerSlice';
-import noteAndKeyMap from '../constants/noteAndKeyMap';
+// import noteAndKeyMap from '../constants/noteAndKeyMap';
 import {
   STEPS_IN_MEASURE,
-  DEFAULT_DRUM_RELEASE,
+  // DEFAULT_DRUM_RELEASE,
   STEP_DURATION_NOTATION,
-  SYNTH_LIST,
+  // SYNTH_LIST,
 } from '../constants/constants';
 import {
   calculateCurrentPlayPattern,
@@ -27,17 +27,18 @@ import {
   startDrawingLoop,
   stopDrawingLoop,
 } from './audioEngineCore';
-import {
-  initializeDrums,
-  initializeSynths,
-  setupDrumsPlayback,
-  setupSynthPlayback,
-  stopAllAudio,
-  syncDrumPatternsToTrack,
-  syncInstrumentPatternsToTrack,
-} from './audioEngineActions';
+import { useAudioEngineSync } from '../hooks/useAudioEngineSync';
+// import {
+//   initializeDrums,
+//   initializeSynths,
+//   setupDrumsPlayback,
+//   setupSynthPlayback,
+//   stopAllAudio,
+//   syncDrumPatternsToTrack,
+//   syncInstrumentPatternsToTrack,
+// } from './audioEngineActions';
 
-const drumNoteMap = noteAndKeyMap.drumNoteMap;
+// const drumNoteMap = noteAndKeyMap.drumNoteMap;
 const handleStepSync = (
   time,
   totalStepsRef,
@@ -93,7 +94,7 @@ const TimerTransport = () => {
     (state) => state.sequencer.pendingPatternIndex,
   );
   const isLooping = useSelector((state) => state.sequencer.isLooping);
-  const synthData = useSelector((state) => state.sequencer.synthData);
+  // const synthData = useSelector((state) => state.sequencer.synthData);
   const drumsList = useSelector((state) => state.sequencer.drumsData);
   const bpm = useSelector((state) => state.sequencer.bpm);
   const sequencerPlayState = useSelector(
@@ -108,6 +109,13 @@ const TimerTransport = () => {
   const isPatternLoopRef = useRef(null);
   const totalStepsRef = useRef(totalSteps);
 
+  useAudioEngineSync(
+    synthEnginesRef,
+    synthPartRef,
+    drumsEngineRef,
+    drumsPartRef,
+  );
+
   useEffect(() => {
     totalStepsRef.current = totalSteps;
   }, [totalSteps]);
@@ -120,42 +128,42 @@ const TimerTransport = () => {
     isPatternLoopRef.current = isLooping;
   }, [isLooping]);
 
-  useEffect(() => {
-    initializeSynths(SYNTH_LIST, synthEnginesRef.current);
-    initializeDrums(drumsEngineRef);
-  }, []);
+  // useEffect(() => {
+  //   initializeSynths(SYNTH_LIST, synthEnginesRef.current);
+  //   initializeDrums(drumsEngineRef);
+  // }, []);
 
-  useEffect(() => {
-    SYNTH_LIST.forEach((name) => {
-      setupSynthPlayback(name, synthEnginesRef.current, synthPartRef.current);
-    });
+  // useEffect(() => {
+  //   SYNTH_LIST.forEach((name) => {
+  //     setupSynthPlayback(name, synthEnginesRef.current, synthPartRef.current);
+  //   });
 
-    setupDrumsPlayback(
-      drumsEngineRef,
-      drumsPartRef,
-      drumNoteMap,
-      DEFAULT_DRUM_RELEASE,
-    );
+  //   setupDrumsPlayback(
+  //     drumsEngineRef,
+  //     drumsPartRef,
+  //     drumNoteMap,
+  //     DEFAULT_DRUM_RELEASE,
+  //   );
 
-    return () =>
-      stopAllAudio({
-        synths: synthEnginesRef,
-        parts: synthPartRef,
-        drumsEngine: drumsEngineRef,
-        drumsPart: drumsPartRef,
-      });
-  }, []);
+  //   return () =>
+  //     stopAllAudio({
+  //       synths: synthEnginesRef,
+  //       parts: synthPartRef,
+  //       drumsEngine: drumsEngineRef,
+  //       drumsPart: drumsPartRef,
+  //     });
+  // }, []);
 
-  useEffect(() => {
-    SYNTH_LIST.forEach((synthName) => {
-      syncInstrumentPatternsToTrack(
-        synthPartRef.current[synthName],
-        synthData[synthName],
-      );
-    });
+  // useEffect(() => {
+  //   SYNTH_LIST.forEach((synthName) => {
+  //     syncInstrumentPatternsToTrack(
+  //       synthPartRef.current[synthName],
+  //       synthData[synthName],
+  //     );
+  //   });
 
-    syncDrumPatternsToTrack(drumsPartRef.current, drumsList, drumNoteMap);
-  }, [synthData, drumsList]);
+  //   syncDrumPatternsToTrack(drumsPartRef.current, drumsList, drumNoteMap);
+  // }, [synthData, drumsList]);
 
   useEffect(() => {
     const drawingProcess = startDrawingLoop(
