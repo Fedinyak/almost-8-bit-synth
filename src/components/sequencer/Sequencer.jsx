@@ -1,7 +1,7 @@
 import { useSelector } from 'react-redux';
 import TimerTransport from './TimerTransport';
-import SequencerControlPanel from './SequencerControlPanel';
-import SequencerDrumGrid from './SequencerDrumGrid';
+import ControlPanel from './ControlPanel';
+import DrumGrid from './DrumGrid';
 import PatternList from './PatternsList';
 import SynthGrid from './SynthGrid';
 
@@ -23,10 +23,10 @@ const Sequencer = () => {
   return (
     <section className="sequencer">
       <h3>currentPlayPatternIndex {currentPlayPatternIndex}</h3>
-      <SequencerControlPanel />
+      <ControlPanel />
       <TimerTransport />
       <PatternList />
-      <SequencerDrumGrid />
+      <DrumGrid />
       <SynthGrid activeVisualPattern={activeVisualPattern} />
     </section>
   );
