@@ -5,12 +5,12 @@ import {
   setIsLoopingFalse,
   setIsLoopingTrue,
   setSequencerPlayState,
-} from '../../slices/sequencerSlice';
+} from '../../slices/playerSlice';
 import BpmVisualizer from './BpmVisualizer';
 
 const SequencerControlPanel = () => {
   const dispatch = useDispatch();
-  const isLooping = useSelector((state) => state.sequencer.isLooping);
+  const isLooping = useSelector((state) => state.player.isLooping);
 
   return (
     <div>

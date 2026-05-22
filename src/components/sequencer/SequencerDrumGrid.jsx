@@ -1,27 +1,27 @@
 import { useDispatch, useSelector } from 'react-redux';
 import StepIndicator from './StepIndicator';
-import { toggleDrumStep } from '../../slices/sequencerSlice';
+import { toggleDrumStep } from '../../slices/patternsSlice';
 import cn from 'classnames';
 
 const SequencerDrumGrid = () => {
   const dispatch = useDispatch();
 
-  const drumKit = useSelector((state) => state.sequencer.drumKitList);
-  const tracks = useSelector((state) => state.sequencer.drumsData.patterns);
-  const isFollowMode = useSelector((state) => state.sequencer.isFollowMode);
+  const drumKit = useSelector((state) => state.patterns.drumKitList);
+  const tracks = useSelector((state) => state.patterns.drumsData.patterns);
+  const isFollowMode = useSelector((state) => state.player.isFollowMode);
 
   const currentPlayPattern = useSelector(
-    (state) => state.sequencer.currentPlayPatternIndex,
+    (state) => state.player.currentPlayPatternIndex,
   );
   const selectedPatternIndex = useSelector(
-    (state) => state.sequencer.selectedPatternIndex,
+    (state) => state.player.selectedPatternIndex,
   );
 
   const activeVisualPattern = isFollowMode
     ? currentPlayPattern
     : selectedPatternIndex;
 
-  const sequencerStep = useSelector((state) => state.sequencer.sequencerStep);
+  const sequencerStep = useSelector((state) => state.player.sequencerStep);
 
   return (
     <section className="sequencer">

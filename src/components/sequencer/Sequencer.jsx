@@ -14,21 +14,21 @@ import PatternList from './PatternsList';
 const Sequencer = () => {
   const octave = useSelector((state) => state.note.octave);
   const currentPlayPatternIndex = useSelector(
-    (state) => state.sequencer.currentPlayPatternIndex,
+    (state) => state.player.currentPlayPatternIndex,
   );
-  const synthData = useSelector((state) => state.sequencer.synthData);
-  // const synthList = useSelector(state => state.sequencer.synthList);
+  const synthData = useSelector((state) => state.patterns.synthData);
+  // const synthList = useSelector(state => state.player.synthList);
   const keyboardLetter = noteAndKeyMap.keyboardLetter;
   const noteMap = noteAndKeyMap.noteMap;
   const octaveMap = noteAndKeyMap.noteOctaveIndexMap;
 
-  const isFollowMode = useSelector((state) => state.sequencer.isFollowMode);
+  const isFollowMode = useSelector((state) => state.player.isFollowMode);
 
   // const currentPlayPattern = useSelector(
-  //   (state) => state.sequencer.currentPlayPatternIndex,
+  //   (state) => state.player.currentPlayPatternIndex,
   // );
   const selectedPatternIndex = useSelector(
-    (state) => state.sequencer.selectedPatternIndex,
+    (state) => state.player.selectedPatternIndex,
   );
 
   const activeVisualPattern = isFollowMode

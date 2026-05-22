@@ -20,8 +20,8 @@ export const useAudioEngineSync = (
   drumsEngineRef,
   drumsPartRef,
 ) => {
-  const synthData = useSelector((state) => state.sequencer.synthData);
-  const drumsList = useSelector((state) => state.sequencer.drumsData);
+  const synthData = useSelector((state) => state.patterns.synthData);
+  const drumsList = useSelector((state) => state.patterns.drumsData);
 
   useEffect(() => {
     initializeSynths(SYNTH_LIST, synthEnginesRef.current);

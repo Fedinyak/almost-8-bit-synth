@@ -1,6 +1,6 @@
-import { useDispatch } from "react-redux";
-import { setSequencerInstrumentNote } from "../../slices/sequencerSlice";
-import cn from "classnames";
+import { useDispatch } from 'react-redux';
+import { setSequencerInstrumentNote } from '../../slices/patternsSlice';
+import cn from 'classnames';
 
 const Cell = ({
   instrument,
@@ -30,11 +30,11 @@ const Cell = ({
     );
   };
 
-  const isKeyAccidental = note.includes("#");
+  const isKeyAccidental = note.includes('#');
 
-  const cellStyle = cn("sequencer-cell", {
-    "sequencer-cell-accidental": isKeyAccidental,
-    "sequencer-cell-active": isSelectedNote,
+  const cellStyle = cn('sequencer-cell', {
+    'sequencer-cell-accidental': isKeyAccidental,
+    'sequencer-cell-active': isSelectedNote,
   });
 
   return (

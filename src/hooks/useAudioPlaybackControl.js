@@ -3,10 +3,10 @@ import { useSelector } from 'react-redux';
 import { setEngineBpm, setPlayState } from '../utility/audioEngineCore';
 
 export const useAudioPlaybackControl = () => {
-  const bpm = useSelector((state) => state.sequencer.bpm);
+  const bpm = useSelector((state) => state.player.bpm);
 
   const sequencerPlayState = useSelector(
-    (state) => state.sequencer.sequencerPlayState,
+    (state) => state.player.sequencerPlayState,
   );
 
   useEffect(() => {

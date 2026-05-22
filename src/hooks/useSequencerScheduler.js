@@ -4,7 +4,7 @@ import {
   clearPendingPattern,
   setCurrentPlayPatternIndex,
   setCurrentStep,
-} from '../slices/sequencerSlice';
+} from '../slices/playerSlice';
 import {
   STEPS_IN_MEASURE,
   STEP_DURATION_NOTATION,
@@ -75,10 +75,10 @@ export const useSequencerScheduler = () => {
   const dispatch = useDispatch();
 
   const pendingPatternIndex = useSelector(
-    (state) => state.sequencer.pendingPatternIndex,
+    (state) => state.player.pendingPatternIndex,
   );
-  const isLooping = useSelector((state) => state.sequencer.isLooping);
-  const drumsList = useSelector((state) => state.sequencer.drumsData);
+  const isLooping = useSelector((state) => state.player.isLooping);
+  const drumsList = useSelector((state) => state.patterns.drumsData);
   const totalSteps = getTotalSteps(drumsList?.patterns, STEPS_IN_MEASURE);
 
   const pendingPatternRef = useRef(null);

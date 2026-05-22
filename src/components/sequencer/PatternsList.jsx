@@ -9,26 +9,26 @@ import {
   setPendingPattern,
   setSelectedPatternIndex,
   setSequencerPlayState,
-} from '../../slices/sequencerSlice';
+} from '../../slices/playerSlice';
 import classNames from 'classnames';
 
 const PatternList = () => {
   const dispatch = useDispatch();
 
-  const patternCount = useSelector((state) => state.sequencer.patternCount);
+  const patternCount = useSelector((state) => state.player.patternCount);
   const pendingPatternIndex = useSelector(
-    (state) => state.sequencer.pendingPatternIndex,
+    (state) => state.player.pendingPatternIndex,
   );
   const currentPlayPatternIndex = useSelector(
-    (state) => state.sequencer.currentPlayPatternIndex,
+    (state) => state.player.currentPlayPatternIndex,
   );
   const sequencerPlayState = useSelector(
-    (state) => state.sequencer.sequencerPlayState,
+    (state) => state.player.sequencerPlayState,
   );
   const selectedPatternIndex = useSelector(
-    (state) => state.sequencer.selectedPatternIndex,
+    (state) => state.player.selectedPatternIndex,
   );
-  const isFollowMode = useSelector((state) => state.sequencer.isFollowMode);
+  const isFollowMode = useSelector((state) => state.player.isFollowMode);
 
   const patternCountIndex = Array.from({ length: patternCount }, (_, i) => i);
   const handleSelectedPatternIndex = (index) => {
