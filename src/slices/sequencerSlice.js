@@ -1,27 +1,20 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { SEQUENCER_CONFIG } from '../constants/sequencerConfig';
 
-// export const NOTES_COUNT = 72; // C1-B6
-// export const STEPS_PER_PAGE = 32;
-// export const TOTAL_STEPS = 256;
-// export const SEQUENCER_STEP = 16;
-// export const PATTERN_MAX_COUNT = 16;
-
 const initialState = {
-  bpm: 120,
+  bpm: SEQUENCER_CONFIG.DEFAULT_BPM,
   sequencerPlayState: 'stop',
   isLooping: false,
   totalSteps: SEQUENCER_CONFIG.TOTAL_STEPS,
   sequencerStep: SEQUENCER_CONFIG.SEQUENCER_STEP,
   isFollowMode: true,
-  patternCount: 3,
+  patternCount: SEQUENCER_CONFIG.DEFAULT_PATTERN_COUNT,
   patternMaxCount: SEQUENCER_CONFIG.PATTERN_MAX_COUNT,
   currentPlayPatternIndex: 0,
   selectedPatternIndex: false,
   pendingPatternIndex: null,
   currentStep: 0,
-  // viewPage: 0,
-  visibleNotesCount: 24,
+  visibleNotesCount: SEQUENCER_CONFIG.VISIBLE_NOTES_COUNT,
   synthData: {
     synth1: {
       patterns: [
@@ -215,7 +208,6 @@ export const sequencerSlice = createSlice({
       state.isLooping = false;
     },
     setSequencerPlayState: (state, action) => {
-      // console.log(action.payload);
       state.sequencerPlayState = action.payload;
     },
     setCurrentStep: (state, action) => {
@@ -224,22 +216,10 @@ export const sequencerSlice = createSlice({
     setCurrentPlayPatternIndex: (state, action) => {
       state.currentPlayPatternIndex = action.payload;
     },
-    // nextCurrentPatternIndex: (state) => {
-    //   // if (state.currentPatternIndex < state.synthData.patterns.length()) {
-    //   if (state.currentPatternIndex < 1) {
-    //     state.currentPatternIndex += 1;
-    //   } else {
-    //     state.currentPatternIndex = 0;
-    //   }
-    // },
     setSequencerInstrumentNote: (state, action) => {
       const { instrument, step, note, patternIndex } = action.payload;
       state.synthData[instrument].patterns[patternIndex][step].note = note;
       state.synthData[instrument].patterns[patternIndex][step].duration = '8n';
-      // console.log(
-      //   state.synthData[instrument].patterns[patternIndex][step].note,
-      //   'state.synthData[instrument].patterns[patternIndex][step]',
-      // );
     },
     toggleDrumStep: (state, action) => {
       const { drumName, stepIndex, patternIndex } = action.payload;
@@ -257,15 +237,6 @@ export const sequencerSlice = createSlice({
     setFollowModeFalse: (state) => {
       state.isFollowMode = false;
     },
-    // toggleStep: (state, action) => {
-    //   console.log(action.payload, "toggleStep");
-    //   const { noteIndex, stepIndex } = action.payload;
-    //   const currentValue = state.grid[noteIndex][stepIndex];
-    //   state.grid[noteIndex][stepIndex] = currentValue === 0 ? 1 : 0;
-    // },
-    // resetGrid: state => {
-    //   state.grid = createGrid();
-    // },
     setPendingPattern: (state, action) => {
       state.pendingPatternIndex = action.payload;
     },
