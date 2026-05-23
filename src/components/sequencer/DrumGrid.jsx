@@ -18,12 +18,13 @@ const DrumGrid = () => {
     : selectedPatternIndex;
 
   const sequencerStep = useSelector((state) => state.player.sequencerStep);
+  const steps = Array.from({ length: sequencerStep }, (_, i) => i);
 
   return (
     <section className="sequencer">
       <h3>isFollowMode {`${isFollowMode}`}</h3>
       <div className="sequencer-cells">
-        {Array.from({ length: sequencerStep }).map((_, stepIndex) => {
+        {steps.map((stepIndex) => {
           return (
             <div className="sequencer-cells-row" key={`${stepIndex}-drum-step`}>
               <StepIndicator
