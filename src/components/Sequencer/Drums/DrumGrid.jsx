@@ -1,5 +1,5 @@
 import { useSelector } from 'react-redux';
-import StepIndicator from './StepIndicator';
+import StepIndicator from '../Controls/StepIndicator';
 import DrumCell from './DrumCell';
 
 const DrumGrid = () => {

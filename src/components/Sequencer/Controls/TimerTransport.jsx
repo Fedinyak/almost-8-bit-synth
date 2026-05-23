@@ -1,7 +1,7 @@
 import { useRef } from 'react';
-import { useAudioEngineSync } from '../../hooks/useAudioEngineSync';
-import { useAudioPlaybackControl } from '../../hooks/useAudioPlaybackControl';
-import { useSequencerScheduler } from '../../hooks/useSequencerScheduler';
+import { useAudioEngineSync } from '../../../hooks/useAudioEngineSync';
+import { useAudioPlaybackControl } from '../../../hooks/useAudioPlaybackControl';
+import { useSequencerScheduler } from '../../../hooks/useSequencerScheduler';
 
 const TimerTransport = () => {
   const synthEnginesRef = useRef({});

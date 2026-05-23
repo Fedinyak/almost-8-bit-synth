@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import './App.css';
 import Keyboard from './components/keyboard/Keyboard';
 import playSound from './utility/playSound';
-import Sequencer from './components/sequencer/Sequencer';
+import Sequencer from './components/Sequencer';
 
 function App() {
   const activeNote = useSelector((state) => state.note.activeNote);

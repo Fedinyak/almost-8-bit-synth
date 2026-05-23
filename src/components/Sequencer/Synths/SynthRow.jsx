@@ -1,7 +1,7 @@
-import getNote from '../../utility/getNote';
+import getNote from '../../../utility/getNote';
 import Cell from './Cell';
-import StepIndicator from './StepIndicator';
-import noteAndKeyMap from '../../constants/noteAndKeyMap';
+import StepIndicator from '../Controls/StepIndicator';
+import noteAndKeyMap from '../../../constants/noteAndKeyMap';
 
 const SynthRow = ({ instrument, activeVisualPattern, octave, synthData }) => {
   const keyboardLetter = noteAndKeyMap.keyboardLetter;

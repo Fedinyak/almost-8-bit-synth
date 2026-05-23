@@ -1,15 +1,15 @@
-import { useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 // import { decrement, increment } from "../../slices/counterSlice";
 import {
   decreaseOctave,
   increaseOctave,
   setActiveNote,
-} from "../../slices/noteSlice.js";
+} from '../../slices/noteSlice.js';
 // import playSound from "../../utility/playSound";
-import getNote from "../../utility/getNote";
-import KeyboardKey from "./KeyboardKey";
-import noteAndKeyMap from "../../constants/noteAndKeyMap.js";
+import getNote from '../../utility/getNote';
+import KeyboardKey from './KeyboardKey';
+import noteAndKeyMap from '../../constants/noteAndKeyMap.js';
 
 const OctaveSelector = () => {
   const dispatch = useDispatch();
@@ -25,8 +25,8 @@ const Keyboard = () => {
   // const count = useSelector(state => state.counter.value);
   // const keyboardLetter = useSelector(state => state.note.keyboardLetter);
 
-  const octave = useSelector(state => state.note.octave);
-  const activeNote = useSelector(state => state.note.activeNote);
+  const octave = useSelector((state) => state.note.octave);
+  const activeNote = useSelector((state) => state.note.activeNote);
   // const noteMap = useSelector(state => state.note.noteMap);
   const keyboardLetter = noteAndKeyMap.keyboardLetter;
   const noteMap = noteAndKeyMap.noteMap;
@@ -35,9 +35,9 @@ const Keyboard = () => {
 
   const dispatch = useDispatch();
 
-  const handleKeyboardKeyDown = event => {
+  const handleKeyboardKeyDown = (event) => {
     if (keyboardLetter.join().includes(event.key)) {
-      console.log(event.key, octave, "event.key, octave");
+      console.log(event.key, octave, 'event.key, octave');
       const note = getNote(event.key, octave, noteMap, octaveMap);
       dispatch(setActiveNote(note));
     }
@@ -45,11 +45,11 @@ const Keyboard = () => {
 
   useEffect(() => {
     // Add the event listener when the component mounts
-    document.addEventListener("keydown", handleKeyboardKeyDown);
+    document.addEventListener('keydown', handleKeyboardKeyDown);
 
     // Provide a cleanup function to remove the event listener when the component unmounts
     return () => {
-      document.removeEventListener("keydown", handleKeyboardKeyDown);
+      document.removeEventListener('keydown', handleKeyboardKeyDown);
     };
   }, []); // Empty dependency array ensures it runs once on mount and once on unmount
 

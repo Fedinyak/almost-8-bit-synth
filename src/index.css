@@ -1,5 +1,5 @@
-@import "./components/keyboard/keyboard.css";
-@import "./components/sequencer/sequencer.css";
+@import './components/Keyboard/keyboard.css';
+@import './components/sequencer.css';
 
 /* :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;

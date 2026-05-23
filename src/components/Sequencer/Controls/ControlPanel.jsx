@@ -5,7 +5,7 @@ import {
   setIsLoopingFalse,
   setIsLoopingTrue,
   setSequencerPlayState,
-} from '../../slices/playerSlice';
+} from '../../../slices/playerSlice';
 import BpmVisualizer from './BpmVisualizer';
 
 const SequencerControlPanel = () => {

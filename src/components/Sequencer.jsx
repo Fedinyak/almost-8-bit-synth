@@ -1,9 +1,9 @@
 import { useSelector } from 'react-redux';
-import TimerTransport from './TimerTransport';
-import ControlPanel from './ControlPanel';
-import DrumGrid from './DrumGrid';
-import PatternList from './PatternsList';
-import SynthGrid from './SynthGrid';
+import TimerTransport from './Sequencer/Controls/TimerTransport';
+import ControlPanel from './Sequencer/Controls/ControlPanel';
+import DrumGrid from './Sequencer/Drums/DrumGrid';
+import PatternList from './Sequencer/Controls/PatternsList';
+import SynthGrid from './Sequencer/Synths/SynthGrid';
 
 const Sequencer = () => {
   const currentPlayPatternIndex = useSelector(

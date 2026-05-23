@@ -1,5 +1,5 @@
 import { useDispatch } from 'react-redux';
-import { setSequencerInstrumentNote } from '../../slices/patternsSlice';
+import { setSequencerInstrumentNote } from '../../../slices/patternsSlice';
 import cn from 'classnames';
 
 const Cell = ({

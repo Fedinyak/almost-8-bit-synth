@@ -1,7 +1,7 @@
 import { useSelector } from 'react-redux';
-import getNote from '../../utility/getNote';
-import noteAndKeyMap from '../../constants/noteAndKeyMap';
-import { SYNTH_LIST } from '../../constants/constants';
+import getNote from '../../../utility/getNote';
+import noteAndKeyMap from '../../../constants/noteAndKeyMap';
+import { SYNTH_LIST } from '../../../constants/constants';
 import SynthRow from './SynthRow';
 
 const SynthGrid = ({ activeVisualPattern }) => {

@@ -9,7 +9,7 @@ import {
   setPendingPattern,
   setSelectedPatternIndex,
   setSequencerPlayState,
-} from '../../slices/playerSlice';
+} from '../../../slices/playerSlice';
 import classNames from 'classnames';
 
 const PatternList = () => {
