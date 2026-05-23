@@ -1,4 +1,3 @@
-// src/components/sequencer/SequencerDrumGrid.jsx
 import { useSelector } from 'react-redux';
 import StepIndicator from './StepIndicator';
 import DrumCell from './DrumCell';
