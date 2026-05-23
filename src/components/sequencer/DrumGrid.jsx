@@ -1,13 +1,10 @@
-import { useDispatch, useSelector } from 'react-redux';
+// src/components/sequencer/SequencerDrumGrid.jsx
+import { useSelector } from 'react-redux';
 import StepIndicator from './StepIndicator';
-import { toggleDrumStep } from '../../slices/patternsSlice';
-import cn from 'classnames';
+import DrumCell from './DrumCell';
 
-const SequencerDrumGrid = () => {
-  const dispatch = useDispatch();
-
+const DrumGrid = () => {
   const drumKit = useSelector((state) => state.patterns.drumKitList);
-  const tracks = useSelector((state) => state.patterns.drumsData.patterns);
   const isFollowMode = useSelector((state) => state.player.isFollowMode);
 
   const currentPlayPattern = useSelector(
@@ -34,34 +31,15 @@ const SequencerDrumGrid = () => {
                 key={`${stepIndex}-step-drum`}
                 stepIndex={stepIndex}
               />
+
               {drumKit.map((drumName) => {
-                const isActive =
-                  tracks[activeVisualPattern][drumName][stepIndex] !== 0;
-
-                const cellStyle = cn('sequencer-cell', {
-                  'sequencer-cell-active': isActive,
-                });
-
-                // console.log(currentPattern, 'currentPattern');
                 return (
-                  <button
-                    className={cellStyle}
-                    onClick={() =>
-                      dispatch(
-                        toggleDrumStep({
-                          drumName,
-                          stepIndex,
-                          patternIndex: activeVisualPattern,
-                        }),
-                      )
-                    }
+                  <DrumCell
                     key={`${drumName}-${stepIndex}`}
-                  >
-                    {/* {tracks[drumName][stepIndex]} */}
-                    {drumName[0]}
-                    {/* {stepIndex} */}
-                    {/* {drumNoteMap[drumName]} */}
-                  </button>
+                    drumName={drumName}
+                    stepIndex={stepIndex}
+                    activeVisualPattern={activeVisualPattern}
+                  />
                 );
               })}
               <br />
@@ -73,4 +51,4 @@ const SequencerDrumGrid = () => {
   );
 };
 
-export default SequencerDrumGrid;
+export default DrumGrid;
