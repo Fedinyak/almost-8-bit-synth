@@ -22,6 +22,8 @@ export const setEngineBpm = (bpmValue) => {
 export const setPlayState = (state) => {
   if (state === 'start') {
     Tone.Transport.start();
+  } else if (state === 'pause') {
+    Tone.Transport.pause();
   } else {
     Tone.Transport.stop();
   }

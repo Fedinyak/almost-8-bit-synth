@@ -67,8 +67,9 @@ const PatternList = () => {
       return;
     }
 
-    // Режим 2: ПЛЕЙ (Обычная игра по порядку)
-    if (sequencerPlayState === 'start') {
+    // Режим 2: ПЛЕЙ (Обычная игра по порядку) и режим ПАУЗЫ
+    // ИСПРАВЛЕНО: Защитили удаление на паузе, пустив его по пути безопасного квантования
+    if (sequencerPlayState === 'start' || sequencerPlayState === 'pause') {
       // Если прямо сейчас играет последний паттерн — квантуем удаление
       if (currentPlayPatternIndex === lastPatternIndex) {
         dispatch(scheduleDeleteLastPattern());
@@ -91,7 +92,7 @@ const PatternList = () => {
       dispatch(setIsLoopingFalse());
     }
     if (sequencerPlayState === 'stop') {
-      // ИСПРАВЛЕНО: Перед запуском движка физически перемещаем Tone.Transport на выбранный такт
+      // Перед запуском движка физически перемещаем Tone.Transport на выбранный такт
       setEnginePosition(index);
       dispatch(setCurrentPlayPatternIndex(index));
       dispatch(setIsLoopingFalse());
