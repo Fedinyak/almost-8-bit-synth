@@ -4,7 +4,10 @@ import {
   clearPendingPattern,
   setCurrentPlayPatternIndex,
   setCurrentStep,
+  decrementPatternCountSync,
+  clearPendingDeleteLastPattern,
 } from '../slices/playerSlice';
+import { backupAndDropPatternData } from '../slices/patternsSlice';
 import {
   STEPS_IN_MEASURE,
   STEP_DURATION_NOTATION,
@@ -12,11 +15,11 @@ import {
 import {
   calculateCurrentPlayPattern,
   calculateCurrentStep,
-  getTotalSteps,
 } from '../utility/audioMathUtils';
 import {
   disableEngineLoop,
   enableEngineLoop,
+  enableGlobalTransportLoop, // Импортируем управление глобальным лупом
   scheduleFrame,
   setEnginePosition,
   startDrawingLoop,
@@ -25,21 +28,44 @@ import {
 
 const handleStepSync = (
   time,
-  totalStepsRef,
   pendingPatternRef,
   isPatternLoopRef,
   dispatch,
+  pendingDeleteLastRef,
+  currentPlayPatternIndexRef,
+  patternCountRef,
 ) => {
-  const currentStep = calculateCurrentStep(time, totalStepsRef.current);
+  // ИСПРАВЛЕНО: Считаем чистый шаг без деления по модулю через totalSteps
+  const absoluteStep = calculateCurrentStep(time);
   const currentPlayPattern = calculateCurrentPlayPattern(
-    currentStep,
+    absoluteStep,
     STEPS_IN_MEASURE,
   );
-  const stepInPattern = currentStep % STEPS_IN_MEASURE;
+  const stepInPattern = absoluteStep % STEPS_IN_MEASURE;
+
+  // Динамически удерживаем рамки Tone.Transport под актуальную длину трека, если не включен соло-луп паттерна
+  if (!isPatternLoopRef.current) {
+    enableGlobalTransportLoop(patternCountRef.current);
+  }
 
   if (stepInPattern === 15) {
     const nextPattern = pendingPatternRef.current;
     const isLoopActive = isPatternLoopRef.current;
+    const shouldDeleteLast = pendingDeleteLastRef.current;
+
+    if (shouldDeleteLast) {
+      const activeIndex = currentPlayPatternIndexRef.current;
+      const totalCount = patternCountRef.current;
+      const lastIndex = totalCount - 1;
+
+      if (activeIndex === lastIndex || isLoopActive) {
+        scheduleFrame(time, () => {
+          dispatch(backupAndDropPatternData(lastIndex));
+          dispatch(decrementPatternCountSync());
+          dispatch(clearPendingDeleteLastPattern());
+        });
+      }
+    }
 
     if (nextPattern !== null) {
       disableEngineLoop();
@@ -57,16 +83,14 @@ const handleStepSync = (
       enableEngineLoop(currentPlayPattern);
 
       scheduleFrame(time, () => {
-        dispatch(setCurrentStep(currentStep));
+        dispatch(setCurrentStep(absoluteStep));
       });
       return;
-    } else {
-      disableEngineLoop();
     }
   }
 
   scheduleFrame(time, () => {
-    dispatch(setCurrentStep(currentStep));
+    dispatch(setCurrentStep(absoluteStep));
     dispatch(setCurrentPlayPatternIndex(currentPlayPattern));
   });
 };
@@ -78,16 +102,27 @@ export const useSequencerScheduler = () => {
     (state) => state.player.pendingPatternIndex,
   );
   const isLooping = useSelector((state) => state.player.isLooping);
-  const drumsList = useSelector((state) => state.patterns.drumsData);
-  const totalSteps = getTotalSteps(drumsList?.patterns, STEPS_IN_MEASURE);
+  const pendingDeleteLast = useSelector(
+    (state) => state.player.pendingDeleteLast,
+  );
+  const currentPlayPatternIndex = useSelector(
+    (state) => state.player.currentPlayPatternIndex,
+  );
+  const patternCount = useSelector((state) => state.player.patternCount);
 
   const pendingPatternRef = useRef(null);
   const isPatternLoopRef = useRef(null);
-  const totalStepsRef = useRef(totalSteps);
 
+  const pendingDeleteLastRef = useRef(pendingDeleteLast);
+  const currentPlayPatternIndexRef = useRef(currentPlayPatternIndex);
+  const patternCountRef = useRef(patternCount);
+
+  // Принудительно задаем изначальный размер лупа трека при старте хука
   useEffect(() => {
-    totalStepsRef.current = totalSteps;
-  }, [totalSteps]);
+    if (!isLooping) {
+      enableGlobalTransportLoop(patternCount);
+    }
+  }, [patternCount, isLooping]);
 
   useEffect(() => {
     pendingPatternRef.current = pendingPatternIndex;
@@ -98,14 +133,28 @@ export const useSequencerScheduler = () => {
   }, [isLooping]);
 
   useEffect(() => {
+    pendingDeleteLastRef.current = pendingDeleteLast;
+  }, [pendingDeleteLast]);
+
+  useEffect(() => {
+    currentPlayPatternIndexRef.current = currentPlayPatternIndex;
+  }, [currentPlayPatternIndex]);
+
+  useEffect(() => {
+    patternCountRef.current = patternCount;
+  }, [patternCount]);
+
+  useEffect(() => {
     const drawingProcess = startDrawingLoop(
       (time) =>
         handleStepSync(
           time,
-          totalStepsRef,
           pendingPatternRef,
           isPatternLoopRef,
           dispatch,
+          pendingDeleteLastRef,
+          currentPlayPatternIndexRef,
+          patternCountRef,
         ),
       STEP_DURATION_NOTATION,
     );

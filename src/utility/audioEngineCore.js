@@ -54,6 +54,7 @@ export const setGlobalTransportTime = (seconds) => {
   Tone.Transport.seconds = seconds;
 };
 
+// Для зацикливания ОДНОГО конкретного паттерна (Режим ЛУП)
 export const enableEngineLoop = (patternIndex) => {
   Tone.Transport.loopStart = `${patternIndex}m`;
   Tone.Transport.loopEnd = `${patternIndex + 1}m`;
@@ -62,4 +63,11 @@ export const enableEngineLoop = (patternIndex) => {
 
 export const disableEngineLoop = () => {
   Tone.Transport.loop = false;
+};
+
+// НОВЫЕ ФУНКЦИИ: Для контроля цикла ВСЕГО трека по его реальной длине (Режим ПЛЕЙ)
+export const enableGlobalTransportLoop = (numberOfMeasures) => {
+  Tone.Transport.loopStart = `0m`;
+  Tone.Transport.loopEnd = `${numberOfMeasures}m`;
+  Tone.Transport.loop = true;
 };

@@ -21,12 +21,13 @@ export const getTotalSteps = (patterns, stepsPerMeasure = 16) => {
   return patternsCount * stepsPerMeasure;
 };
 
-export const calculateCurrentStep = (time, totalSteps) => {
+// ИСПРАВЛЕНО: Убрана деструктивная зависимость от общего количества шагов трека
+export const calculateCurrentStep = (time) => {
   const STEPS_PER_BEAT = 4;
   const ticksPerStep = Tone.Transport.PPQ / STEPS_PER_BEAT;
   const currentTick = Tone.Transport.getTicksAtTime(time);
 
-  return Math.floor(currentTick / ticksPerStep) % totalSteps;
+  return Math.floor(currentTick / ticksPerStep);
 };
 
 export const calculateCurrentPlayPattern = (step, stepsInMeasure) => {

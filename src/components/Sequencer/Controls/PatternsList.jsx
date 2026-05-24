@@ -4,12 +4,18 @@ import {
   setFollowModeFalse,
   setFollowModeTrue,
   setIsLoopingFalse,
-  // setIsLooping,
   setIsLoopingTrue,
   setPendingPattern,
   setSelectedPatternIndex,
   setSequencerPlayState,
+  incrementPatternCount, // Существующий экшен
+  decrementPatternCountSync, // Новый синхронный экшен
+  scheduleDeleteLastPattern, // Новый экшен квантования
 } from '../../../slices/playerSlice';
+import {
+  addPatternData, // Существующий экшен добавления пустых нот
+  backupAndDropPatternData, // Существующий экшен удаления нот
+} from '../../../slices/patternsSlice';
 import classNames from 'classnames';
 
 const PatternList = () => {
@@ -29,8 +35,48 @@ const PatternList = () => {
     (state) => state.player.selectedPatternIndex,
   );
   const isFollowMode = useSelector((state) => state.player.isFollowMode);
+  const isLooping = useSelector((state) => state.player.isLooping);
 
   const patternCountIndex = Array.from({ length: patternCount }, (_, i) => i);
+
+  // ФУНКЦИЯ ДОБАВЛЕНИЯ ПАТТЕРНА (➕)
+  const handleAddPattern = () => {
+    dispatch(addPatternData()); // Мгновенно добавляем пустые структуры/ноты в конец
+    dispatch(incrementPatternCount()); // Увеличиваем счетчик паттернов
+  };
+
+  // ФУНКЦИЯ УДАЛЕНИЯ ПОСЛЕДНЕГО ПАТТЕРНА (➖)
+  const handleRemoveLastPattern = () => {
+    if (patternCount <= 1) return; // Не удаляем единственный паттерн
+
+    const lastPatternIndex = patternCount - 1;
+
+    // Режим 1: СТОП — удаляем мгновенно
+    if (sequencerPlayState === 'stop') {
+      dispatch(backupAndDropPatternData(lastPatternIndex));
+      dispatch(decrementPatternCountSync());
+      return;
+    }
+
+    // Режим 3: ЛУП — квантуем на стыке текущего такта
+    if (isLooping) {
+      dispatch(scheduleDeleteLastPattern());
+      return;
+    }
+
+    // Режим 2: ПЛЕЙ (Обычная игра по порядку)
+    if (sequencerPlayState === 'start') {
+      // Если прямо сейчас играет последний паттерн — квантуем удаление
+      if (currentPlayPatternIndex === lastPatternIndex) {
+        dispatch(scheduleDeleteLastPattern());
+      } else {
+        // Если играет любой другой паттерн — удаляем структуру из хвоста мгновенно
+        dispatch(backupAndDropPatternData(lastPatternIndex));
+        dispatch(decrementPatternCountSync());
+      }
+    }
+  };
+
   const handleSelectedPatternIndex = (index) => {
     dispatch(setSelectedPatternIndex(index));
     dispatch(setFollowModeFalse());
@@ -57,46 +103,70 @@ const PatternList = () => {
     dispatch(setSelectedPatternIndex(false));
   };
 
-  // TODO: заменить индекс на ID после проверки гипотезы
   return (
-    <ul className="patten-list">
-      {patternCountIndex.map((index) => {
-        return (
-          <li key={index} style={{ display: 'flex', flexDirection: 'column' }}>
-            <button
-              onClick={() => handlePlayPatternIndex(index)}
-              className={classNames('play-pattern-btn', {
-                'is-waiting': pendingPatternIndex === 1,
-              })}
+    <div className="pattern-list-container">
+      {/* КНОПКИ УПРАВЛЕНИЯ ДЛИНОЙ ТРЕКА СВЕРХУ */}
+      <div
+        className="pattern-controls"
+        style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}
+      >
+        <button onClick={handleAddPattern} className="add-pattern-global-btn">
+          ➕ Добавить паттерн
+        </button>
+        <button
+          onClick={handleRemoveLastPattern}
+          className="remove-pattern-global-btn"
+        >
+          ➖ Удалить последний
+        </button>
+      </div>
+
+      <ul className="patten-list">
+        {patternCountIndex.map((index) => {
+          return (
+            <li
+              key={index}
+              style={{ display: 'flex', flexDirection: 'column' }}
             >
-              ▶
-            </button>
-            <button onClick={() => handleLoopPatternIndex(index)}>loop</button>
-            <button
-              className={[
-                selectedPatternIndex === index ? 'patten-list-btn-select' : '',
-                currentPlayPatternIndex === index
-                  ? 'sequencer-cell-active'
-                  : '',
-              ].join(' ')}
-              onClick={() => handleSelectedPatternIndex(index)}
-            >
-              {index + 1}
-            </button>
-            <button
-              className={
-                !isFollowMode && selectedPatternIndex === index
-                  ? 'follow-mode-btn-active'
-                  : 'follow-mode-btn'
-              }
-              onClick={handleFollowModeTrue}
-            >
-              fllw
-            </button>
-          </li>
-        );
-      })}
-    </ul>
+              <button
+                onClick={() => handlePlayPatternIndex(index)}
+                className={classNames('play-pattern-btn', {
+                  'is-waiting': pendingPatternIndex === index,
+                })}
+              >
+                ▶
+              </button>
+              <button onClick={() => handleLoopPatternIndex(index)}>
+                loop
+              </button>
+              <button
+                className={[
+                  selectedPatternIndex === index
+                    ? 'patten-list-btn-select'
+                    : '',
+                  currentPlayPatternIndex === index
+                    ? 'sequencer-cell-active'
+                    : '',
+                ].join(' ')}
+                onClick={() => handleSelectedPatternIndex(index)}
+              >
+                {index + 1}
+              </button>
+              <button
+                className={
+                  !isFollowMode && selectedPatternIndex === index
+                    ? 'follow-mode-btn-active'
+                    : 'follow-mode-btn'
+                }
+                onClick={handleFollowModeTrue}
+              >
+                fllw
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 };
 

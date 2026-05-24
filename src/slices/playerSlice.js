@@ -15,6 +15,8 @@ const initialState = {
   pendingPatternIndex: null,
   currentStep: 0,
   pendingDeletePatternIndex: null,
+  // НОВЫЙ ФЛАГ ДЛЯ КВАНТОВАНИЯ УДАЛЕНИЯ ПОСЛЕДНЕГО ПАТТЕРНА
+  pendingDeleteLast: false,
 };
 
 const safelyAdjustPlayBounds = (state) => {
@@ -80,6 +82,21 @@ export const playerSlice = createSlice({
         state.pendingDeletePatternIndex = null;
       }
     },
+    // НОВЫЕ РЕДЬЮСЕРЫ ДЛЯ УПРАВЛЕНИЯ ДЛИННОЙ ТРЕКА И КВАНТОВАНИЕМ
+    decrementPatternCountSync: (state) => {
+      if (state.patternCount > 1) {
+        state.patternCount -= 1;
+        safelyAdjustPlayBounds(state);
+      }
+    },
+    scheduleDeleteLastPattern: (state) => {
+      if (state.patternCount > 1) {
+        state.pendingDeleteLast = true;
+      }
+    },
+    clearPendingDeleteLastPattern: (state) => {
+      state.pendingDeleteLast = false;
+    },
   },
 });
 
@@ -98,6 +115,10 @@ export const {
   incrementPatternCount,
   scheduleDeletePattern,
   applyDeletePatternCount,
+  // Экспортируем новые экшены
+  decrementPatternCountSync,
+  scheduleDeleteLastPattern,
+  clearPendingDeleteLastPattern,
 } = playerSlice.actions;
 
 export default playerSlice.reducer;
