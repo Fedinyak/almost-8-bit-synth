@@ -67,9 +67,21 @@ const PatternList = () => {
       return;
     }
 
-    // Режим 2: ПЛЕЙ (Обычная игра по порядку) и режим ПАУЗЫ
-    // ИСПРАВЛЕНО: Защитили удаление на паузе, пустив его по пути безопасного квантования
-    if (sequencerPlayState === 'start' || sequencerPlayState === 'pause') {
+    // ИСПРАВЛЕНО: Развели поведение для ПЛЕЙ (start) и ПАУЗЫ (pause)
+    if (sequencerPlayState === 'pause') {
+      // Если на паузе мы стояли именно на удаляемом (последнем) паттерне
+      if (currentPlayPatternIndex === lastPatternIndex) {
+        setEnginePosition(0); // Физически перематываем ленту Tone.js в ноль
+        dispatch(setCurrentPlayPatternIndex(0)); // Переключаем играющий индекс на 1-й паттерн
+      }
+      // В любом случае на паузе удаляем данные из хвоста мгновенно
+      dispatch(backupAndDropPatternData(lastPatternIndex));
+      dispatch(decrementPatternCountSync());
+      return;
+    }
+
+    // Режим 2: ПЛЕЙ (Обычная игра по порядку)
+    if (sequencerPlayState === 'start') {
       // Если прямо сейчас играет последний паттерн — квантуем удаление
       if (currentPlayPatternIndex === lastPatternIndex) {
         dispatch(scheduleDeleteLastPattern());
