@@ -7,9 +7,9 @@ const DrumCell = ({ drumName, stepIndex, activeVisualPattern }) => {
 
   const isStepActive = useSelector(
     (state) =>
-      state.patterns.drumsData.patterns[activeVisualPattern][drumName][
+      state.patterns?.drumsData?.patterns?.[activeVisualPattern]?.[drumName]?.[
         stepIndex
-      ],
+      ] || 0,
   );
 
   const cellStyle = cn('sequencer-cell', {
