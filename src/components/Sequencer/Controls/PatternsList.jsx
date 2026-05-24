@@ -16,6 +16,9 @@ import {
   addPatternData, // Существующий экшен добавления пустых нот
   backupAndDropPatternData, // Существующий экшен удаления нот
 } from '../../../slices/patternsSlice';
+import {
+  setEnginePosition, // ИМПОРТ: Функция для изменения физической позиции Tone.Transport
+} from '../../../utility/audioEngineCore';
 import classNames from 'classnames';
 
 const PatternList = () => {
@@ -88,6 +91,8 @@ const PatternList = () => {
       dispatch(setIsLoopingFalse());
     }
     if (sequencerPlayState === 'stop') {
+      // ИСПРАВЛЕНО: Перед запуском движка физически перемещаем Tone.Transport на выбранный такт
+      setEnginePosition(index);
       dispatch(setCurrentPlayPatternIndex(index));
       dispatch(setIsLoopingFalse());
       dispatch(setSequencerPlayState('start'));

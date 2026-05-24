@@ -19,7 +19,7 @@ import {
 import {
   disableEngineLoop,
   enableEngineLoop,
-  enableGlobalTransportLoop, // Импортируем управление глобальным лупом
+  enableGlobalTransportLoop,
   scheduleFrame,
   setEnginePosition,
   startDrawingLoop,
@@ -35,18 +35,13 @@ const handleStepSync = (
   currentPlayPatternIndexRef,
   patternCountRef,
 ) => {
-  // ИСПРАВЛЕНО: Считаем чистый шаг без деления по модулю через totalSteps
+  // Считаем чистый шаг без деления по модулю через totalSteps
   const absoluteStep = calculateCurrentStep(time);
   const currentPlayPattern = calculateCurrentPlayPattern(
     absoluteStep,
     STEPS_IN_MEASURE,
   );
   const stepInPattern = absoluteStep % STEPS_IN_MEASURE;
-
-  // Динамически удерживаем рамки Tone.Transport под актуальную длину трека, если не включен соло-луп паттерна
-  if (!isPatternLoopRef.current) {
-    enableGlobalTransportLoop(patternCountRef.current);
-  }
 
   if (stepInPattern === 15) {
     const nextPattern = pendingPatternRef.current;
@@ -117,7 +112,7 @@ export const useSequencerScheduler = () => {
   const currentPlayPatternIndexRef = useRef(currentPlayPatternIndex);
   const patternCountRef = useRef(patternCount);
 
-  // Принудительно задаем изначальный размер лупа трека при старте хука
+  // Единственное и правильное место для контроля границ глобального цикла — реакция на изменение стейта
   useEffect(() => {
     if (!isLooping) {
       enableGlobalTransportLoop(patternCount);
