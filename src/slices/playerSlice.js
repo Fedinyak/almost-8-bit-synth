@@ -14,7 +14,20 @@ const initialState = {
   selectedPatternIndex: false,
   pendingPatternIndex: null,
   currentStep: 0,
+  pendingDeletePatternIndex: null,
 };
+
+const safelyAdjustPlayBounds = (state) => {
+  const lastValidIndex = Math.max(0, state.patternCount - 1);
+
+  if (state.currentPlayPatternIndex >= state.patternCount) {
+    state.currentPlayPatternIndex = lastValidIndex;
+  }
+  if (state.selectedPatternIndex >= state.patternCount) {
+    state.selectedPatternIndex = lastValidIndex;
+  }
+};
+
 export const playerSlice = createSlice({
   name: 'player',
   initialState,
@@ -52,6 +65,21 @@ export const playerSlice = createSlice({
     clearPendingPattern: (state) => {
       state.pendingPatternIndex = null;
     },
+    incrementPatternCount: (state) => {
+      if (state.patternCount < state.patternMaxCount) {
+        state.patternCount += 1;
+      }
+    },
+    scheduleDeletePattern: (state, action) => {
+      state.pendingDeletePatternIndex = action.payload;
+    },
+    applyDeletePatternCount: (state) => {
+      if (state.pendingDeletePatternIndex !== null) {
+        state.patternCount -= 1;
+        safelyAdjustPlayBounds(state);
+        state.pendingDeletePatternIndex = null;
+      }
+    },
   },
 });
 
@@ -67,6 +95,9 @@ export const {
   setFollowModeFalse,
   setPendingPattern,
   clearPendingPattern,
+  incrementPatternCount,
+  scheduleDeletePattern,
+  applyDeletePatternCount,
 } = playerSlice.actions;
 
 export default playerSlice.reducer;
