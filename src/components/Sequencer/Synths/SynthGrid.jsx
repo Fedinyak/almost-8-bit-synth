@@ -13,8 +13,6 @@ const SynthGrid = ({ activeVisualPattern }) => {
   const noteMap = noteAndKeyMap.noteMap;
   const octaveMap = noteAndKeyMap.noteOctaveIndexMap;
 
-  const analysers = window.__synthAnalysers || {};
-
   return (
     <>
       <div className="sequencer-note-title">
