@@ -7,42 +7,44 @@ const CONFIG = {
   CANVAS_WIDTH_PX: 40, // Физическая ширина холста в пикселях
   CANVAS_HEIGHT_PX: 20, // Физическая высота холста в пикселях
   LINE_WIDTH_PX: 1, // Толщина линии осциллографа
-  COLOR_ACTIVE: '#00ff00', // Зеленый цвет луха при звуке
+  COLOR_ACTIVE: '#00ff00', // Зеленый цвет луча при звуке
   COLOR_SILENT: '#555555', // Серый цвет линии в тишине
   HALF_PIXEL_OFFSET: 0.5, // Сдвиг для точного попадания в пиксельную сетку Canvas
 };
 
-// === ВСПОМОГАТЕЛЬНЫЕ ДЕКЛАРАТИВНЫЕ ФУНКЦИИ ===
+// === ВСПОМОГАТЕЛЬНЫЕ ДЕКЛАРАТИВНЫЕ ФУНКЦИИ МАТЕМАТИКИ ===
 
-// Ограничивает значение в диапазоне от -1 до 1
 const clampToAudioBoundaries = (value) => Math.max(-1, Math.min(1, value));
 
-// Масштабирует амплитуду сигнала с учетом множителя чувствительности
 const scaleAmplitude = (value, multiplier) => value * multiplier;
 
-// Переводит нормализованное аудио-значение в координату Y на холсте
 const calculateYCoordinate = (clampedValue, canvasHeight) => {
   return ((clampedValue + 1) / 2) * canvasHeight;
 };
 
-// Предотвращает обрезание пикселей линии на краях рамки холста
 const keepInsideCanvasEdges = (yPosition, canvasHeight) => {
   if (yPosition <= 0) return CONFIG.HALF_PIXEL_OFFSET;
   if (yPosition >= canvasHeight) return canvasHeight - CONFIG.HALF_PIXEL_OFFSET;
   return yPosition;
 };
 
-// Округляет координату и смещает ее на полпикселя для идеальной резкости без размытия
 const alignToPixelGrid = (yPosition) =>
   Math.round(yPosition) - CONFIG.HALF_PIXEL_OFFSET;
 
-// Финальный пайплайн расчета координаты Y для одной точки волны
 const getFinalYPosition = (rawAudioValue, canvasHeight) => {
   const scaled = scaleAmplitude(rawAudioValue, CONFIG.AMPLITUDE_MULTIPLIER);
   const clamped = clampToAudioBoundaries(scaled);
   const rawY = calculateYCoordinate(clamped, canvasHeight);
   const safeY = keepInsideCanvasEdges(rawY, canvasHeight);
   return alignToPixelGrid(safeY);
+};
+
+// === ФУНКЦИИ ОТРИСОВКИ ===
+
+// Подготавливает холст к новому кадру (стирает пиксели и отключает размытие)
+const prepareCanvasContext = (ctx, width, height) => {
+  ctx.clearRect(0, 0, width, height);
+  ctx.imageSmoothingEnabled = false;
 };
 
 // Рисует горизонтальную прямую линию по центру (режим тишины)
@@ -80,7 +82,44 @@ const drawAudioWaveform = (ctx, audioValues, width, height) => {
   ctx.stroke();
 };
 
-// === ГЛАВНЫЙ КОМПОНЕНТ ===
+// === ФУНКЦИИ ОРКЕСТРАЦИИ ДАННЫХ И ВРЕМЕНИ ===
+
+// Проверяет, прошел ли необходимый промежуток времени для отрисовки следующего кадра
+const shouldRenderNextFrame = (
+  currentTimestamp,
+  lastDrawTimestamp,
+  millisecondsPerFrame,
+) => {
+  const timeElapsedSinceLastDraw = currentTimestamp - lastDrawTimestamp;
+  return timeElapsedSinceLastDraw >= millisecondsPerFrame;
+};
+
+// Вычисляет выровненный таймстамп для предотвращения накопления временного сдвига (джиттера)
+const calculateAlignedTimestamp = (
+  currentTimestamp,
+  lastDrawTimestamp,
+  millisecondsPerFrame,
+) => {
+  const timeElapsedSinceLastDraw = currentTimestamp - lastDrawTimestamp;
+  return currentTimestamp - (timeElapsedSinceLastDraw % millisecondsPerFrame);
+};
+
+// Запрашивает живые данные из Tone.js аудио-анализатора
+const fetchAudioDataFromAnalyser = (synthName) => {
+  return window.__synthAnalysers?.[synthName];
+};
+
+// Управляет тем, КАКОЙ ИМЕННО графический режим применить на текущем кадре
+const drawSceneBasedOnAudioState = (ctx, analyser, width, height) => {
+  if (!analyser) {
+    drawSilentCenterLine(ctx, width, height);
+    return;
+  }
+
+  const waveAmplitudes = analyser.getValue();
+  drawAudioWaveform(ctx, waveAmplitudes, width, height);
+};
+
 const WaveMonitor = ({ synthName }) => {
   const canvasRef = useRef(null);
   const animationFrameIdRef = useRef(null);
@@ -96,35 +135,39 @@ const WaveMonitor = ({ synthName }) => {
     const renderLoop = (currentTimestamp) => {
       animationFrameIdRef.current = requestAnimationFrame(renderLoop);
 
-      // Контроль частоты кадров (FPS Limit)
-      const timeElapsedSinceLastDraw =
-        currentTimestamp - lastDrawTimestampRef.current;
-      if (timeElapsedSinceLastDraw < millisecondsPerFrame) return;
-
-      // Выравниваем шаг таймера
-      lastDrawTimestampRef.current =
-        currentTimestamp - (timeElapsedSinceLastDraw % millisecondsPerFrame);
-
-      // Получаем инстанс анализатора из глобального реестра
-      const activeAnalyser = window.__synthAnalysers?.[synthName];
-
-      // Очищаем прозрачный холст перед каждым кадром
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.imageSmoothingEnabled = false;
-
-      if (!activeAnalyser) {
-        drawSilentCenterLine(ctx, canvas.width, canvas.height);
+      // 1. Контроль частоты кадров (FPS)
+      if (
+        !shouldRenderNextFrame(
+          currentTimestamp,
+          lastDrawTimestampRef.current,
+          millisecondsPerFrame,
+        )
+      ) {
         return;
       }
+      lastDrawTimestampRef.current = calculateAlignedTimestamp(
+        currentTimestamp,
+        lastDrawTimestampRef.current,
+        millisecondsPerFrame,
+      );
 
-      const waveAmplitudes = activeAnalyser.getValue();
-      drawAudioWaveform(ctx, waveAmplitudes, canvas.width, canvas.height);
+      // 2. Подготовка графического контекста
+      prepareCanvasContext(ctx, canvas.width, canvas.height);
+
+      // 3. Получение звукового состояния и отрисовка кадра
+      const activeAnalyser = fetchAudioDataFromAnalyser(synthName);
+      drawSceneBasedOnAudioState(
+        ctx,
+        activeAnalyser,
+        canvas.width,
+        canvas.height,
+      );
     };
 
-    // Запуск цикла анимации
+    // Старт бесконечного цикла анимации браузера
     animationFrameIdRef.current = requestAnimationFrame(renderLoop);
 
-    // Очистка при размонтировании
+    // Гарантированная очистка ресурсов при размонтировании
     return () => {
       if (animationFrameIdRef.current) {
         cancelAnimationFrame(animationFrameIdRef.current);

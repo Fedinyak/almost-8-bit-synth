@@ -11,6 +11,7 @@ import {
   compensateLatency,
   microTimingOffset,
 } from './audioMathUtils';
+import * as Tone from 'tone'; // Импортируем Tone для использования Tone.Draw
 
 export const cleanupAudioResources = ({
   synths,
@@ -69,6 +70,14 @@ export const setupDrumsPlayback = (
     if (instrument) {
       const playTime = compensateLatency(time);
       playDrumHit(instrument, release, playTime);
+
+      // Встраиваем триггер визуализации встык со звуком через Tone.Draw
+      if (typeof noteData.drumIndex === 'number') {
+        Tone.Draw.schedule(() => {
+          if (!window.__drumLevels) window.__drumLevels = new Float32Array(8);
+          window.__drumLevels[noteData.drumIndex] = 1.0;
+        }, playTime);
+      }
     }
   });
 };
@@ -117,7 +126,8 @@ export const syncDrumPatternsToTrack = (track, drumsData, drumNoteMap) => {
               calculateAbsoluteTime(stepTime, measureIndex) +
               microTimingOffset(drumIndex);
 
-            writeNoteToTrack(track, startTime, { note });
+            // Передаем drumIndex в объект ноты, чтобы setupDrumsPlayback знал, какая дорожка сработала
+            writeNoteToTrack(track, startTime, { note, drumIndex });
           }
         });
       },

@@ -1,6 +1,7 @@
 import { useSelector } from 'react-redux';
 import StepIndicator from '../Controls/StepIndicator';
 import DrumCell from './DrumCell';
+import DrumMonitor from '../../visualizers/DrumMonitor';
 
 const DrumGrid = () => {
   const drumKit = useSelector((state) => state.patterns.drumKitList);
@@ -23,6 +24,7 @@ const DrumGrid = () => {
   return (
     <section className="sequencer">
       <h3>isFollowMode {`${isFollowMode}`}</h3>
+      <DrumMonitor />
       <div className="sequencer-cells">
         {steps.map((stepIndex) => {
           return (
