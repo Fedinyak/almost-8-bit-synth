@@ -1,5 +1,6 @@
 import * as Tone from 'tone';
 import { LOOKAHEAD_OFFSET_SEC } from '../constants/constants';
+import { drumLevels } from './visualizerState'; // Импортируем нашу изолированную линейную память
 
 export const createPlaybackTrack = (onStepAction) => {
   const track = new Tone.Part(onStepAction, []).start(0);
@@ -10,11 +11,10 @@ export const createPlaybackTrack = (onStepAction) => {
 export const scheduleFrame = (time, drawFunction) =>
   Tone.Draw.schedule(drawFunction, time);
 
-// НОВАЯ ФУНКЦИЯ: Изолированный триггер уровня барабана для визуалайзера
+// Обновленная функция: пишем напрямую в типизированный массив модуля, минуя глобальный window
 export const triggerDrumVisualLevel = (drumIndex, time) => {
   Tone.Draw.schedule(() => {
-    if (!window.__drumLevels) window.__drumLevels = new Float32Array(8);
-    window.__drumLevels[drumIndex] = 1.0;
+    drumLevels[drumIndex] = 1.0;
   }, time);
 };
 

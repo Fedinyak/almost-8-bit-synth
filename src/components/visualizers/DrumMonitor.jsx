@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { drumLevels } from '../../utility/visualizerState'; // Импортируем нашу изолированную линейную память
 
 // === КОНФИГУРАЦИЯ ВИЗУАЛИЗАТОРА ===
 const CONFIG = {
@@ -56,10 +57,6 @@ const calculateAlignedTimestamp = (
 };
 
 const drawDrumBars = (ctx, width, height) => {
-  if (!window.__drumLevels) {
-    window.__drumLevels = new Float32Array(8);
-  }
-
   const totalBars = 8;
   const totalSpacingSpace = CONFIG.BAR_SPACING_PX * (totalBars - 1);
   const barWidth = Math.floor((width - totalSpacingSpace) / totalBars);
@@ -67,12 +64,12 @@ const drawDrumBars = (ctx, width, height) => {
   ctx.fillStyle = CONFIG.COLOR_ACTIVE;
 
   for (let i = 0; i < totalBars; i++) {
-    let currentLevel = window.__drumLevels[i];
+    let currentLevel = drumLevels[i]; // Читаем напрямую из быстрого Shared-массива
 
     if (currentLevel > 0) {
       currentLevel -= DRUM_DECAY_RATES[i];
       if (currentLevel < 0) currentLevel = 0;
-      window.__drumLevels[i] = currentLevel;
+      drumLevels[i] = currentLevel; // Записываем измененный уровень обратно в память
     }
 
     const barHeight = Math.round(currentLevel * height);

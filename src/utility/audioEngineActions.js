@@ -12,6 +12,7 @@ import {
   compensateLatency,
   microTimingOffset,
 } from './audioMathUtils';
+import { resetDrumLevels } from './visualizerState'; // Импортируем функцию очистки памяти
 
 export const cleanupAudioResources = ({
   synths,
@@ -145,4 +146,6 @@ export const stopAllAudio = (refs) => {
   refs.parts.current = {};
   refs.drumsEngine.current = null;
   refs.drumsPart.current = null;
+
+  resetDrumLevels();
 };
