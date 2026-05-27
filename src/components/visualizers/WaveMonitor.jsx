@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { synthAnalysers } from '../../utility/visualizerState'; // Импортируем наш изолированный реестр
 
 // === КОНФИГУРАЦИЯ ВИЗУАЛИЗАТОРА ===
 const CONFIG = {
@@ -41,13 +42,11 @@ const getFinalYPosition = (rawAudioValue, canvasHeight) => {
 
 // === ФУНКЦИИ ОТРИСОВКИ ===
 
-// Подготавливает холст к новому кадру (стирает пиксели и отключает размытие)
 const prepareCanvasContext = (ctx, width, height) => {
   ctx.clearRect(0, 0, width, height);
   ctx.imageSmoothingEnabled = false;
 };
 
-// Рисует горизонтальную прямую линию по центру (режим тишины)
 const drawSilentCenterLine = (ctx, width, height) => {
   const middleY = alignToPixelGrid(height / 2);
   ctx.strokeStyle = CONFIG.COLOR_SILENT;
@@ -58,7 +57,6 @@ const drawSilentCenterLine = (ctx, width, height) => {
   ctx.stroke();
 };
 
-// Отрисовывает динамическую волну на основе массива аудиоданных
 const drawAudioWaveform = (ctx, audioValues, width, height) => {
   ctx.strokeStyle = CONFIG.COLOR_ACTIVE;
   ctx.lineWidth = CONFIG.LINE_WIDTH_PX;
@@ -84,7 +82,6 @@ const drawAudioWaveform = (ctx, audioValues, width, height) => {
 
 // === ФУНКЦИИ ОРКЕСТРАЦИИ ДАННЫХ И ВРЕМЕНИ ===
 
-// Проверяет, прошел ли необходимый промежуток времени для отрисовки следующего кадра
 const shouldRenderNextFrame = (
   currentTimestamp,
   lastDrawTimestamp,
@@ -94,7 +91,6 @@ const shouldRenderNextFrame = (
   return timeElapsedSinceLastDraw >= millisecondsPerFrame;
 };
 
-// Вычисляет выровненный таймстамп для предотвращения накопления временного сдвига (джиттера)
 const calculateAlignedTimestamp = (
   currentTimestamp,
   lastDrawTimestamp,
@@ -104,12 +100,11 @@ const calculateAlignedTimestamp = (
   return currentTimestamp - (timeElapsedSinceLastDraw % millisecondsPerFrame);
 };
 
-// Запрашивает живые данные из Tone.js аудио-анализатора
+// ОБНОВЛЕННАЯ ФУНКЦИЯ: Запрашивает живые данные из нашего изолированного кэша вместо глобального window
 const fetchAudioDataFromAnalyser = (synthName) => {
-  return window.__synthAnalysers?.[synthName];
+  return synthAnalysers[synthName];
 };
 
-// Управляет тем, КАКОЙ ИМЕННО графический режим применить на текущем кадре
 const drawSceneBasedOnAudioState = (ctx, analyser, width, height) => {
   if (!analyser) {
     drawSilentCenterLine(ctx, width, height);
@@ -135,7 +130,6 @@ const WaveMonitor = ({ synthName }) => {
     const renderLoop = (currentTimestamp) => {
       animationFrameIdRef.current = requestAnimationFrame(renderLoop);
 
-      // 1. Контроль частоты кадров (FPS)
       if (
         !shouldRenderNextFrame(
           currentTimestamp,
@@ -151,10 +145,8 @@ const WaveMonitor = ({ synthName }) => {
         millisecondsPerFrame,
       );
 
-      // 2. Подготовка графического контекста
       prepareCanvasContext(ctx, canvas.width, canvas.height);
 
-      // 3. Получение звукового состояния и отрисовка кадра
       const activeAnalyser = fetchAudioDataFromAnalyser(synthName);
       drawSceneBasedOnAudioState(
         ctx,
@@ -164,10 +156,8 @@ const WaveMonitor = ({ synthName }) => {
       );
     };
 
-    // Старт бесконечного цикла анимации браузера
     animationFrameIdRef.current = requestAnimationFrame(renderLoop);
 
-    // Гарантированная очистка ресурсов при размонтировании
     return () => {
       if (animationFrameIdRef.current) {
         cancelAnimationFrame(animationFrameIdRef.current);

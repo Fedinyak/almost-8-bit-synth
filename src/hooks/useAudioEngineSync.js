@@ -12,6 +12,10 @@ import {
   syncDrumPatternsToTrack,
   syncInstrumentPatternsToTrack,
 } from '../utility/audioEngineActions';
+import {
+  synthAnalysers,
+  resetSynthAnalysers,
+} from '../utility/visualizerState'; // Импортируем наш изолированный реестр
 
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
 
@@ -56,10 +60,11 @@ export const useAudioEngineSync = (
         // Сохраняем ссылки в рефы
         synthChannelsRef.current[name] = channel;
         synthAnalysersRef.current[name] = analyser;
+
+        // Сохраняем ссылку в наш чистый shared-реестр вместо window
+        synthAnalysers[name] = analyser;
       }
     });
-
-    window.__synthAnalysers = synthAnalysersRef.current;
   }, [drumsEngineRef, synthEnginesRef]);
 
   useEffect(() => {
@@ -80,6 +85,9 @@ export const useAudioEngineSync = (
         if (analyser && !analyser.disposed) analyser.dispose();
       });
       synthAnalysersRef.current = {};
+
+      // Вычищаем ссылки из синглтон-реестра visualizerState
+      resetSynthAnalysers();
 
       // Очищаем каналы
       Object.values(synthChannelsRef.current).forEach((channel) => {
