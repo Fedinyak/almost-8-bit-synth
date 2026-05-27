@@ -3,6 +3,8 @@ import getNote from '../../../utility/getNote';
 import noteAndKeyMap from '../../../constants/noteAndKeyMap';
 import { SYNTH_LIST } from '../../../constants/constants';
 import SynthRow from './SynthRow';
+import WaveMonitor from '../../visualizers/WaveMonitor';
+import React from 'react';
 
 const SynthGrid = ({ activeVisualPattern }) => {
   const octave = useSelector((state) => state.note.octave);
@@ -10,6 +12,8 @@ const SynthGrid = ({ activeVisualPattern }) => {
   const keyboardLetter = noteAndKeyMap.keyboardLetter;
   const noteMap = noteAndKeyMap.noteMap;
   const octaveMap = noteAndKeyMap.noteOctaveIndexMap;
+
+  const analysers = window.__synthAnalysers || {};
 
   return (
     <>
@@ -24,18 +28,18 @@ const SynthGrid = ({ activeVisualPattern }) => {
       </div>
       {SYNTH_LIST.map((instrument) => {
         return (
-          <>
+          <React.Fragment key={instrument}>
             <div>{instrument}</div>
+            <WaveMonitor synthName={instrument} />
             <div className="sequencer-cells">
               <SynthRow
-                key={instrument}
                 instrument={instrument}
                 activeVisualPattern={activeVisualPattern}
                 octave={octave}
                 synthData={synthData}
               />
             </div>
-          </>
+          </React.Fragment>
         );
       })}
     </>

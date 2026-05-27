@@ -1,7 +1,8 @@
 import noteAndKeyMap from '../constants/noteAndKeyMap';
 import { DEFAULT_DRUM_RELEASE, SYNTH_LIST } from '../constants/constants';
 import { useSelector } from 'react-redux';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import * as Tone from 'tone';
 import {
   initializeDrums,
   initializeSynths,
@@ -23,9 +24,42 @@ export const useAudioEngineSync = (
   const synthData = useSelector((state) => state.patterns.synthData);
   const drumsList = useSelector((state) => state.patterns.drumsData);
 
+  const synthAnalysersRef = useRef({});
+  // Хранилище для промежуточных каналов, чтобы вовремя удалять их из памяти
+  const synthChannelsRef = useRef({});
+
   useEffect(() => {
     initializeSynths(SYNTH_LIST, synthEnginesRef.current);
     initializeDrums(drumsEngineRef);
+
+    SYNTH_LIST.forEach((name) => {
+      const synthInstance = synthEnginesRef.current[name];
+
+      if (synthInstance && !synthAnalysersRef.current[name]) {
+        // 1. Создаем изолированный канал громкости для синта
+        const channel = new Tone.Volume();
+
+        // 2. Создаем анализатор
+        const analyser = new Tone.Analyser({
+          type: 'waveform',
+          size: 32,
+        });
+
+        // 3. Отключаем синт от общего мастера и перенаправляем в наш канал
+        synthInstance.disconnect();
+        synthInstance.connect(channel);
+
+        // 4. Канал пускает звук в анализатор и на мастер-выход
+        channel.connect(analyser);
+        channel.toDestination();
+
+        // Сохраняем ссылки в рефы
+        synthChannelsRef.current[name] = channel;
+        synthAnalysersRef.current[name] = analyser;
+      }
+    });
+
+    window.__synthAnalysers = synthAnalysersRef.current;
   }, [drumsEngineRef, synthEnginesRef]);
 
   useEffect(() => {
@@ -40,13 +74,26 @@ export const useAudioEngineSync = (
       DEFAULT_DRUM_RELEASE,
     );
 
-    return () =>
+    return () => {
+      // Очищаем анализаторы
+      Object.values(synthAnalysersRef.current).forEach((analyser) => {
+        if (analyser && !analyser.disposed) analyser.dispose();
+      });
+      synthAnalysersRef.current = {};
+
+      // Очищаем каналы
+      Object.values(synthChannelsRef.current).forEach((channel) => {
+        if (channel && !channel.disposed) channel.dispose();
+      });
+      synthChannelsRef.current = {};
+
       stopAllAudio({
         synths: synthEnginesRef,
         parts: synthPartRef,
         drumsEngine: drumsEngineRef,
         drumsPart: drumsPartRef,
       });
+    };
   }, [drumsEngineRef, drumsPartRef, synthEnginesRef, synthPartRef]);
 
   useEffect(() => {
