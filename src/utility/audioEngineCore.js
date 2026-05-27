@@ -10,6 +10,14 @@ export const createPlaybackTrack = (onStepAction) => {
 export const scheduleFrame = (time, drawFunction) =>
   Tone.Draw.schedule(drawFunction, time);
 
+// НОВАЯ ФУНКЦИЯ: Изолированный триггер уровня барабана для визуалайзера
+export const triggerDrumVisualLevel = (drumIndex, time) => {
+  Tone.Draw.schedule(() => {
+    if (!window.__drumLevels) window.__drumLevels = new Float32Array(8);
+    window.__drumLevels[drumIndex] = 1.0;
+  }, time);
+};
+
 export const startDrawingLoop = (callback, rate) =>
   Tone.Transport.scheduleRepeat(callback, rate);
 

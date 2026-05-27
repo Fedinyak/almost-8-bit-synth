@@ -5,13 +5,13 @@ import {
   createPlaybackTrack,
   setTrackLoopDuration,
   writeNoteToTrack,
+  triggerDrumVisualLevel,
 } from './audioEngineCore';
 import {
   calculateAbsoluteTime,
   compensateLatency,
   microTimingOffset,
 } from './audioMathUtils';
-import * as Tone from 'tone'; // Импортируем Tone для использования Tone.Draw
 
 export const cleanupAudioResources = ({
   synths,
@@ -71,12 +71,8 @@ export const setupDrumsPlayback = (
       const playTime = compensateLatency(time);
       playDrumHit(instrument, release, playTime);
 
-      // Встраиваем триггер визуализации встык со звуком через Tone.Draw
       if (typeof noteData.drumIndex === 'number') {
-        Tone.Draw.schedule(() => {
-          if (!window.__drumLevels) window.__drumLevels = new Float32Array(8);
-          window.__drumLevels[noteData.drumIndex] = 1.0;
-        }, playTime);
+        triggerDrumVisualLevel(noteData.drumIndex, playTime);
       }
     }
   });
