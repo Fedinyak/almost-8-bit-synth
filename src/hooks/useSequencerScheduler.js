@@ -36,10 +36,18 @@ const handleStepSync = (
   patternCountRef,
 ) => {
   const absoluteStep = calculateCurrentStep(time);
-  const currentPlayPattern = calculateCurrentPlayPattern(
+
+  // Вычисляем сырой индекс паттерна из абсолютного шага
+  const rawPlayPattern = calculateCurrentPlayPattern(
     absoluteStep,
     STEPS_IN_MEASURE,
   );
+
+  // ЖЕЛЕЗНЫЙ ПРЕДОХРАНИТЕЛЬ: Ограничиваем индекс рамками реального количества паттернов трека.
+  // Если из-за прыжков таймлайна каунтер улетает выше крыши, оператор % красиво сбросит его в 0.
+  const totalCount = patternCountRef.current || 1;
+  const currentPlayPattern = rawPlayPattern % totalCount;
+
   const stepInPattern = absoluteStep % STEPS_IN_MEASURE;
 
   if (stepInPattern === 15) {
@@ -49,7 +57,6 @@ const handleStepSync = (
 
     if (shouldDeleteLast) {
       const activeIndex = currentPlayPatternIndexRef.current;
-      const totalCount = patternCountRef.current;
       const lastIndex = totalCount - 1;
 
       if (activeIndex === lastIndex || isLoopActive) {
