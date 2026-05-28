@@ -51,6 +51,26 @@ export const setupSynthPlayback = (synthName, enginesRef, tracksRef) => {
   });
 };
 
+const processDrumPlaybackHit = (
+  time,
+  noteData,
+  engine,
+  drumNoteMap,
+  release,
+) => {
+  const instrumentName = drumNoteMap[noteData.note];
+  const instrument = engine[instrumentName];
+  if (!instrument) return;
+
+  const playTime = compensateLatency(time);
+
+  playDrumHit(instrument, release, playTime);
+
+  if (typeof noteData.drumIndex === 'number') {
+    triggerDrumVisualLevel(noteData.drumIndex, playTime);
+  }
+};
+
 export const setupDrumsPlayback = (
   drumsEngineRef,
   drumsTrackRef,
@@ -63,17 +83,7 @@ export const setupDrumsPlayback = (
     const engine = drumsEngineRef.current;
     if (!engine) return;
 
-    const instrumentName = drumNoteMap[noteData.note];
-    const instrument = engine[instrumentName];
-
-    if (instrument) {
-      const playTime = compensateLatency(time);
-      playDrumHit(instrument, release, playTime);
-
-      if (typeof noteData.drumIndex === 'number') {
-        triggerDrumVisualLevel(noteData.drumIndex, playTime);
-      }
-    }
+    processDrumPlaybackHit(time, noteData, engine, drumNoteMap, release);
   });
 };
 
@@ -94,6 +104,34 @@ export const syncInstrumentPatternsToTrack = (track, instrumentData) => {
   setTrackLoopDuration(track, instrumentData.patterns.length);
 };
 
+const calculateDrumStartTime = (stepIndex, measureIndex, drumIndex) => {
+  const stepTime = `0:0:${stepIndex}`;
+  return (
+    calculateAbsoluteTime(stepTime, measureIndex) + microTimingOffset(drumIndex)
+  );
+};
+
+const syncDrumTrackSteps = (
+  track,
+  trackSteps,
+  measureIndex,
+  drumIndex,
+  note,
+) => {
+  if (!Array.isArray(trackSteps)) return;
+
+  trackSteps.forEach((isHit, stepIndex) => {
+    if (isHit !== 1) return;
+
+    const startTime = calculateDrumStartTime(
+      stepIndex,
+      measureIndex,
+      drumIndex,
+    );
+    writeNoteToTrack(track, startTime, { note, drumIndex });
+  });
+};
+
 export const syncDrumPatternsToTrack = (track, drumsData, drumNoteMap) => {
   if (!track || !drumsData?.patterns) return;
   clearTrackNotes(track);
@@ -101,21 +139,10 @@ export const syncDrumPatternsToTrack = (track, drumsData, drumNoteMap) => {
   drumsData.patterns.forEach((drumsInMeasure, measureIndex) => {
     Object.entries(drumsInMeasure).forEach(
       ([drumName, trackSteps], drumIndex) => {
-        if (!Array.isArray(trackSteps)) return;
-
         const note = drumNoteMap[drumName];
         if (!note) return;
 
-        trackSteps.forEach((isHit, stepIndex) => {
-          if (isHit === 1) {
-            const stepTime = `0:0:${stepIndex}`;
-            const startTime =
-              calculateAbsoluteTime(stepTime, measureIndex) +
-              microTimingOffset(drumIndex);
-
-            writeNoteToTrack(track, startTime, { note, drumIndex });
-          }
-        });
+        syncDrumTrackSteps(track, trackSteps, measureIndex, drumIndex, note);
       },
     );
   });

@@ -10,12 +10,12 @@ import {
   stopAllAudio,
   syncDrumPatternsToTrack,
   syncInstrumentPatternsToTrack,
-} from '../utility/audioSequencerActions'; // Импорт из логики секвенсора
+} from '../utility/audioSequencerActions';
 import {
   initializeAudioRouting,
   applySynthEnvelope,
   applyDynamicBypass,
-} from '../utility/audioModulationActions'; // Импорт из логики модуляции
+} from '../utility/audioModulationActions';
 import { synthEnginesRegistry } from '../utility/visualizerState';
 
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
@@ -35,7 +35,6 @@ export const useAudioEngineSync = (
   const synthAnalysersRef = useRef({});
   const synthChannelsRef = useRef({});
 
-  // 1. Первичная初始化 движков и маршрутизация аудио-графа микшера
   useEffect(() => {
     initializeSynths(SYNTH_LIST, synthEnginesRef.current);
     initializeDrums(drumsEngineRef);
@@ -50,7 +49,6 @@ export const useAudioEngineSync = (
     );
   }, [drumsEngineRef, synthEnginesRef]);
 
-  // 2. Динамический LIVE-контроль параметров и аппаратный авто-байпас эффектов
   useEffect(() => {
     SYNTH_LIST.forEach((name) => {
       const synthInstance = synthEnginesRef.current[name];
@@ -63,7 +61,6 @@ export const useAudioEngineSync = (
     });
   }, [soundSettings, synthEnginesRef]);
 
-  // 3. Запуск воспроизведения и глобальная очистка памяти при размонтировании
   useEffect(() => {
     SYNTH_LIST.forEach((name) => {
       setupSynthPlayback(name, synthEnginesRef.current, synthPartRef.current);
@@ -88,7 +85,6 @@ export const useAudioEngineSync = (
     };
   }, [drumsEngineRef, drumsPartRef, synthEnginesRef, synthPartRef]);
 
-  // 4. Декларативная синхронизация сетки нот и паттернов секвенсора
   useEffect(() => {
     SYNTH_LIST.forEach((synthName) => {
       syncInstrumentPatternsToTrack(

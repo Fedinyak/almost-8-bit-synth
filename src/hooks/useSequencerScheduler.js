@@ -35,7 +35,6 @@ const handleStepSync = (
   currentPlayPatternIndexRef,
   patternCountRef,
 ) => {
-  // Считаем чистый шаг без деления по модулю через totalSteps
   const absoluteStep = calculateCurrentStep(time);
   const currentPlayPattern = calculateCurrentPlayPattern(
     absoluteStep,
@@ -112,7 +111,6 @@ export const useSequencerScheduler = () => {
   const currentPlayPatternIndexRef = useRef(currentPlayPatternIndex);
   const patternCountRef = useRef(patternCount);
 
-  // Единственное и правильное место для контроля границ глобального цикла — реакция на изменение стейта
   useEffect(() => {
     if (!isLooping) {
       enableGlobalTransportLoop(patternCount);

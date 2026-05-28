@@ -1,6 +1,6 @@
 import * as Tone from 'tone';
 import { LOOKAHEAD_OFFSET_SEC } from '../constants/constants';
-import { drumLevels } from './visualizerState'; // Импортируем нашу изолированную линейную память
+import { drumLevels } from './visualizerState';
 
 export const createPlaybackTrack = (onStepAction) => {
   const track = new Tone.Part(onStepAction, []).start(0);
@@ -11,7 +11,6 @@ export const createPlaybackTrack = (onStepAction) => {
 export const scheduleFrame = (time, drawFunction) =>
   Tone.Draw.schedule(drawFunction, time);
 
-// Обновленная функция: пишем напрямую в типизированный массив модуля, минуя глобальный window
 export const triggerDrumVisualLevel = (drumIndex, time) => {
   Tone.Draw.schedule(() => {
     drumLevels[drumIndex] = 1.0;
@@ -64,7 +63,6 @@ export const setGlobalTransportTime = (seconds) => {
   Tone.Transport.seconds = seconds;
 };
 
-// Для зацикливания ОДНОГО конкретного паттерна (Режим ЛУП)
 export const enableEngineLoop = (patternIndex) => {
   Tone.Transport.loopStart = `${patternIndex}m`;
   Tone.Transport.loopEnd = `${patternIndex + 1}m`;
@@ -75,7 +73,6 @@ export const disableEngineLoop = () => {
   Tone.Transport.loop = false;
 };
 
-// НОВЫЕ ФУНКЦИИ: Для контроля цикла ВСЕГО трека по его реальной длине (Режим ПЛЕЙ)
 export const enableGlobalTransportLoop = (numberOfMeasures) => {
   Tone.Transport.loopStart = `0m`;
   Tone.Transport.loopEnd = `${numberOfMeasures}m`;
