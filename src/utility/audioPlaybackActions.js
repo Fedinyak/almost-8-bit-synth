@@ -1,5 +1,3 @@
-import createSynth from './synthEngine';
-import createDrums from './drumEngine';
 import {
   clearTrackNotes,
   createPlaybackTrack,
@@ -12,21 +10,6 @@ import {
   compensateLatency,
   microTimingOffset,
 } from './audioMathUtils';
-import { resetDrumLevels, resetSynthAnalysers } from './visualizerState';
-
-export const initializeSynths = (synthList, enginesRef) => {
-  synthList.forEach((synthName) => {
-    if (!enginesRef[synthName]) {
-      enginesRef[synthName] = createSynth();
-    }
-  });
-};
-
-export const initializeDrums = (drumsRef) => {
-  if (!drumsRef.current) {
-    drumsRef.current = createDrums();
-  }
-};
 
 export const playSynthNote = (synth, time, noteData) => {
   if (synth && synth.instrument) {
@@ -42,15 +25,6 @@ export const playDrumHit = (drumInstrument, drumDuration, playTime) => {
   drumInstrument.triggerAttackRelease(drumDuration, playTime);
 };
 
-export const setupSynthPlayback = (synthName, enginesRef, tracksRef) => {
-  if (tracksRef[synthName]) return;
-
-  tracksRef[synthName] = createPlaybackTrack((time, noteData) => {
-    const engine = enginesRef[synthName];
-    if (engine) playSynthNote(engine, time, noteData);
-  });
-};
-
 const processDrumPlaybackHit = (
   time,
   noteData,
@@ -63,12 +37,20 @@ const processDrumPlaybackHit = (
   if (!instrument) return;
 
   const playTime = compensateLatency(time);
-
   playDrumHit(instrument, release, playTime);
 
   if (typeof noteData.drumIndex === 'number') {
     triggerDrumVisualLevel(noteData.drumIndex, playTime);
   }
+};
+
+export const setupSynthPlayback = (synthName, enginesRef, tracksRef) => {
+  if (tracksRef[synthName]) return;
+
+  tracksRef[synthName] = createPlaybackTrack((time, noteData) => {
+    const engine = enginesRef[synthName];
+    if (engine) playSynthNote(engine, time, noteData);
+  });
 };
 
 export const setupDrumsPlayback = (
@@ -148,59 +130,4 @@ export const syncDrumPatternsToTrack = (track, drumsData, drumNoteMap) => {
   });
 
   setTrackLoopDuration(track, drumsData.patterns.length);
-};
-
-export const cleanupAudioResources = ({
-  synths,
-  parts,
-  drumEngine,
-  drumPart,
-  analysersRef,
-  channelsRef,
-}) => {
-  if (synths) {
-    Object.values(synths).forEach((synthContainer) => {
-      if (synthContainer && typeof synthContainer.dispose === 'function') {
-        synthContainer.dispose();
-      }
-    });
-  }
-
-  const disposeRes = (res) =>
-    res && !res.disposed && typeof res.dispose === 'function' && res.dispose();
-
-  if (analysersRef?.current)
-    Object.values(analysersRef.current).forEach(disposeRes);
-  if (channelsRef?.current)
-    Object.values(channelsRef.current).forEach(disposeRes);
-
-  if (analysersRef) analysersRef.current = {};
-  if (channelsRef) channelsRef.current = {};
-  resetSynthAnalysers();
-
-  const audioResources = [
-    ...Object.values(parts || {}),
-    ...Object.values(drumEngine || {}),
-    drumPart,
-  ];
-
-  audioResources.filter(Boolean).forEach(disposeRes);
-};
-
-export const stopAllAudio = (refs) => {
-  cleanupAudioResources({
-    synths: refs.synths.current,
-    parts: refs.parts.current,
-    drumEngine: refs.drumsEngine.current,
-    drumPart: refs.drumsPart.current,
-    analysersRef: refs.synthAnalysersRef,
-    channelsRef: refs.synthChannelsRef,
-  });
-
-  refs.synths.current = {};
-  refs.parts.current = {};
-  refs.drumsEngine.current = null;
-  refs.drumsPart.current = null;
-
-  resetDrumLevels();
 };

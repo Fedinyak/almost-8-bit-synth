@@ -5,12 +5,14 @@ import noteAndKeyMap from '../constants/noteAndKeyMap';
 import {
   initializeDrums,
   initializeSynths,
+  stopAllAudio,
+} from '../utility/audioLifecycleActions';
+import {
   setupDrumsPlayback,
   setupSynthPlayback,
-  stopAllAudio,
   syncDrumPatternsToTrack,
   syncInstrumentPatternsToTrack,
-} from '../utility/audioSequencerActions';
+} from '../utility/audioPlaybackActions';
 import {
   initializeAudioRouting,
   applySynthEnvelope,
