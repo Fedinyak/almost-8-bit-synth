@@ -19,7 +19,7 @@ export const UniversalSlider = ({
   };
 
   return (
-    <div style={{ margin: '4px 0', fontFamily: 'monospace' }}>
+    <div>
       <label style={{ display: 'inline-block', width: '100px' }}>
         {config.label}:
       </label>
