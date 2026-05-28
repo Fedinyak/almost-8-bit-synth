@@ -10,10 +10,12 @@ import {
   stopAllAudio,
   syncDrumPatternsToTrack,
   syncInstrumentPatternsToTrack,
-  initializeAudioRouting, // Импортируем готовую логику маршрутизации
-  applySynthEnvelope, // Импортируем логику огибающих
-  applyDynamicBypass, // Импортируем умный байпас эффектов
-} from '../utility/audioEngineActions';
+} from '../utility/audioSequencerActions'; // Импорт из логики секвенсора
+import {
+  initializeAudioRouting,
+  applySynthEnvelope,
+  applyDynamicBypass,
+} from '../utility/audioModulationActions'; // Импорт из логики модуляции
 import { synthEnginesRegistry } from '../utility/visualizerState';
 
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
@@ -33,14 +35,13 @@ export const useAudioEngineSync = (
   const synthAnalysersRef = useRef({});
   const synthChannelsRef = useRef({});
 
-  // 1. Первичная инициализация движков и маршрутизация аудио-графа микшера
+  // 1. Первичная初始化 движков и маршрутизация аудио-графа микшера
   useEffect(() => {
     initializeSynths(SYNTH_LIST, synthEnginesRef.current);
     initializeDrums(drumsEngineRef);
 
     synthEnginesRegistry.current = synthEnginesRef.current;
 
-    // Декларативно настраиваем маршрутизацию из слоя Actions
     initializeAudioRouting(
       SYNTH_LIST,
       synthEnginesRef,
@@ -57,7 +58,6 @@ export const useAudioEngineSync = (
 
       if (!synthInstance || !settings) return;
 
-      // Избавленный от локального мусора вызов ядра модуляции
       applySynthEnvelope(synthInstance, settings.attack);
       applyDynamicBypass(name, synthInstance, settings);
     });
