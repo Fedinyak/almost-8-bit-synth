@@ -1,9 +1,8 @@
-import noteAndKeyMap from '../constants/noteAndKeyMap';
-import { DEFAULT_DRUM_RELEASE, SYNTH_LIST } from '../constants/constants';
-import { SYNTH_PARAMS } from '../constants/synthParamsConfig'; // Импортируем наш новый паспорт параметров
-import { useSelector } from 'react-redux';
 import { useEffect, useRef } from 'react';
-import * as Tone from 'tone';
+import { useSelector } from 'react-redux';
+import { DEFAULT_DRUM_RELEASE, SYNTH_LIST } from '../constants/constants';
+import noteAndKeyMap from '../constants/noteAndKeyMap';
+import { SYNTH_PARAMS } from '../constants/synthParamsConfig';
 import {
   initializeDrums,
   initializeSynths,
@@ -12,12 +11,14 @@ import {
   stopAllAudio,
   syncDrumPatternsToTrack,
   syncInstrumentPatternsToTrack,
+  createAudioChannel,
+  createAudioAnalyser,
+  connectSynthToMixer,
 } from '../utility/audioEngineActions';
 import {
   synthAnalysers,
-  resetSynthAnalysers,
   synthEnginesRegistry,
-} from '../utility/visualizerState'; // Импортируем наш изолированный реестр
+} from '../utility/visualizerState';
 
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
 
@@ -29,116 +30,42 @@ export const useAudioEngineSync = (
 ) => {
   const synthData = useSelector((state) => state.patterns.synthData);
   const drumsList = useSelector((state) => state.patterns.drumsData);
-
-  // Безопасная подписка на новый слайс настроек звука
   const soundSettings = useSelector(
     (state) => state.soundSettings?.synths || {},
   );
 
   const synthAnalysersRef = useRef({});
-  // Хранилище для промежуточных каналов, чтобы вовремя удалять их из памяти
   const synthChannelsRef = useRef({});
 
+  // 1. Первичная инициализация движков и маршрутизация аудио-графа микшера
   useEffect(() => {
     initializeSynths(SYNTH_LIST, synthEnginesRef.current);
     initializeDrums(drumsEngineRef);
 
     synthEnginesRegistry.current = synthEnginesRef.current;
 
-    SYNTH_LIST.forEach((name) => {
-      const synthInstance = synthEnginesRef.current[name];
-
-      if (synthInstance && !synthAnalysersRef.current[name]) {
-        // 1. Создаем изолированный канал громкости для синта
-        const channel = new Tone.Volume();
-
-        // 2. Создаем анализатор
-        const analyser = new Tone.Analyser({
-          type: 'waveform',
-          size: 32,
-        });
-
-        // ИСПРАВЛЕНИЕ МАРШРУТИЗАЦИИ:
-        // Отключаем КОНЕЦ внутренней цепочки эффектов синта от мастера
-        if (synthInstance.output) {
-          synthInstance.output.disconnect();
-          // И направляем этот ВЫХОД в наш изолированный канал громкости микшера
-          synthInstance.output.connect(channel);
-        }
-
-        // 4. Канал пускает звук в анализатор и на мастер-выход
-        channel.connect(analyser);
-        channel.toDestination();
-
-        // Сохраняем ссылки в рефы
-        synthChannelsRef.current[name] = channel;
-        synthAnalysersRef.current[name] = analyser;
-
-        // Сохраняем ссылку в наш чистый shared-реестр вместо window
-        synthAnalysers[name] = analyser;
-      }
-    });
+    // Декларативно настраиваем маршрутизацию для списка инструментов
+    initializeAudioRouting(
+      synthEnginesRef,
+      synthChannelsRef,
+      synthAnalysersRef,
+    );
   }, [drumsEngineRef, synthEnginesRef]);
 
-  // УМНЫЙ EFFECT МОДУЛЯЦИИ: Автоматически крутит параметры и усыпляет эффекты на их граничных значениях
+  // 2. Динамический LIVE-контроль параметров и аппаратный авто-байпас эффектов
   useEffect(() => {
     SYNTH_LIST.forEach((name) => {
       const synthInstance = synthEnginesRef.current[name];
       const settings = soundSettings[name];
 
-      if (synthInstance && settings) {
-        // 1. Статичная базовая настройка Атаки огибающей синта
-        if (synthInstance.instrument && typeof settings.attack === 'number') {
-          synthInstance.instrument.set({
-            envelope: {
-              attack: settings.attack,
-            },
-          });
-        }
+      if (!synthInstance || !settings) return;
 
-        // 2. ДИНАМИЧЕСКИЙ АВТО-БАЙПАС: Бежим циклом по паспорту параметров
-        Object.entries(SYNTH_PARAMS).forEach(([paramName, paramConfig]) => {
-          // Если этот параметр помечен в конфиге как аудио-эффект
-          if (paramConfig.isEffect && paramConfig.nodeKey) {
-            const fxNode = synthInstance[paramConfig.nodeKey]; // Находим узел эффекта в контейнере синта
-            const liveValue = settings[paramName]; // Берем его живое число из Redux
-
-            if (fxNode && typeof liveValue === 'number') {
-              // Плавно выставляем уровень микса эффекта (wet) через легальный метод .set()
-              fxNode.set({
-                wet: liveValue,
-              });
-
-              // Умная динамическая проверка: совпало ли текущее число с выключателем из конфига?
-              // Если в конфиге нет bypassValue, по умолчанию используем 0
-              const targetBypassValue =
-                typeof paramConfig.bypassValue === 'number'
-                  ? paramConfig.bypassValue
-                  : 0;
-              const isSilent = liveValue === targetBypassValue;
-
-              // === ЖЕЛЕЗОБЕТОННЫЙ МАРКЕР ПРОВЕРКИ АВТО-БАЙПАСА ===
-              // Выводим сообщение в консоль только в момент ФАКТИЧЕСКОГО изменения режима
-              // if (isSilent && !fxNode.bypassed) {
-              //   console.log(
-              //     `[AUDIO ENGINE]: Эффект ${paramConfig.label} для ${name} АППАРАТНО ВЫКЛЮЧЕН (Байпас активен). Процессор отдыхает.`,
-              //   );
-              // } else if (!isSilent && fxNode.bypassed) {
-              //   console.log(
-              //     `[AUDIO ENGINE]: Эффект ${paramConfig.label} для ${name} ПРОСНУЛСЯ. Включаем математические расчеты.`,
-              //   );
-              // }
-              // ==================================================
-
-              // Железное правило оптимизации: тушим вычисления на граничной точке из паспорта параметров
-              fxNode.bypassed = isSilent;
-            }
-          }
-        });
-      }
+      applySynthEnvelope(synthInstance, settings.attack);
+      applyDynamicBypass(name, synthInstance, settings);
     });
   }, [soundSettings, synthEnginesRef]);
 
+  // 3. Запуск воспроизведения и глобальная очистка памяти при размонтировании
   useEffect(() => {
     SYNTH_LIST.forEach((name) => {
       setupSynthPlayback(name, synthEnginesRef.current, synthPartRef.current);
@@ -152,30 +79,18 @@ export const useAudioEngineSync = (
     );
 
     return () => {
-      // Очищаем анализаторы
-      Object.values(synthAnalysersRef.current).forEach((analyser) => {
-        if (analyser && !analyser.disposed) analyser.dispose();
-      });
-      synthAnalysersRef.current = {};
-
-      // Вычищаем ссылки из синглтон-реестра visualizerState
-      resetSynthAnalysers();
-
-      // Очищаем каналы
-      Object.values(synthChannelsRef.current).forEach((channel) => {
-        if (channel && !channel.disposed) channel.dispose();
-      });
-      synthChannelsRef.current = {};
-
       stopAllAudio({
         synths: synthEnginesRef,
         parts: synthPartRef,
         drumsEngine: drumsEngineRef,
         drumsPart: drumsPartRef,
+        synthAnalysersRef,
+        synthChannelsRef,
       });
     };
   }, [drumsEngineRef, drumsPartRef, synthEnginesRef, synthPartRef]);
 
+  // 4. Декларативная синхронизация сетки нот и паттернов секвенсора
   useEffect(() => {
     SYNTH_LIST.forEach((synthName) => {
       syncInstrumentPatternsToTrack(
@@ -186,4 +101,81 @@ export const useAudioEngineSync = (
 
     syncDrumPatternsToTrack(drumsPartRef.current, drumsList, drumNoteMap);
   }, [synthData, drumsList, drumsPartRef, synthPartRef]);
+};
+
+/**
+ * Локальные вспомогательные стрелочные функции модуляции и инициализации
+ */
+
+const initializeAudioRouting = (enginesRef, channelsRef, analysersRef) => {
+  SYNTH_LIST.forEach((name) => {
+    const synthInstance = enginesRef.current[name];
+    if (!synthInstance || analysersRef.current[name]) return;
+
+    const channel = createAudioChannel();
+    const analyser = createAudioAnalyser();
+
+    connectSynthToMixer(synthInstance, channel, analyser);
+
+    channelsRef.current[name] = channel;
+    analysersRef.current[name] = analyser;
+    synthAnalysers[name] = analyser;
+  });
+};
+
+const applySynthEnvelope = (synthInstance, attack) => {
+  if (!synthInstance.instrument || typeof attack !== 'number') return;
+
+  synthInstance.instrument.set({
+    envelope: { attack },
+  });
+};
+
+// 1. Изменение уровня микса эффекта в Tone.js
+const updateEffectMix = (fxNode, value) => {
+  fxNode.set({ wet: value });
+};
+
+// 2. Расчет необходимости байпаса на основе значения из паспорта
+const checkBypassCondition = (liveValue, bypassValue) => {
+  const targetBypassValue = typeof bypassValue === 'number' ? bypassValue : 0;
+  return liveValue === targetBypassValue;
+};
+
+// 3. Переключение режима активности узла и вывод логов изменений
+const toggleNodeBypass = (fxNode, shouldBypass, label, synthName) => {
+  if (shouldBypass && !fxNode.bypassed) {
+    console.log(
+      `[⚡ BYPASS ON]: Эффект "${label}" для ${synthName} усыплен. ЦП отдыхает.`,
+    );
+  } else if (!shouldBypass && fxNode.bypassed) {
+    console.log(
+      `[🔊 BYPASS OFF]: Эффект "${label}" для ${synthName} проснулся.`,
+    );
+  }
+
+  fxNode.bypassed = shouldBypass;
+};
+
+// Декларативный обход паспорта параметров
+const applyDynamicBypass = (synthName, synthInstance, settings) => {
+  Object.entries(SYNTH_PARAMS).forEach(([paramName, paramConfig]) => {
+    if (!paramConfig.isEffect || !paramConfig.nodeKey) return;
+
+    const fxNode = synthInstance[paramConfig.nodeKey];
+    const liveValue = settings[paramName];
+    if (!fxNode || typeof liveValue !== 'number') return;
+
+    // Шаг А: Мгновенно крутим звук
+    updateEffectMix(fxNode, liveValue);
+
+    // Шаг Б: Проверяем, нужно ли усыпить эффект
+    const shouldBypass = checkBypassCondition(
+      liveValue,
+      paramConfig.bypassValue,
+    );
+
+    // Шаг В: Переключаем физику узла
+    toggleNodeBypass(fxNode, shouldBypass, paramConfig.label, synthName);
+  });
 };

@@ -1,5 +1,6 @@
 import createSynth from './synthEngine';
 import createDrums from './drumEngine';
+import * as Tone from 'tone';
 import {
   clearTrackNotes,
   createPlaybackTrack,
@@ -12,15 +13,32 @@ import {
   compensateLatency,
   microTimingOffset,
 } from './audioMathUtils';
-import { resetDrumLevels } from './visualizerState'; // Импортируем функцию очистки памяти
+import { resetDrumLevels, resetSynthAnalysers } from './visualizerState';
+
+// НОВЫЕ СТРЕЛОЧНЫЕ ФУНКЦИИ КОММУТАЦИИ ДЛЯ ХУКА
+export const createAudioChannel = () => new Tone.Volume();
+
+export const createAudioAnalyser = () =>
+  new Tone.Analyser({ type: 'waveform', size: 32 });
+
+export const connectSynthToMixer = (synthInstance, channel, analyser) => {
+  if (!synthInstance?.output) return;
+
+  synthInstance.output.disconnect();
+  synthInstance.output.connect(channel);
+
+  channel.connect(analyser);
+  channel.toDestination();
+};
 
 export const cleanupAudioResources = ({
   synths,
   parts,
   drumEngine,
   drumPart,
+  analysersRef,
+  channelsRef,
 }) => {
-  // 1. Сначала бережно удаляем ресурсы самого синт-контейнера через его собственный явный метод .dispose()
   if (synths) {
     Object.values(synths).forEach((synthContainer) => {
       if (synthContainer && typeof synthContainer.dispose === 'function') {
@@ -29,14 +47,25 @@ export const cleanupAudioResources = ({
     });
   }
 
-  // 2. Остальные нативные ресурсы Tone.js удаляем стандартным массивом, отфильтровав синты
+  const disposeRes = (res) =>
+    res && !res.disposed && typeof res.dispose === 'function' && res.dispose();
+
+  if (analysersRef?.current)
+    Object.values(analysersRef.current).forEach(disposeRes);
+  if (channelsRef?.current)
+    Object.values(channelsRef.current).forEach(disposeRes);
+
+  if (analysersRef) analysersRef.current = {};
+  if (channelsRef) channelsRef.current = {};
+  resetSynthAnalysers();
+
   const audioResources = [
-    ...Object.values(parts),
+    ...Object.values(parts || {}),
     ...Object.values(drumEngine || {}),
     drumPart,
   ];
 
-  audioResources.filter(Boolean).forEach((res) => res.dispose());
+  audioResources.filter(Boolean).forEach(disposeRes);
 };
 
 export const initializeSynths = (synthList, enginesRef) => {
@@ -88,7 +117,6 @@ export const setupDrumsPlayback = (
   });
 };
 
-// ИСПРАВЛЕНИЕ: Явно указываем, что ноту в аудио-потоке играет внутренний .instrument контейнера
 export const playSynthNote = (synth, time, noteData) => {
   if (synth && synth.instrument) {
     synth.instrument.triggerAttackRelease(
@@ -108,7 +136,6 @@ export const syncInstrumentPatternsToTrack = (track, instrumentData) => {
 
   clearTrackNotes(track);
 
-  // 2. Проходим по каждому такту (measure)
   instrumentData.patterns.forEach((patternGrid, measureIndex) => {
     patternGrid
       .filter((item) => item.note)
@@ -140,7 +167,6 @@ export const syncDrumPatternsToTrack = (track, drumsData, drumNoteMap) => {
               calculateAbsoluteTime(stepTime, measureIndex) +
               microTimingOffset(drumIndex);
 
-            // Передаем drumIndex в объект ноты, чтобы setupDrumsPlayback знал, какая дорожка сработала
             writeNoteToTrack(track, startTime, { note, drumIndex });
           }
         });
@@ -157,6 +183,8 @@ export const stopAllAudio = (refs) => {
     parts: refs.parts.current,
     drumEngine: refs.drumsEngine.current,
     drumPart: refs.drumsPart.current,
+    analysersRef: refs.synthAnalysersRef,
+    channelsRef: refs.synthChannelsRef,
   });
 
   refs.synths.current = {};
