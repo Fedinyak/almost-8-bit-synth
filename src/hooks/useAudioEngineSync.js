@@ -28,6 +28,11 @@ export const useAudioEngineSync = (
   const synthData = useSelector((state) => state.patterns.synthData);
   const drumsList = useSelector((state) => state.patterns.drumsData);
 
+  // Безопасная подписка на новый слайс настроек звука
+  const soundSettings = useSelector(
+    (state) => state.soundSettings?.synths || {},
+  );
+
   const synthAnalysersRef = useRef({});
   // Хранилище для промежуточных каналов, чтобы вовремя удалять их из памяти
   const synthChannelsRef = useRef({});
@@ -66,6 +71,30 @@ export const useAudioEngineSync = (
       }
     });
   }, [drumsEngineRef, synthEnginesRef]);
+
+  useEffect(() => {
+    SYNTH_LIST.forEach((name) => {
+      const synthInstance = synthEnginesRef.current[name];
+      const settings = soundSettings[name];
+
+      if (synthInstance && settings) {
+        // 1. Настройка Атаки синта
+        synthInstance.set({
+          envelope: {
+            attack: settings.attackMode === 1 ? 0.5 : 0.005,
+          },
+        });
+
+        // 2. ИСПРАВЛЕНИЕ: Настройка Биткрашера через чистый метод .set()
+        // Это убирает ошибку "mutates a variable that React considers immutable"
+        if (synthInstance.fxBitcrusher) {
+          synthInstance.fxBitcrusher.set({
+            wet: settings.bitcrusherOn ? 1 : 0,
+          });
+        }
+      }
+    });
+  }, [soundSettings, synthEnginesRef]);
 
   useEffect(() => {
     SYNTH_LIST.forEach((name) => {

@@ -5,6 +5,7 @@ import { SYNTH_LIST } from '../../../constants/constants';
 import SynthRow from './SynthRow';
 import WaveMonitor from '../../visualizers/WaveMonitor';
 import React from 'react';
+import SynthSoundPanel from '../Controls/SynthSoundPanel';
 
 const SynthGrid = ({ activeVisualPattern }) => {
   const octave = useSelector((state) => state.note.octave);
@@ -27,6 +28,7 @@ const SynthGrid = ({ activeVisualPattern }) => {
       {SYNTH_LIST.map((instrument) => {
         return (
           <React.Fragment key={instrument}>
+            <SynthSoundPanel synthName={instrument} />
             <div>{instrument}</div>
             <WaveMonitor synthName={instrument} />
             <div className="sequencer-cells">
