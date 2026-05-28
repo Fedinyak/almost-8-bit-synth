@@ -15,5 +15,6 @@ export const SYNTH_PARAMS = {
     label: 'CRUSHER MIX',
     isEffect: true, // Маркер для автоматического байпаса в хуке
     nodeKey: 'fxBitcrusher', // Имя свойства внутри нашего объекта-контейнера синта
+    bypassValue: 0.0, // Точка, при которой эффект полностью выключается в процессоре
   },
 };

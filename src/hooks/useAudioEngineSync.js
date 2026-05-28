@@ -80,7 +80,7 @@ export const useAudioEngineSync = (
     });
   }, [drumsEngineRef, synthEnginesRef]);
 
-  // УМНЫЙ EFFECT МОДУЛЯЦИИ: Автоматически крутит параметры и усыпляет эффекты в нуле
+  // УМНЫЙ EFFECT МОДУЛЯЦИИ: Автоматически крутит параметры и усыпляет эффекты на их граничных значениях
   useEffect(() => {
     SYNTH_LIST.forEach((name) => {
       const synthInstance = synthEnginesRef.current[name];
@@ -109,7 +109,13 @@ export const useAudioEngineSync = (
                 wet: liveValue,
               });
 
-              const isSilent = liveValue === 0;
+              // Умная динамическая проверка: совпало ли текущее число с выключателем из конфига?
+              // Если в конфиге нет bypassValue, по умолчанию используем 0
+              const targetBypassValue =
+                typeof paramConfig.bypassValue === 'number'
+                  ? paramConfig.bypassValue
+                  : 0;
+              const isSilent = liveValue === targetBypassValue;
 
               // === ЖЕЛЕЗОБЕТОННЫЙ МАРКЕР ПРОВЕРКИ АВТО-БАЙПАСА ===
               // Выводим сообщение в консоль только в момент ФАКТИЧЕСКОГО изменения режима
@@ -124,7 +130,7 @@ export const useAudioEngineSync = (
               // }
               // ==================================================
 
-              // Железное правило оптимизации: если ручка ровно в 0 — аппаратно тушим вычисления эффекта в процессоре
+              // Железное правило оптимизации: тушим вычисления на граничной точке из паспорта параметров
               fxNode.bypassed = isSilent;
             }
           }
