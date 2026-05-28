@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { DEFAULT_DRUM_RELEASE, SYNTH_LIST } from '../constants/constants';
 import noteAndKeyMap from '../constants/noteAndKeyMap';
-import { SYNTH_PARAMS } from '../constants/synthParamsConfig';
 import {
   initializeDrums,
   initializeSynths,
@@ -11,14 +10,11 @@ import {
   stopAllAudio,
   syncDrumPatternsToTrack,
   syncInstrumentPatternsToTrack,
-  createAudioChannel,
-  createAudioAnalyser,
-  connectSynthToMixer,
+  initializeAudioRouting, // Импортируем готовую логику маршрутизации
+  applySynthEnvelope, // Импортируем логику огибающих
+  applyDynamicBypass, // Импортируем умный байпас эффектов
 } from '../utility/audioEngineActions';
-import {
-  synthAnalysers,
-  synthEnginesRegistry,
-} from '../utility/visualizerState';
+import { synthEnginesRegistry } from '../utility/visualizerState';
 
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
 
@@ -44,8 +40,9 @@ export const useAudioEngineSync = (
 
     synthEnginesRegistry.current = synthEnginesRef.current;
 
-    // Декларативно настраиваем маршрутизацию для списка инструментов
+    // Декларативно настраиваем маршрутизацию из слоя Actions
     initializeAudioRouting(
+      SYNTH_LIST,
       synthEnginesRef,
       synthChannelsRef,
       synthAnalysersRef,
@@ -60,6 +57,7 @@ export const useAudioEngineSync = (
 
       if (!synthInstance || !settings) return;
 
+      // Избавленный от локального мусора вызов ядра модуляции
       applySynthEnvelope(synthInstance, settings.attack);
       applyDynamicBypass(name, synthInstance, settings);
     });
@@ -101,81 +99,4 @@ export const useAudioEngineSync = (
 
     syncDrumPatternsToTrack(drumsPartRef.current, drumsList, drumNoteMap);
   }, [synthData, drumsList, drumsPartRef, synthPartRef]);
-};
-
-/**
- * Локальные вспомогательные стрелочные функции модуляции и инициализации
- */
-
-const initializeAudioRouting = (enginesRef, channelsRef, analysersRef) => {
-  SYNTH_LIST.forEach((name) => {
-    const synthInstance = enginesRef.current[name];
-    if (!synthInstance || analysersRef.current[name]) return;
-
-    const channel = createAudioChannel();
-    const analyser = createAudioAnalyser();
-
-    connectSynthToMixer(synthInstance, channel, analyser);
-
-    channelsRef.current[name] = channel;
-    analysersRef.current[name] = analyser;
-    synthAnalysers[name] = analyser;
-  });
-};
-
-const applySynthEnvelope = (synthInstance, attack) => {
-  if (!synthInstance.instrument || typeof attack !== 'number') return;
-
-  synthInstance.instrument.set({
-    envelope: { attack },
-  });
-};
-
-// 1. Изменение уровня микса эффекта в Tone.js
-const updateEffectMix = (fxNode, value) => {
-  fxNode.set({ wet: value });
-};
-
-// 2. Расчет необходимости байпаса на основе значения из паспорта
-const checkBypassCondition = (liveValue, bypassValue) => {
-  const targetBypassValue = typeof bypassValue === 'number' ? bypassValue : 0;
-  return liveValue === targetBypassValue;
-};
-
-// 3. Переключение режима активности узла и вывод логов изменений
-const toggleNodeBypass = (fxNode, shouldBypass, label, synthName) => {
-  if (shouldBypass && !fxNode.bypassed) {
-    console.log(
-      `[⚡ BYPASS ON]: Эффект "${label}" для ${synthName} усыплен. ЦП отдыхает.`,
-    );
-  } else if (!shouldBypass && fxNode.bypassed) {
-    console.log(
-      `[🔊 BYPASS OFF]: Эффект "${label}" для ${synthName} проснулся.`,
-    );
-  }
-
-  fxNode.bypassed = shouldBypass;
-};
-
-// Декларативный обход паспорта параметров
-const applyDynamicBypass = (synthName, synthInstance, settings) => {
-  Object.entries(SYNTH_PARAMS).forEach(([paramName, paramConfig]) => {
-    if (!paramConfig.isEffect || !paramConfig.nodeKey) return;
-
-    const fxNode = synthInstance[paramConfig.nodeKey];
-    const liveValue = settings[paramName];
-    if (!fxNode || typeof liveValue !== 'number') return;
-
-    // Шаг А: Мгновенно крутим звук
-    updateEffectMix(fxNode, liveValue);
-
-    // Шаг Б: Проверяем, нужно ли усыпить эффект
-    const shouldBypass = checkBypassCondition(
-      liveValue,
-      paramConfig.bypassValue,
-    );
-
-    // Шаг В: Переключаем физику узла
-    toggleNodeBypass(fxNode, shouldBypass, paramConfig.label, synthName);
-  });
 };

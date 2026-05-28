@@ -21,7 +21,6 @@ export const getTotalSteps = (patterns, stepsPerMeasure = 16) => {
   return patternsCount * stepsPerMeasure;
 };
 
-// ИСПРАВЛЕНО: Убрана деструктивная зависимость от общего количества шагов трека
 export const calculateCurrentStep = (time) => {
   const STEPS_PER_BEAT = 4;
   const ticksPerStep = Tone.Transport.PPQ / STEPS_PER_BEAT;
@@ -32,4 +31,9 @@ export const calculateCurrentStep = (time) => {
 
 export const calculateCurrentPlayPattern = (step, stepsInMeasure) => {
   return Math.floor(step / stepsInMeasure);
+};
+
+export const checkBypassCondition = (liveValue, bypassValue) => {
+  const targetBypassValue = typeof bypassValue === 'number' ? bypassValue : 0;
+  return liveValue === targetBypassValue;
 };

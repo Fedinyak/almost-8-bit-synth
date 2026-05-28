@@ -12,10 +12,16 @@ import {
   calculateAbsoluteTime,
   compensateLatency,
   microTimingOffset,
+  checkBypassCondition, // Импортируем чистую утилиту проверки байпаса
 } from './audioMathUtils';
-import { resetDrumLevels, resetSynthAnalysers } from './visualizerState';
+import {
+  resetDrumLevels,
+  resetSynthAnalysers,
+  synthAnalysers,
+} from './visualizerState';
+import { SYNTH_PARAMS } from '../constants/synthParamsConfig';
 
-// НОВЫЕ СТРЕЛОЧНЫЕ ФУНКЦИИ КОММУТАЦИИ ДЛЯ ХУКА
+// ФУНКЦИИ КОММУТАЦИИ ДЛЯ ХУКА
 export const createAudioChannel = () => new Tone.Volume();
 
 export const createAudioAnalyser = () =>
@@ -29,6 +35,77 @@ export const connectSynthToMixer = (synthInstance, channel, analyser) => {
 
   channel.connect(analyser);
   channel.toDestination();
+};
+
+// ВЫНЕСЕННАЯ ЛОГИКА: Маршрутизация каналов и анализаторов для списка инструментов
+export const initializeAudioRouting = (
+  synthList,
+  enginesRef,
+  channelsRef,
+  analysersRef,
+) => {
+  synthList.forEach((name) => {
+    const synthInstance = enginesRef.current[name];
+    if (!synthInstance || analysersRef.current[name]) return;
+
+    const channel = createAudioChannel();
+    const analyser = createAudioAnalyser();
+
+    connectSynthToMixer(synthInstance, channel, analyser);
+
+    channelsRef.current[name] = channel;
+    analysersRef.current[name] = analyser;
+    synthAnalysers[name] = analyser;
+  });
+};
+
+// ВЫНЕСЕННАЯ ЛОГИКА: Безопасное применение ADSR/Атаки к инструменту
+export const applySynthEnvelope = (synthInstance, attack) => {
+  if (!synthInstance.instrument || typeof attack !== 'number') return;
+
+  synthInstance.instrument.set({
+    envelope: { attack },
+  });
+};
+
+// ВЫНЕСЕННАЯ ЛОГИКА: Мгновенное изменение wet-микса эффекта в Tone.js
+export const updateEffectMix = (fxNode, value) => {
+  fxNode.set({ wet: value });
+};
+
+// ВЫНЕСЕННАЯ ЛОГИКА: Переключение режима активности узла и вывод красивых логов
+export const toggleNodeBypass = (fxNode, shouldBypass, label, synthName) => {
+  if (shouldBypass && !fxNode.bypassed) {
+    console.log(
+      `[⚡ BYPASS ON]: Эффект "${label}" для ${synthName} усыплен. ЦП отдыхает.`,
+    );
+  } else if (!shouldBypass && fxNode.bypassed) {
+    console.log(
+      `[🔊 BYPASS OFF]: Эффект "${label}" для ${synthName} проснулся.`,
+    );
+  }
+
+  fxNode.bypassed = shouldBypass;
+};
+
+// ВЫНЕСЕННАЯ ЛОГИКА: Декларативный обход паспорта параметров и управление байпасом эффектов
+export const applyDynamicBypass = (synthName, synthInstance, settings) => {
+  Object.entries(SYNTH_PARAMS).forEach(([paramName, paramConfig]) => {
+    if (!paramConfig.isEffect || !paramConfig.nodeKey) return;
+
+    const fxNode = synthInstance[paramConfig.nodeKey];
+    const liveValue = settings[paramName];
+    if (!fxNode || typeof liveValue !== 'number') return;
+
+    updateEffectMix(fxNode, liveValue);
+
+    const shouldBypass = checkBypassCondition(
+      liveValue,
+      paramConfig.bypassValue,
+    );
+
+    toggleNodeBypass(fxNode, shouldBypass, paramConfig.label, synthName);
+  });
 };
 
 export const cleanupAudioResources = ({
