@@ -13,8 +13,6 @@ export const UniversalSlider = ({
   const handleChange = (e) => {
     const newValue = Number(e.target.value);
 
-    // Мгновенно обновляем Redux. Стейт плоский, поэтому лагов не будет,
-    // а хук синхронизации сразу получит актуальное число.
     dispatch(updateSynthParam({ synthName, paramName, value: newValue }));
   };
 
@@ -28,7 +26,7 @@ export const UniversalSlider = ({
         min={config.min}
         max={config.max}
         step={config.step}
-        value={initialValue} // Управляемый компонент: читает число напрямую из Redux
+        value={initialValue}
         onChange={handleChange}
       />
       <span style={{ marginLeft: '8px' }}>{initialValue.toFixed(3)}</span>
