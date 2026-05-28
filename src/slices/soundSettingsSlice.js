@@ -1,21 +1,19 @@
 import { createSlice } from '@reduxjs/toolkit';
+import { SYNTH_LIST } from '../constants/constants';
+import { SYNTH_PARAMS } from '../constants/synthParamsConfig';
 
+// Автоматически собираем начальное состояние из конфига для всех синтов из списка
 const initialState = {
-  synths: {
-    synth1: {
-      attackMode: 0, // 0 - FAST (щелчок), 1 - SLOW (плавный наплыв)
-      bitcrusherOn: false, // false - выключен (Dry), true - включен на 100% (Wet)
-    },
-    synth2: {
-      attackMode: 0,
-      bitcrusherOn: false,
-    },
-    synth3: {
-      attackMode: 0,
-      bitcrusherOn: false,
-    },
-  },
-
+  synths: SYNTH_LIST.reduce((acc, synthName) => {
+    acc[synthName] = Object.entries(SYNTH_PARAMS).reduce(
+      (paramAcc, [paramKey, paramConfig]) => {
+        paramAcc[paramKey] = paramConfig.default;
+        return paramAcc;
+      },
+      {},
+    );
+    return acc;
+  }, {}),
   drums: {},
 };
 
@@ -23,29 +21,15 @@ export const soundSettingsSlice = createSlice({
   name: 'soundSettings',
   initialState,
   reducers: {
-    // Утилитарный редюсер для переключения Атаки (принимает имя синта в payload, например 'synth1')
-    toggleSynthAttackMode: (state, action) => {
-      const synthName = action.payload;
+    // Один универсальный экшен на все ручки мира
+    updateSynthParam: (state, action) => {
+      const { synthName, paramName, value } = action.payload;
       if (state.synths[synthName]) {
-        // Переключаем бинарный режим: если был 0, станет 1, и наоборот
-        state.synths[synthName].attackMode =
-          state.synths[synthName].attackMode === 0 ? 1 : 0;
-      }
-    },
-
-    // Утилитарный редюсер для включения/выключения Биткрашера (принимает имя синта в payload)
-    toggleSynthBitcrusher: (state, action) => {
-      const synthName = action.payload;
-      if (state.synths[synthName]) {
-        // Переключаем классический флаг true/false
-        state.synths[synthName].bitcrusherOn =
-          !state.synths[synthName].bitcrusherOn;
+        state.synths[synthName][paramName] = value;
       }
     },
   },
 });
 
-export const { toggleSynthAttackMode, toggleSynthBitcrusher } =
-  soundSettingsSlice.actions;
-
+export const { updateSynthParam } = soundSettingsSlice.actions;
 export default soundSettingsSlice.reducer;

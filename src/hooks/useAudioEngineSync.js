@@ -15,6 +15,7 @@ import {
 import {
   synthAnalysers,
   resetSynthAnalysers,
+  synthEnginesRegistry,
 } from '../utility/visualizerState'; // Импортируем наш изолированный реестр
 
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
@@ -40,6 +41,8 @@ export const useAudioEngineSync = (
   useEffect(() => {
     initializeSynths(SYNTH_LIST, synthEnginesRef.current);
     initializeDrums(drumsEngineRef);
+
+    synthEnginesRegistry.current = synthEnginesRef.current;
 
     SYNTH_LIST.forEach((name) => {
       const synthInstance = synthEnginesRef.current[name];
@@ -82,20 +85,23 @@ export const useAudioEngineSync = (
       const settings = soundSettings[name];
 
       if (synthInstance && settings) {
-        // ИСПРАВЛЕНИЕ УПРАВЛЕНИЯ:
-        // 1. Настройка Атаки синта — стучимся ЯВНО к .instrument внутри контейнера
-        if (synthInstance.instrument) {
+        // 1. Настройка Атаки синта через легальный метод .set()
+        if (synthInstance.instrument && typeof settings.attack === 'number') {
           synthInstance.instrument.set({
             envelope: {
-              attack: settings.attackMode === 1 ? 0.5 : 0.005,
+              attack: settings.attack,
             },
           });
         }
 
-        // 2. Настройка Биткрашера через чистый метод .set() без мутаций
-        if (synthInstance.fxBitcrusher) {
+        // 2. Настройка Биткрашера через легальный метод .set()
+        // Это убирает и ошибку мутации React, и предупреждение Accurate Timing
+        if (
+          synthInstance.fxBitcrusher &&
+          typeof settings.bitcrusherWet === 'number'
+        ) {
           synthInstance.fxBitcrusher.set({
-            wet: settings.bitcrusherOn ? 1 : 0,
+            wet: settings.bitcrusherWet,
           });
         }
       }
