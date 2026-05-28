@@ -54,9 +54,13 @@ export const useAudioEngineSync = (
           size: 32,
         });
 
-        // 3. Отключаем синт от общего мастера и перенаправляем в наш канал
-        synthInstance.disconnect();
-        synthInstance.connect(channel);
+        // ИСПРАВЛЕНИЕ МАРШРУТИЗАЦИИ:
+        // Отключаем КОНЕЦ внутренней цепочки эффектов синта от мастера
+        if (synthInstance.output) {
+          synthInstance.output.disconnect();
+          // И направляем этот ВЫХОД в наш изолированный канал громкости микшера
+          synthInstance.output.connect(channel);
+        }
 
         // 4. Канал пускает звук в анализатор и на мастер-выход
         channel.connect(analyser);
@@ -78,15 +82,17 @@ export const useAudioEngineSync = (
       const settings = soundSettings[name];
 
       if (synthInstance && settings) {
-        // 1. Настройка Атаки синта
-        synthInstance.set({
-          envelope: {
-            attack: settings.attackMode === 1 ? 0.5 : 0.005,
-          },
-        });
+        // ИСПРАВЛЕНИЕ УПРАВЛЕНИЯ:
+        // 1. Настройка Атаки синта — стучимся ЯВНО к .instrument внутри контейнера
+        if (synthInstance.instrument) {
+          synthInstance.instrument.set({
+            envelope: {
+              attack: settings.attackMode === 1 ? 0.5 : 0.005,
+            },
+          });
+        }
 
-        // 2. ИСПРАВЛЕНИЕ: Настройка Биткрашера через чистый метод .set()
-        // Это убирает ошибку "mutates a variable that React considers immutable"
+        // 2. Настройка Биткрашера через чистый метод .set() без мутаций
         if (synthInstance.fxBitcrusher) {
           synthInstance.fxBitcrusher.set({
             wet: settings.bitcrusherOn ? 1 : 0,

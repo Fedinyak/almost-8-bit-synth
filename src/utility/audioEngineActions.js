@@ -20,9 +20,18 @@ export const cleanupAudioResources = ({
   drumEngine,
   drumPart,
 }) => {
+  // 1. Сначала бережно удаляем ресурсы самого синт-контейнера через его собственный явный метод .dispose()
+  if (synths) {
+    Object.values(synths).forEach((synthContainer) => {
+      if (synthContainer && typeof synthContainer.dispose === 'function') {
+        synthContainer.dispose();
+      }
+    });
+  }
+
+  // 2. Остальные нативные ресурсы Tone.js удаляем стандартным массивом, отфильтровав синты
   const audioResources = [
     ...Object.values(parts),
-    ...Object.values(synths),
     ...Object.values(drumEngine || {}),
     drumPart,
   ];
@@ -78,8 +87,16 @@ export const setupDrumsPlayback = (
     }
   });
 };
+
+// ИСПРАВЛЕНИЕ: Явно указываем, что ноту в аудио-потоке играет внутренний .instrument контейнера
 export const playSynthNote = (synth, time, noteData) => {
-  synth.triggerAttackRelease(noteData.note, noteData.duration, time);
+  if (synth && synth.instrument) {
+    synth.instrument.triggerAttackRelease(
+      noteData.note,
+      noteData.duration,
+      time,
+    );
+  }
 };
 
 export const playDrumHit = (drumInstrument, drumDuration, playTime) => {
