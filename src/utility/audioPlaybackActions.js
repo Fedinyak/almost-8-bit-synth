@@ -114,19 +114,24 @@ const syncDrumTrackSteps = (
   });
 };
 
+const syncMeasureDrums = (track, drumsInMeasure, measureIndex, drumNoteMap) => {
+  Object.entries(drumsInMeasure).forEach(
+    ([drumName, trackSteps], drumIndex) => {
+      const note = drumNoteMap[drumName];
+      if (!note) return;
+
+      syncDrumTrackSteps(track, trackSteps, measureIndex, drumIndex, note);
+    },
+  );
+};
+
 export const syncDrumPatternsToTrack = (track, drumsData, drumNoteMap) => {
   if (!track || !drumsData?.patterns) return;
+
   clearTrackNotes(track);
 
   drumsData.patterns.forEach((drumsInMeasure, measureIndex) => {
-    Object.entries(drumsInMeasure).forEach(
-      ([drumName, trackSteps], drumIndex) => {
-        const note = drumNoteMap[drumName];
-        if (!note) return;
-
-        syncDrumTrackSteps(track, trackSteps, measureIndex, drumIndex, note);
-      },
-    );
+    syncMeasureDrums(track, drumsInMeasure, measureIndex, drumNoteMap);
   });
 
   setTrackLoopDuration(track, drumsData.patterns.length);
