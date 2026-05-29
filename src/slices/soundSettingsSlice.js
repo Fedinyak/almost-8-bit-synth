@@ -1,11 +1,14 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { SYNTH_LIST } from '../constants/constants';
+import { SYNTH_LIST, DRUM_KIT_LIST } from '../constants/constants'; // Импортируем список твоих барабанов
 import { SOUND_PARAMS } from '../constants/soundParamsConfig';
 
-// Автоматически собираем начальное состояние из конфига для всех синтов из списка
+// Объединяем оба списка в один массив, чтобы одной левой собрать плоский стейт для всех
+const ALL_AUDIO_ENGINES = [...SYNTH_LIST, ...DRUM_KIT_LIST];
+
 const initialState = {
-  synths: SYNTH_LIST.reduce((acc, synthName) => {
-    acc[synthName] = Object.entries(SOUND_PARAMS).reduce(
+  // Автоматически собираем начальное состояние из паспорта вообще для всех движков (и синтов, и барабанов!)
+  synths: ALL_AUDIO_ENGINES.reduce((acc, engineName) => {
+    acc[engineName] = Object.entries(SOUND_PARAMS).reduce(
       (paramAcc, [paramKey, paramConfig]) => {
         paramAcc[paramKey] = paramConfig.default;
         return paramAcc;
@@ -14,14 +17,14 @@ const initialState = {
     );
     return acc;
   }, {}),
-  drums: {},
 };
 
 export const soundSettingsSlice = createSlice({
   name: 'soundSettings',
   initialState,
   reducers: {
-    // Один универсальный экшен на все ручки мира
+    // Твой оригинальный универсальный экшен теперь автоматически работает на ВСЕ ручки мира,
+    // включая синты, кики, снэры и хэты, потому что они лежат в одной плоской структуре!
     updateSynthParam: (state, action) => {
       const { synthName, paramName, value } = action.payload;
       if (state.synths[synthName]) {
