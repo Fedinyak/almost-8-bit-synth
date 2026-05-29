@@ -10,14 +10,14 @@ export const AudioParamControl = ({
 }) => {
   const dispatch = useDispatch();
 
-  // Железный предохранитель от undefined на случай расширения паспорта
+  // предохранитель от undefined на случай расширения паспорта
   const sliderValue = initialValue ?? config.defaultValue ?? 0;
 
-  // ДИНАМИЧЕСКИЙ РАСЧЕТ ИНДИКАТОРА СТРОГО ПО ПАСПОРТУ:
+  // ДИНАМИЧЕСКИЙ РАСЧЕТ ИНДИКАТОРА ПО ПАСПОРТУ:
   // Проверяем, помечен ли параметр в паспорте как аудио-эффект
   const isEffect = config.isEffect && config.nodeKey;
 
-  // Берем точное граничное значение из конфига (если вдруг забыли прописать — фолбек в 0)
+  // граничное значение из конфига (если вдруг забыли прописать — фолбек в 0)
   const bypassTarget =
     typeof config.bypassValue === 'number' ? config.bypassValue : 0;
 
@@ -38,7 +38,6 @@ export const AudioParamControl = ({
         gap: '8px',
       }}
     >
-      {/* 🟩 ПИКСЕЛЬНЫЙ ИНДИКАТОР АКТИВНОСТИ ЭФФЕКТА */}
       {isEffect && (
         <div
           style={{
@@ -51,7 +50,6 @@ export const AudioParamControl = ({
         />
       )}
 
-      {/* Выравниваем лейблы параметров без лампочки (Атака), чтобы сетка в UI не съезжала */}
       <label
         style={{
           display: 'inline-block',
