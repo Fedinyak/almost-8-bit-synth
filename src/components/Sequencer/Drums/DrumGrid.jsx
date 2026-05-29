@@ -24,8 +24,6 @@ const DrumGrid = () => {
   const sequencerStep = useSelector((state) => state.player.sequencerStep);
   const steps = Array.from({ length: sequencerStep }, (_, i) => i);
 
-  // ИСПРАВЛЕНИЕ: Читаем настройки из общего объекта synths,
-  // чтобы универсальный экшен updateSynthParam мог мгновенно крутить барабаны!
   const soundSettings = useSelector(
     (state) => state.soundSettings?.synths || {},
   );
@@ -60,7 +58,6 @@ const DrumGrid = () => {
         })}
       </div>
 
-      {/* ДЕФОЛТНЫЙ ПУЛЬТ УПРАВЛЕНИЯ БАРАБАНАМИ БЕЗ ЛИШНИХ СТИЛЕЙ */}
       <div className="drum-mixer-panel">
         <h4>DRUM CONTROLS:</h4>
 
@@ -71,15 +68,35 @@ const DrumGrid = () => {
             <div key={`${drumName}-channel`}>
               <h5>{drumName.toUpperCase()}:</h5>
 
-              {Object.entries(SOUND_PARAMS).map(([paramKey, paramConfig]) => (
-                <AudioParamControl
-                  key={`${drumName}-${paramKey}`}
-                  synthName={drumName} // Имя барабана (kick, snare) передается как synthName
-                  paramName={paramKey}
-                  config={paramConfig}
-                  initialValue={settings[paramKey]}
-                />
-              ))}
+              <div className="drum-group-envelope">
+                <h6>ENVELOPE:</h6>
+                {Object.entries(SOUND_PARAMS)
+                  .filter(([_, config]) => config.group === 'envelope')
+                  .map(([paramKey, paramConfig]) => (
+                    <AudioParamControl
+                      key={`${drumName}-${paramKey}`}
+                      synthName={drumName}
+                      paramName={paramKey}
+                      config={paramConfig}
+                      initialValue={settings[paramKey]}
+                    />
+                  ))}
+              </div>
+
+              <div className="drum-group-effects">
+                <h6>EFFECTS:</h6>
+                {Object.entries(SOUND_PARAMS)
+                  .filter(([_, config]) => config.group === 'effects')
+                  .map(([paramKey, paramConfig]) => (
+                    <AudioParamControl
+                      key={`${drumName}-${paramKey}`}
+                      synthName={drumName}
+                      paramName={paramKey}
+                      config={paramConfig}
+                      initialValue={settings[paramKey]}
+                    />
+                  ))}
+              </div>
             </div>
           );
         })}

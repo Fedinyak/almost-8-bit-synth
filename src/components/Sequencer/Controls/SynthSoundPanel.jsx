@@ -18,15 +18,35 @@ export const SynthSoundPanel = ({ synthName }) => {
         <strong>{synthName.toUpperCase()} CONTROLS:</strong>
       </div>
 
-      {Object.entries(SOUND_PARAMS).map(([paramKey, paramConfig]) => (
-        <AudioParamControl
-          key={paramKey}
-          synthName={synthName}
-          paramName={paramKey}
-          config={paramConfig}
-          initialValue={synthSettings[paramKey]}
-        />
-      ))}
+      <div className="group-envelope">
+        <h6>ENVELOPE:</h6>
+        {Object.entries(SOUND_PARAMS)
+          .filter(([_, config]) => config.group === 'envelope')
+          .map(([paramKey, paramConfig]) => (
+            <AudioParamControl
+              key={paramKey}
+              synthName={synthName}
+              paramName={paramKey}
+              config={paramConfig}
+              initialValue={synthSettings[paramKey]}
+            />
+          ))}
+      </div>
+
+      <div className="group-effects">
+        <h6>EFFECTS:</h6>
+        {Object.entries(SOUND_PARAMS)
+          .filter(([_, config]) => config.group === 'effects')
+          .map(([paramKey, paramConfig]) => (
+            <AudioParamControl
+              key={paramKey}
+              synthName={synthName}
+              paramName={paramKey}
+              config={paramConfig}
+              initialValue={synthSettings[paramKey]}
+            />
+          ))}
+      </div>
     </div>
   );
 };
