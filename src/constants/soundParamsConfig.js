@@ -1,4 +1,4 @@
-export const SYNTH_PARAMS = {
+export const SOUND_PARAMS = {
   attack: {
     min: 0.005,
     max: 2.0,

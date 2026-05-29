@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
-import { SYNTH_PARAMS } from '../../../constants/synthParamsConfig';
 import AudioParamControl from './AudioParamControl';
+import { SOUND_PARAMS } from '../../../constants/soundParamsConfig';
 
 export const SynthSoundPanel = ({ synthName }) => {
   const synthSettings = useSelector(
@@ -18,7 +18,7 @@ export const SynthSoundPanel = ({ synthName }) => {
         <strong>{synthName.toUpperCase()} CONTROLS:</strong>
       </div>
 
-      {Object.entries(SYNTH_PARAMS).map(([paramKey, paramConfig]) => (
+      {Object.entries(SOUND_PARAMS).map(([paramKey, paramConfig]) => (
         <AudioParamControl
           key={paramKey}
           synthName={synthName}

@@ -1,7 +1,7 @@
 import * as Tone from 'tone';
 import { checkBypassCondition } from './audioMathUtils';
 import { synthAnalysers } from './visualizerState';
-import { SYNTH_PARAMS } from '../constants/synthParamsConfig';
+import { SOUND_PARAMS } from '../constants/soundParamsConfig';
 
 export const createAudioChannel = () => new Tone.Volume();
 
@@ -74,7 +74,7 @@ export const toggleNodeBypass = (fxNode, shouldBypass, label, synthName) => {
 };
 
 export const applyDynamicBypass = (synthName, synthInstance, settings) => {
-  Object.entries(SYNTH_PARAMS).forEach(([paramName, paramConfig]) => {
+  Object.entries(SOUND_PARAMS).forEach(([paramName, paramConfig]) => {
     if (!paramConfig.isEffect || !paramConfig.nodeKey) return;
 
     const fxNode = synthInstance[paramConfig.nodeKey];
