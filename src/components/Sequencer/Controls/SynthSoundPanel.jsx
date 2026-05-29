@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
-import AudioParamControl from './AudioParamControl';
-import { SOUND_PARAMS } from '../../../constants/soundParamsConfig';
+import SoundParamGroup from './SoundParamGroup';
+import { SOUND_PARAM_GROUPS } from '../../../constants/soundParamsConfig';
 
 export const SynthSoundPanel = ({ synthName }) => {
   const synthSettings = useSelector(
@@ -18,35 +18,16 @@ export const SynthSoundPanel = ({ synthName }) => {
         <strong>{synthName.toUpperCase()} CONTROLS:</strong>
       </div>
 
-      <div className="group-envelope">
-        <h6>ENVELOPE:</h6>
-        {Object.entries(SOUND_PARAMS)
-          .filter(([_, config]) => config.group === 'envelope')
-          .map(([paramKey, paramConfig]) => (
-            <AudioParamControl
-              key={paramKey}
-              synthName={synthName}
-              paramName={paramKey}
-              config={paramConfig}
-              initialValue={synthSettings[paramKey]}
-            />
-          ))}
-      </div>
-
-      <div className="group-effects">
-        <h6>EFFECTS:</h6>
-        {Object.entries(SOUND_PARAMS)
-          .filter(([_, config]) => config.group === 'effects')
-          .map(([paramKey, paramConfig]) => (
-            <AudioParamControl
-              key={paramKey}
-              synthName={synthName}
-              paramName={paramKey}
-              config={paramConfig}
-              initialValue={synthSettings[paramKey]}
-            />
-          ))}
-      </div>
+      {SOUND_PARAM_GROUPS.map((group) => (
+        <SoundParamGroup
+          key={group.key}
+          groupKey={group.key}
+          title={group.label}
+          className={`group-${group.key}`}
+          synthName={synthName}
+          instrumentSettings={synthSettings}
+        />
+      ))}
     </div>
   );
 };

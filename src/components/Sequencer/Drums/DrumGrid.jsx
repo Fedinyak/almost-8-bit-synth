@@ -3,8 +3,8 @@ import { useSelector } from 'react-redux';
 import StepIndicator from '../Controls/StepIndicator';
 import DrumCell from './DrumCell';
 import DrumMonitor from '../../visualizers/DrumMonitor';
-import { SOUND_PARAMS } from '../../../constants/soundParamsConfig';
-import AudioParamControl from '../Controls/AudioParamControl';
+import { SOUND_PARAM_GROUPS } from '../../../constants/soundParamsConfig';
+import SoundParamGroup from '../Controls/SoundParamGroup';
 
 const DrumGrid = () => {
   const drumKit = useSelector((state) => state.patterns.drumKitList);
@@ -68,35 +68,16 @@ const DrumGrid = () => {
             <div key={`${drumName}-channel`}>
               <h5>{drumName.toUpperCase()}:</h5>
 
-              <div className="drum-group-envelope">
-                <h6>ENVELOPE:</h6>
-                {Object.entries(SOUND_PARAMS)
-                  .filter(([_, config]) => config.group === 'envelope')
-                  .map(([paramKey, paramConfig]) => (
-                    <AudioParamControl
-                      key={`${drumName}-${paramKey}`}
-                      synthName={drumName}
-                      paramName={paramKey}
-                      config={paramConfig}
-                      initialValue={settings[paramKey]}
-                    />
-                  ))}
-              </div>
-
-              <div className="drum-group-effects">
-                <h6>EFFECTS:</h6>
-                {Object.entries(SOUND_PARAMS)
-                  .filter(([_, config]) => config.group === 'effects')
-                  .map(([paramKey, paramConfig]) => (
-                    <AudioParamControl
-                      key={`${drumName}-${paramKey}`}
-                      synthName={drumName}
-                      paramName={paramKey}
-                      config={paramConfig}
-                      initialValue={settings[paramKey]}
-                    />
-                  ))}
-              </div>
+              {SOUND_PARAM_GROUPS.map((group) => (
+                <SoundParamGroup
+                  key={`${drumName}-${group.key}`}
+                  groupKey={group.key}
+                  title={group.label}
+                  className={`drum-group-${group.key}`}
+                  synthName={drumName}
+                  instrumentSettings={settings}
+                />
+              ))}
             </div>
           );
         })}

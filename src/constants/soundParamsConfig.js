@@ -1,3 +1,8 @@
+export const SOUND_PARAM_GROUPS = [
+  { key: 'envelope', label: 'ENVELOPE:' },
+  { key: 'effects', label: 'EFFECTS:' },
+];
+
 export const SOUND_PARAMS = {
   attack: {
     min: 0.005,
