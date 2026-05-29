@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { SYNTH_PARAMS } from '../../../constants/synthParamsConfig';
-import UniversalSlider from './UniversalSlider';
+import AudioParamControl from './AudioParamControl';
 
 export const SynthSoundPanel = ({ synthName }) => {
   const synthSettings = useSelector(
@@ -19,7 +19,7 @@ export const SynthSoundPanel = ({ synthName }) => {
       </div>
 
       {Object.entries(SYNTH_PARAMS).map(([paramKey, paramConfig]) => (
-        <UniversalSlider
+        <AudioParamControl
           key={paramKey}
           synthName={synthName}
           paramName={paramKey}
