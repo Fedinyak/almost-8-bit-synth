@@ -2,27 +2,38 @@ import * as Tone from 'tone';
 
 /**
  * Вспомогательная фабрика-обертка: собирает чистую цепочку эффектов вокруг синта барабана.
- * Никаких захардкоженных настроек — всё управляется динамически из паспорта.
  */
 const wrapDrumWithEffects = (rawSynth) => {
-  // Создаем узел Биткрашера
+  // 1. Создаем узел Биткрашера и усыпляем на старте
   const crusher = new Tone.BitCrusher({ bits: 4 });
-
-  // ЖЕЛЕЗНАЯ ИНИЦИАЛИЗАЦИЯ В НУЛЕ:
-  // Выключаем микс эффекта (wet: 0) и аппаратно усыпляем узел (bypassed: true) прямо при создании,
-  // чтобы барабан звучал кристально чисто, а процессор отдыхал с первой секунды.
   crusher.set({ wet: 0 });
   crusher.bypassed = true;
 
-  // Коммутируем цепочку: Синт -> Биткрашер -> Мастер-выход
+  // 2. Создаем узел Дилея (Эхо) лично для этого барабана
+  // Ставим время задержки покороче ('8n' — 1/8 такта), чтобы на барабанах это звучало как сочный ритмичный повтор
+  const delay = new Tone.FeedbackDelay({
+    delayTime: '8n',
+    feedback: 0.25,
+    wet: 0,
+  });
+  delay.bypassed = true; // ЖЕЛЕЗНАЯ ИНИЦИАЛИЗАЦИЯ В НУЛЕ: ЦП отдыхает
+
+  // 3. КОММУТИРУЕМ ЦЕПОЧКУ (ПАРОВОЗИК):
+  // Нативный синт идет в Биткрашер
   rawSynth.connect(crusher);
-  crusher.toDestination();
+  // Биткрашер идет в Дилей
+  crusher.connect(delay);
+  // Финальный эффект Дилея отправляем на мастер-выход браузера
+  delay.toDestination();
 
   return {
     instrument: rawSynth,
     fxBitcrusher: crusher,
-    output: crusher,
+    fxDelay: delay, // Передаем ссылку на узел строго по ключу nodeKey из паспорта!
+    output: delay, // Конечная точка выхода всей цепочки
     dispose() {
+      // Чистим память без утечек при удалении
+      delay.dispose();
       crusher.dispose();
       rawSynth.dispose();
     },
@@ -30,7 +41,6 @@ const wrapDrumWithEffects = (rawSynth) => {
 };
 
 const createDrums = () => {
-  // Инициализируем базовые нативные синтезаторы барабанов
   const drumSynths = {
     kick: new Tone.MembraneSynth(),
     snare: new Tone.NoiseSynth({
@@ -62,7 +72,6 @@ const createDrums = () => {
     }),
   };
 
-  // Динамически мапим каждый барабан через фабрику-обертку
   const wrappedDrums = Object.entries(drumSynths).reduce(
     (acc, [drumName, rawSynth]) => {
       acc[drumName] = wrapDrumWithEffects(rawSynth);
