@@ -8,6 +8,15 @@ const createSleeperBitcrusher = () => {
   return crusher;
 };
 
+const createSleeperFilter = () => {
+  const filter = new Tone.Filter({
+    type: 'lowpass',
+    frequency: 10000, // Со старта полностью открыт на максимум
+  });
+  filter.bypassed = true; // Усыпляем на старте в точке байпаса
+  return filter;
+};
+
 const createSleeperDelay = () => {
   const delay = new Tone.FeedbackDelay({
     delayTime: '8n',
@@ -18,9 +27,10 @@ const createSleeperDelay = () => {
   return delay;
 };
 
-const connectAudioChain = (rawSynth, crusher, delay) => {
+const connectAudioChain = (rawSynth, crusher, filter, delay) => {
   rawSynth.connect(crusher);
-  crusher.connect(delay);
+  crusher.connect(filter);
+  filter.connect(delay);
   delay.toDestination();
 };
 
@@ -29,17 +39,20 @@ const connectAudioChain = (rawSynth, crusher, delay) => {
  */
 const wrapDrumWithEffects = (rawSynth) => {
   const crusher = createSleeperBitcrusher();
+  const filter = createSleeperFilter();
   const delay = createSleeperDelay();
 
-  connectAudioChain(rawSynth, crusher, delay);
+  connectAudioChain(rawSynth, crusher, filter, delay);
 
   return {
     instrument: rawSynth,
     fxBitcrusher: crusher,
+    fxFilter: filter,
     fxDelay: delay,
     output: delay,
     dispose() {
       delay.dispose();
+      filter.dispose();
       crusher.dispose();
       rawSynth.dispose();
     },

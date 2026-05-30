@@ -10,26 +10,37 @@ const createSynth = () => {
     bits: 4,
     wet: 0,
   });
-  crusher.bypassed = true; // Усыпляем на старте для чистоты звука
+  crusher.bypassed = true;
+
+  // 🧱 СОЗДАЕМ УЗЕЛ НА ТИВНОГО 8-БИТ ФИЛЬТРА ТИПА LOWPASS
+  const filter = new Tone.Filter({
+    type: 'lowpass',
+    frequency: 10000, // Со старта полностью открыт на максимум
+  });
+  filter.bypassed = true; // ЖЕЛЕЗНАЯ ИНИЦИАЛИЗАЦИЯ: Усыпляем на старте в точке байпаса!
 
   const delay = new Tone.FeedbackDelay({
     delayTime: '4n',
     feedback: 0.3,
     wet: 0,
   });
-  delay.bypassed = true; // усыпляем на старте, пока ручка в нуле
+  delay.bypassed = true;
 
+  // 🦾 КОММУТИРУЕМ ЦЕПОЧКУ (ПОСЛЕДОВАТЕЛЬНЫЙ ПАРОВОЗИК):
   synth.connect(crusher);
-  crusher.connect(delay);
+  crusher.connect(filter); // Врезаем фильтр сразу за Биткрашером
+  filter.connect(delay); // Фильтр стреляет в Дилей
 
   return {
     instrument: synth,
-    output: delay,
+    output: delay, // Конечной точкой выхода всей цепи синта остается Дилей
     fxBitcrusher: crusher,
+    fxFilter: filter, // Отдаем ссылку на фильтр строго по ключу nodeKey из паспорта!
     fxDelay: delay,
 
     dispose() {
       this.fxDelay.dispose();
+      this.fxFilter.dispose(); // Не забываем бережно зачистить память
       this.fxBitcrusher.dispose();
       this.instrument.dispose();
     },
