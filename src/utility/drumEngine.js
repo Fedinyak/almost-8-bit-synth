@@ -5,21 +5,25 @@ import {
   DRUM_EFFECTS_CHAIN,
 } from '../constants/soundParamsConfig';
 
-// Универсальная слепая фабрика: собирает любой спящий аудио-узел Tone.js по его шаблону
-const createSleeperNode = (EffectClass, constructorParams) => {
-  const node = new EffectClass(constructorParams);
-
-  // Умный предохранитель: гасим wet в ноль, только если этот параметр существует у эффекта
+const resetEffectMix = (node) => {
   if (node.wet) {
     node.set({ wet: 0 });
   }
+};
 
-  // Аппаратно усыпляем узел для 0% нагрузки на процессор на старте
+const bypassAudioNode = (node) => {
   node.bypassed = true;
+};
+
+const createSleeperNode = (EffectClass, constructorParams) => {
+  const node = new EffectClass(constructorParams);
+
+  resetEffectMix(node);
+  bypassAudioNode(node);
+
   return node;
 };
 
-// Автоматически соединяет любой массив аудио-узлов "паровозиком" через .reduce()
 const connectAudioChain = (nodes) => {
   if (!Array.isArray(nodes) || nodes.length < 2) return;
 
@@ -31,44 +35,60 @@ const connectAudioChain = (nodes) => {
   nodes[nodes.length - 1].toDestination();
 };
 
-/**
- * Вспомогательная фабрика-обертка: собирает чистую цепочку эффектов вокруг синта барабана.
- */
+const buildDeviceParams = (drumName, deviceKey, defaultParams) => {
+  const customParams = DRUM_PRESETS[drumName]?.[deviceKey] || {};
+  return { ...defaultParams, ...customParams };
+};
+
+const registerNodeInRegistry = (registry, nodeKey, node) => {
+  registry[nodeKey] = node;
+};
+
 const wrapDrumWithEffects = (rawSynth, drumName) => {
-  // Локальный реестр для динамической сборки контейнера (fxBitcrusher, fxDelay и т.д.)
   const fxRegistry = {};
 
-  // 🦾 ТОТАЛЬНО ДИНАМИЧЕСКИЙ СПАВН: Бежим по нашему манифесту строк из констант ['crusher', 'filter', 'delay']
   const createdEffects = DRUM_EFFECTS_CHAIN.map((deviceKey) => {
     const device = EFFECT_DEVICES[deviceKey];
     if (!device) return null;
 
-    // Вытаскиваем специфические стартовые пресеты прибора для конкретного барабана из DRUM_PRESETS, если они там есть
-    const customParams = DRUM_PRESETS[drumName]?.[deviceKey] || {};
-    // Объединяем пресет с базовыми дефолтными настройками прибора
-    const finalParams = { ...device.defaultParams, ...customParams };
-
-    // Создаем спящий узел одной универсальной строчкой
+    const finalParams = buildDeviceParams(
+      drumName,
+      deviceKey,
+      device.defaultParams,
+    );
     const node = createSleeperNode(device.ClassRef, finalParams);
 
-    // Автоматически регистрируем живую ссылку по её nodeKey для хука модуляции
-    fxRegistry[device.nodeKey] = node;
+    registerNodeInRegistry(fxRegistry, device.nodeKey, node);
 
     return node;
-  }).filter(Boolean); // На всякий случай отсекаем null
+  }).filter(Boolean);
 
-  // Соединяем нативный синт и весь массив созданных эффектов "паровозиком"
   connectAudioChain([rawSynth, ...createdEffects]);
 
   return {
     instrument: rawSynth,
-    ...fxRegistry, // Раскрываем ссылки (fxBitcrusher, fxFilter, fxDelay) наружу для Redux
-    output: createdEffects[createdEffects.length - 1] || rawSynth, // Крайний эффект становится выходом
+    ...fxRegistry,
+    output: createdEffects[createdEffects.length - 1] || rawSynth,
     dispose() {
       createdEffects.forEach((node) => node.dispose());
       rawSynth.dispose();
     },
   };
+};
+
+const initializeRawDrumSynths = (typeMap) => {
+  return Object.entries(typeMap).reduce((acc, [drumName, SynthClass]) => {
+    const presetConfig = DRUM_PRESETS[drumName] || {};
+    acc[drumName] = new SynthClass(presetConfig);
+    return acc;
+  }, {});
+};
+
+const buildWrappedDrumsRack = (drumSynths) => {
+  return Object.entries(drumSynths).reduce((acc, [drumName, rawSynth]) => {
+    acc[drumName] = wrapDrumWithEffects(rawSynth, drumName);
+    return acc;
+  }, {});
 };
 
 const createDrums = () => {
@@ -83,24 +103,8 @@ const createDrums = () => {
     tom: Tone.MembraneSynth,
   };
 
-  const drumSynths = Object.entries(DRUM_TYPE_MAP).reduce(
-    (acc, [drumName, SynthClass]) => {
-      const presetConfig = DRUM_PRESETS[drumName] || {};
-
-      acc[drumName] = new SynthClass(presetConfig);
-      return acc;
-    },
-    {},
-  );
-
-  // Передаем во wrapDrumWithEffects имя конкретного барабана для поиска его уникальных параметров
-  const wrappedDrums = Object.entries(drumSynths).reduce(
-    (acc, [drumName, rawSynth]) => {
-      acc[drumName] = wrapDrumWithEffects(rawSynth, drumName);
-      return acc;
-    },
-    {},
-  );
+  const drumSynths = initializeRawDrumSynths(DRUM_TYPE_MAP);
+  const wrappedDrums = buildWrappedDrumsRack(drumSynths);
 
   return {
     ...wrappedDrums,
