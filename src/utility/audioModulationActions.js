@@ -39,11 +39,19 @@ export const initializeAudioRouting = (
   });
 };
 
-export const applySynthEnvelope = (synthInstance, attack) => {
-  if (!synthInstance.instrument || typeof attack !== 'number') return;
+// ИСПРАВЛЕНИЕ: Передаем весь объект настроек settings, чтобы крутить и атаку, и релиз разом!
+export const applySynthEnvelope = (synthInstance, settings) => {
+  if (!synthInstance.instrument || !settings) return;
+
+  // Берем живые значения, подставляя безопасный дефолт на случай расширения паспорта
+  const attack = settings.attack ?? 0.005;
+  const release = settings.release ?? 0.3;
 
   synthInstance.instrument.set({
-    envelope: { attack },
+    envelope: {
+      attack,
+      release,
+    },
   });
 };
 

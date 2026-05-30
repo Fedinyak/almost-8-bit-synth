@@ -58,32 +58,30 @@ export const useAudioEngineSync = (
 
   // 2. ДИНАМИЧЕСКИЙ LIVE-КОНТРОЛЬ И АВТО-БАЙПАС (И для синтов, и для барабанов!)
   useEffect(() => {
-    // Шаг А: Крутим ручки у Мелодических Синтезаторов
+    // Мелодические синты
     SYNTH_LIST.forEach((name) => {
       const synthInstance = synthEnginesRef.current[name];
       const settings = soundSettings[name];
 
       if (!synthInstance || !settings) return;
 
-      applySynthEnvelope(synthInstance, settings.attack);
+      // ИСПРАВЛЕНИЕ: Передаем settings вместо settings.attack
+      applySynthEnvelope(synthInstance, settings);
       applyDynamicBypass(name, synthInstance, settings);
     });
 
-    // Шаг Б: Крутим точно такие же ручки эффектов у БАРАБАНОВ
+    // Барабаны
     DRUM_KIT_LIST.forEach((name) => {
-      // Забираем контейнер конкретного барабана (kick, snare) из драм-рефа
       const drumInstance = drumsEngineRef.current?.[name];
       const settings = soundSettings[name];
 
       if (!drumInstance || !settings) return;
 
-      // Применяем атаку огибающей и динамический авто-байпас эффектов к барабану.
-      // Код модуляции сработает нативно, ведь структура контейнеров полностью совпадает!
-      applySynthEnvelope(drumInstance, settings.attack);
+      // ИСПРАВЛЕНИЕ: Передаем settings вместо settings.attack
+      applySynthEnvelope(drumInstance, settings);
       applyDynamicBypass(name, drumInstance, settings);
     });
   }, [soundSettings, synthEnginesRef, drumsEngineRef]);
-
   // 3. Воспроизведение и очистка памяти
   useEffect(() => {
     SYNTH_LIST.forEach((name) => {

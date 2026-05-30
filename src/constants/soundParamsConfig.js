@@ -12,6 +12,15 @@ export const SOUND_PARAMS = {
     label: 'ATTACK',
     group: 'envelope',
   },
+  release: {
+    min: 0.01,
+    max: 3.0,
+    step: 0.01,
+    default: 0.3, // 300 миллисекунд по умолчанию
+    label: 'RELEASE',
+    group: 'envelope',
+  },
+
   bitcrusherWet: {
     min: 0.0,
     max: 1.0,
@@ -20,6 +29,18 @@ export const SOUND_PARAMS = {
     label: 'CRUSHER MIX',
     isEffect: true,
     nodeKey: 'fxBitcrusher',
+    bypassValue: 0.0,
+    group: 'effects',
+  },
+
+  delayWet: {
+    min: 0.0,
+    max: 1.0,
+    step: 0.05,
+    default: 0.0,
+    label: 'DELAY MIX',
+    isEffect: true,
+    nodeKey: 'fxDelay',
     bypassValue: 0.0,
     group: 'effects',
   },
