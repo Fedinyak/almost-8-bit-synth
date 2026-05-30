@@ -1,27 +1,37 @@
 import * as Tone from 'tone';
 import { DRUM_PRESETS } from '../constants/soundParamsConfig';
 
-/**
- * Вспомогательная фабрика-обертка: собирает чистую цепочку эффектов вокруг синта барабана.
- */
-const wrapDrumWithEffects = (rawSynth) => {
-  // 1. Создаем узел Биткрашера и усыпляем на старте
+const createSleeperBitcrusher = () => {
   const crusher = new Tone.BitCrusher({ bits: 4 });
   crusher.set({ wet: 0 });
   crusher.bypassed = true;
+  return crusher;
+};
 
-  // 2. Создаем узел Дилея (Эхо) лично для этого барабана
+const createSleeperDelay = () => {
   const delay = new Tone.FeedbackDelay({
     delayTime: '8n',
     feedback: 0.25,
     wet: 0,
   });
-  delay.bypassed = true; // Намертво глушим на старте, чтобы Райд не гудел бесконечно!
+  delay.bypassed = true;
+  return delay;
+};
 
-  // 3. Коммутируем последовательную цепочку: Синт -> Биткрашер -> Дилей -> Выход
+const connectAudioChain = (rawSynth, crusher, delay) => {
   rawSynth.connect(crusher);
   crusher.connect(delay);
   delay.toDestination();
+};
+
+/**
+ * Вспомогательная фабрика-обертка: собирает чистую цепочку эффектов вокруг синта барабана.
+ */
+const wrapDrumWithEffects = (rawSynth) => {
+  const crusher = createSleeperBitcrusher();
+  const delay = createSleeperDelay();
+
+  connectAudioChain(rawSynth, crusher, delay);
 
   return {
     instrument: rawSynth,

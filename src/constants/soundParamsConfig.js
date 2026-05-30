@@ -7,6 +7,11 @@ import {
   AUDIO_DEFAULT_CUTOFF,
 } from './audioEngineConfig';
 
+const RANGE_VOLUME_DB = { min: -60, max: 0, step: 1 };
+const RANGE_TIME_ADR = { min: 0.01, max: 3.0, step: 0.01 };
+const RANGE_MIX_WET = { min: 0.0, max: 1.0, step: 0.05 };
+const RANGE_FILTER_HZ = { min: 20, max: 10000, step: 10 };
+
 export const SOUND_PARAM_GROUPS = [
   { key: 'envelope', label: 'ENVELOPE:' },
   { key: 'filter', label: 'FILTER:' },
@@ -15,7 +20,7 @@ export const SOUND_PARAM_GROUPS = [
 
 export const SOUND_PARAMS = {
   attack: {
-    min: 0.005,
+    min: 0.005, // Оставляем защитный микро-минимум от щелчка на старте ноты
     max: 2.0,
     step: 0.005,
     default: AUDIO_DEFAULT_ATTACK,
@@ -23,42 +28,32 @@ export const SOUND_PARAMS = {
     group: 'envelope',
   },
   decay: {
-    min: 0.01,
-    max: 3.0,
-    step: 0.01,
+    ...RANGE_TIME_ADR,
     default: AUDIO_DEFAULT_DECAY,
     label: 'DECAY',
     group: 'envelope',
   },
   sustain: {
-    min: 0.0,
-    max: 1.0,
-    step: 0.05,
+    ...RANGE_MIX_WET,
     default: AUDIO_DEFAULT_SUSTAIN,
     label: 'SUSTAIN',
     group: 'envelope',
   },
   release: {
-    min: 0.01,
-    max: 3.0,
-    step: 0.01,
+    ...RANGE_TIME_ADR,
     default: AUDIO_DEFAULT_RELEASE,
     label: 'RELEASE',
     group: 'envelope',
   },
   volume: {
-    min: -60,
-    max: 0,
-    step: 1,
+    ...RANGE_VOLUME_DB,
     default: AUDIO_DEFAULT_VOLUME,
     label: 'VOLUME',
     group: 'envelope',
   },
 
   filterCutoff: {
-    min: 20,
-    max: 10000,
-    step: 10,
+    ...RANGE_FILTER_HZ,
     default: AUDIO_DEFAULT_CUTOFF,
     label: 'CUTOFF HZ',
     isEffect: true,
@@ -68,9 +63,7 @@ export const SOUND_PARAMS = {
   },
 
   bitcrusherWet: {
-    min: 0.0,
-    max: 1.0,
-    step: 0.05,
+    ...RANGE_MIX_WET,
     default: 0.0,
     label: 'CRUSHER MIX',
     isEffect: true,
@@ -79,9 +72,7 @@ export const SOUND_PARAMS = {
     group: 'effects',
   },
   delayWet: {
-    min: 0.0,
-    max: 1.0,
-    step: 0.05,
+    ...RANGE_MIX_WET,
     default: 0.0,
     label: 'DELAY MIX',
     isEffect: true,
