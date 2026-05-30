@@ -41,7 +41,6 @@ export const useAudioEngineSync = (
   const synthAnalysersRef = useRef({});
   const synthChannelsRef = useRef({});
 
-  // 1. Инициализация движков
   useEffect(() => {
     initializeSynths(SYNTH_LIST, synthEnginesRef.current);
     initializeDrums(drumsEngineRef);
@@ -56,33 +55,28 @@ export const useAudioEngineSync = (
     );
   }, [drumsEngineRef, synthEnginesRef]);
 
-  // 2. ДИНАМИЧЕСКИЙ LIVE-КОНТРОЛЬ И АВТО-БАЙПАС (И для синтов, и для барабанов!)
   useEffect(() => {
-    // Мелодические синты
     SYNTH_LIST.forEach((name) => {
       const synthInstance = synthEnginesRef.current[name];
       const settings = soundSettings[name];
 
       if (!synthInstance || !settings) return;
 
-      // ИСПРАВЛЕНИЕ: Передаем settings вместо settings.attack
       applySynthEnvelope(synthInstance, settings);
       applyDynamicBypass(name, synthInstance, settings);
     });
 
-    // Барабаны
     DRUM_KIT_LIST.forEach((name) => {
       const drumInstance = drumsEngineRef.current?.[name];
       const settings = soundSettings[name];
 
       if (!drumInstance || !settings) return;
 
-      // ИСПРАВЛЕНИЕ: Передаем settings вместо settings.attack
       applySynthEnvelope(drumInstance, settings);
       applyDynamicBypass(name, drumInstance, settings);
     });
   }, [soundSettings, synthEnginesRef, drumsEngineRef]);
-  // 3. Воспроизведение и очистка памяти
+
   useEffect(() => {
     SYNTH_LIST.forEach((name) => {
       setupSynthPlayback(name, synthEnginesRef.current, synthPartRef.current);
@@ -107,7 +101,6 @@ export const useAudioEngineSync = (
     };
   }, [drumsEngineRef, drumsPartRef, synthEnginesRef, synthPartRef]);
 
-  // 4. Синхронизация паттернов секвенсора
   useEffect(() => {
     SYNTH_LIST.forEach((synthName) => {
       syncInstrumentPatternsToTrack(
