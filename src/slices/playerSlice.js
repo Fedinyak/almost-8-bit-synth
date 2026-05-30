@@ -16,6 +16,7 @@ const initialState = {
   currentStep: 0,
   pendingDeletePatternIndex: null,
   pendingDeleteLast: false,
+  activeTab: 'drums',
 };
 
 const safelyAdjustPlayBounds = (state) => {
@@ -81,7 +82,6 @@ export const playerSlice = createSlice({
         state.pendingDeletePatternIndex = null;
       }
     },
-    // НОВЫЕ РЕДЬЮСЕРЫ ДЛЯ УПРАВЛЕНИЯ ДЛИННОЙ ТРЕКА И КВАНТОВАНИЕМ
     decrementPatternCountSync: (state) => {
       if (state.patternCount > 1) {
         state.patternCount -= 1;
@@ -95,6 +95,10 @@ export const playerSlice = createSlice({
     },
     clearPendingDeleteLastPattern: (state) => {
       state.pendingDeleteLast = false;
+    },
+    // Экшен для изменения активной вкладки в Workspace
+    setActiveTab: (state, action) => {
+      state.activeTab = action.payload;
     },
   },
 });
@@ -117,6 +121,7 @@ export const {
   decrementPatternCountSync,
   scheduleDeleteLastPattern,
   clearPendingDeleteLastPattern,
+  setActiveTab,
 } = playerSlice.actions;
 
 export default playerSlice.reducer;

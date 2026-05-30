@@ -1,18 +1,19 @@
+import React from 'react';
 import { useSelector } from 'react-redux';
 import getNote from '../../../utility/getNote';
 import noteAndKeyMap from '../../../constants/noteAndKeyMap';
-import { SYNTH_LIST } from '../../../constants/constants';
 import SynthRow from './SynthRow';
 import WaveMonitor from '../../visualizers/WaveMonitor';
-import React from 'react';
 import SynthSoundPanel from '../Controls/SynthSoundPanel';
 
-const SynthGrid = ({ activeVisualPattern }) => {
+const SynthGrid = ({ activeVisualPattern, synthName }) => {
   const octave = useSelector((state) => state.note.octave);
   const synthData = useSelector((state) => state.patterns.synthData);
   const keyboardLetter = noteAndKeyMap.keyboardLetter;
   const noteMap = noteAndKeyMap.noteMap;
   const octaveMap = noteAndKeyMap.noteOctaveIndexMap;
+
+  if (!synthName) return null;
 
   return (
     <>
@@ -25,23 +26,22 @@ const SynthGrid = ({ activeVisualPattern }) => {
           );
         })}
       </div>
-      {SYNTH_LIST.map((instrument) => {
-        return (
-          <React.Fragment key={instrument}>
-            <SynthSoundPanel synthName={instrument} />
-            <div>{instrument}</div>
-            <WaveMonitor synthName={instrument} />
-            <div className="sequencer-cells">
-              <SynthRow
-                instrument={instrument}
-                activeVisualPattern={activeVisualPattern}
-                octave={octave}
-                synthData={synthData}
-              />
-            </div>
-          </React.Fragment>
-        );
-      })}
+
+      <React.Fragment key={synthName}>
+        <SynthSoundPanel synthName={synthName} />
+        <div>{synthName} GRID:</div>
+
+        <WaveMonitor synthName={synthName} />
+
+        <div className="sequencer-cells">
+          <SynthRow
+            instrument={synthName}
+            activeVisualPattern={activeVisualPattern}
+            octave={octave}
+            synthData={synthData}
+          />
+        </div>
+      </React.Fragment>
     </>
   );
 };
