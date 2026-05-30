@@ -8,6 +8,7 @@ import {
   AUDIO_DEFAULT_VOLUME,
   AUDIO_DEFAULT_ATTACK,
   AUDIO_DEFAULT_DECAY,
+  AUDIO_DEFAULT_SUSTAIN,
   AUDIO_DEFAULT_RELEASE,
 } from '../constants/audioEngineConfig';
 
@@ -54,12 +55,40 @@ export const updateInstrumentVolume = (instrument, volumeValue) => {
 };
 
 export const updateInstrumentEnvelope = (instrument, settings) => {
-  if (instrument?.envelope) {
-    instrument.envelope.set({
-      attack: settings.attack ?? AUDIO_DEFAULT_ATTACK,
-      decay: settings.decay ?? AUDIO_DEFAULT_DECAY,
-      release: settings.release ?? AUDIO_DEFAULT_RELEASE,
+  if (!instrument) return;
+
+  const attack = settings.attack ?? AUDIO_DEFAULT_ATTACK;
+  const decay = settings.decay ?? AUDIO_DEFAULT_DECAY;
+  const release = settings.release ?? AUDIO_DEFAULT_RELEASE;
+
+  // 🦾 ЖЕЛЕЗНЫЙ ПРЕДОХРАНИТЕЛЬ: MetalSynth в Tone.js ломается от прямой мутации .envelope.set()
+  // Его параметры по документации обязаны прокидываться через верхний уровень объекта
+  if (instrument.name === 'MetalSynth') {
+    instrument.set({
+      envelope: {
+        attack,
+        decay,
+      },
     });
+    return;
+  }
+
+  // Защита для остальных типов синтов (MonoSynth, MembraneSynth, NoiseSynth)
+  if (instrument.envelope) {
+    if (instrument.envelope.sustain !== undefined) {
+      instrument.envelope.set({
+        attack,
+        decay,
+        sustain: settings.sustain ?? AUDIO_DEFAULT_SUSTAIN,
+        release,
+      });
+    } else {
+      instrument.envelope.set({
+        attack,
+        decay,
+        release,
+      });
+    }
   }
 };
 
@@ -72,7 +101,11 @@ export const applySynthEnvelope = (synthInstance, settings) => {
 };
 
 export const updateEffectMix = (fxNode, value) => {
-  fxNode.set({ wet: value });
+  if (fxNode.frequency) {
+    fxNode.frequency.value = value;
+  } else {
+    fxNode.set({ wet: value });
+  }
 };
 
 export const logBypassTransition = (

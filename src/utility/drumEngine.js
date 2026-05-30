@@ -1,4 +1,5 @@
 import * as Tone from 'tone';
+import { DRUM_PRESETS } from '../constants/soundParamsConfig';
 
 /**
  * Вспомогательная фабрика-обертка: собирает чистую цепочку эффектов вокруг синта барабана.
@@ -10,29 +11,24 @@ const wrapDrumWithEffects = (rawSynth) => {
   crusher.bypassed = true;
 
   // 2. Создаем узел Дилея (Эхо) лично для этого барабана
-  // Ставим время задержки покороче ('8n' — 1/8 такта), чтобы на барабанах это звучало как сочный ритмичный повтор
   const delay = new Tone.FeedbackDelay({
     delayTime: '8n',
     feedback: 0.25,
     wet: 0,
   });
-  delay.bypassed = true; // ЖЕЛЕЗНАЯ ИНИЦИАЛИЗАЦИЯ В НУЛЕ: ЦП отдыхает
+  delay.bypassed = true; // Намертво глушим на старте, чтобы Райд не гудел бесконечно!
 
-  // 3. КОММУТИРУЕМ ЦЕПОЧКУ (ПАРОВОЗИК):
-  // Нативный синт идет в Биткрашер
+  // 3. Коммутируем последовательную цепочку: Синт -> Биткрашер -> Дилей -> Выход
   rawSynth.connect(crusher);
-  // Биткрашер идет в Дилей
   crusher.connect(delay);
-  // Финальный эффект Дилея отправляем на мастер-выход браузера
   delay.toDestination();
 
   return {
     instrument: rawSynth,
     fxBitcrusher: crusher,
-    fxDelay: delay, // Передаем ссылку на узел строго по ключу nodeKey из паспорта!
-    output: delay, // Конечная точка выхода всей цепочки
+    fxDelay: delay,
+    output: delay,
     dispose() {
-      // Чистим память без утечек при удалении
       delay.dispose();
       crusher.dispose();
       rawSynth.dispose();
@@ -41,36 +37,26 @@ const wrapDrumWithEffects = (rawSynth) => {
 };
 
 const createDrums = () => {
-  const drumSynths = {
-    kick: new Tone.MembraneSynth(),
-    snare: new Tone.NoiseSynth({
-      envelope: { decay: 0.1 },
-    }),
-    hiHat: new Tone.MetalSynth({
-      envelope: { decay: 0.05 },
-      volume: -12,
-    }),
-    hiHatClose: new Tone.MetalSynth({
-      envelope: { decay: 0.04 },
-      volume: -12,
-    }),
-    hiHatOpen: new Tone.MetalSynth({
-      envelope: { decay: 0.3 },
-      volume: -10,
-    }),
-    crash: new Tone.MetalSynth({
-      envelope: { attack: 0.01, decay: 1.5 },
-      volume: -8,
-    }),
-    ride: new Tone.MetalSynth({
-      envelope: { attack: 0.001, decay: 0.8 },
-      volume: -10,
-    }),
-    tom: new Tone.MembraneSynth({
-      pitchDecay: 0.08,
-      octaves: 4,
-    }),
+  const DRUM_TYPE_MAP = {
+    kick: Tone.MembraneSynth,
+    snare: Tone.NoiseSynth,
+    hiHat: Tone.MetalSynth,
+    hiHatClose: Tone.MetalSynth,
+    hiHatOpen: Tone.MetalSynth,
+    crash: Tone.MetalSynth,
+    ride: Tone.MetalSynth,
+    tom: Tone.MembraneSynth,
   };
+
+  const drumSynths = Object.entries(DRUM_TYPE_MAP).reduce(
+    (acc, [drumName, SynthClass]) => {
+      const presetConfig = DRUM_PRESETS[drumName] || {};
+
+      acc[drumName] = new SynthClass(presetConfig);
+      return acc;
+    },
+    {},
+  );
 
   const wrappedDrums = Object.entries(drumSynths).reduce(
     (acc, [drumName, rawSynth]) => {

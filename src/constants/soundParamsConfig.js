@@ -1,12 +1,15 @@
 import {
   AUDIO_DEFAULT_ATTACK,
   AUDIO_DEFAULT_DECAY,
+  AUDIO_DEFAULT_SUSTAIN,
   AUDIO_DEFAULT_RELEASE,
   AUDIO_DEFAULT_VOLUME,
+  AUDIO_DEFAULT_CUTOFF,
 } from './audioEngineConfig';
 
 export const SOUND_PARAM_GROUPS = [
   { key: 'envelope', label: 'ENVELOPE:' },
+  { key: 'filter', label: 'FILTER:' },
   { key: 'effects', label: 'EFFECTS:' },
 ];
 
@@ -27,6 +30,14 @@ export const SOUND_PARAMS = {
     label: 'DECAY',
     group: 'envelope',
   },
+  sustain: {
+    min: 0.0,
+    max: 1.0,
+    step: 0.05,
+    default: AUDIO_DEFAULT_SUSTAIN,
+    label: 'SUSTAIN',
+    group: 'envelope',
+  },
   release: {
     min: 0.01,
     max: 3.0,
@@ -43,6 +54,19 @@ export const SOUND_PARAMS = {
     label: 'VOLUME',
     group: 'envelope',
   },
+
+  filterCutoff: {
+    min: 20,
+    max: 10000,
+    step: 10,
+    default: AUDIO_DEFAULT_CUTOFF,
+    label: 'CUTOFF HZ',
+    isEffect: true,
+    nodeKey: 'fxFilter',
+    bypassValue: 10000, // В крайнем положении фильтр полностью усыпляется, экономя ЦП
+    group: 'filter',
+  },
+
   bitcrusherWet: {
     min: 0.0,
     max: 1.0,
@@ -68,12 +92,38 @@ export const SOUND_PARAMS = {
 };
 
 export const DRUM_PRESETS = {
-  kick: { decay: 0.12, volume: -10 },
-  snare: { decay: 0.1, volume: -12 },
-  hiHat: { decay: 0.05, volume: -14 },
-  hiHatClose: { decay: 0.04, volume: -14 },
-  hiHatOpen: { decay: 0.35, volume: -12 },
-  crash: { decay: 1.8, volume: -10 },
-  ride: { decay: 0.8, volume: -12 },
-  tom: { decay: 0.4, volume: -12 },
+  kick: {
+    volume: -10,
+    envelope: { attack: 0.005, decay: 0.12, release: 0.3 },
+  },
+  snare: {
+    volume: -12,
+    envelope: { attack: 0.005, decay: 0.1, release: 0.3 },
+  },
+  hiHat: {
+    volume: -12,
+    envelope: { attack: 0.005, decay: 0.05, release: 0.3 },
+  },
+  hiHatClose: {
+    volume: -12,
+    envelope: { attack: 0.005, decay: 0.04, release: 0.3 },
+  },
+  hiHatOpen: {
+    volume: -10,
+    envelope: { attack: 0.005, decay: 0.3, release: 0.3 },
+  },
+  crash: {
+    volume: -8,
+    envelope: { attack: 0.01, decay: 1.5, release: 0.3 },
+  },
+  ride: {
+    volume: -10,
+    envelope: { attack: 0.001, decay: 0.8, release: 0.3 },
+  },
+  tom: {
+    volume: -12,
+    pitchDecay: 0.08,
+    octaves: 4,
+    envelope: { attack: 0.005, decay: 0.4, release: 0.3 },
+  },
 };
