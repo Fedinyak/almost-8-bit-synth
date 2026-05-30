@@ -1,3 +1,10 @@
+import {
+  AUDIO_DEFAULT_ATTACK,
+  AUDIO_DEFAULT_DECAY,
+  AUDIO_DEFAULT_RELEASE,
+  AUDIO_DEFAULT_VOLUME,
+} from './audioEngineConfig';
+
 export const SOUND_PARAM_GROUPS = [
   { key: 'envelope', label: 'ENVELOPE:' },
   { key: 'effects', label: 'EFFECTS:' },
@@ -8,7 +15,7 @@ export const SOUND_PARAMS = {
     min: 0.005,
     max: 2.0,
     step: 0.005,
-    default: 0.005,
+    default: AUDIO_DEFAULT_ATTACK,
     label: 'ATTACK',
     group: 'envelope',
   },
@@ -16,7 +23,7 @@ export const SOUND_PARAMS = {
     min: 0.01,
     max: 3.0,
     step: 0.01,
-    default: 0.1,
+    default: AUDIO_DEFAULT_DECAY,
     label: 'DECAY',
     group: 'envelope',
   },
@@ -24,7 +31,7 @@ export const SOUND_PARAMS = {
     min: 0.01,
     max: 3.0,
     step: 0.01,
-    default: 0.3,
+    default: AUDIO_DEFAULT_RELEASE,
     label: 'RELEASE',
     group: 'envelope',
   },
@@ -32,11 +39,10 @@ export const SOUND_PARAMS = {
     min: -60,
     max: 0,
     step: 1,
-    default: -12,
+    default: AUDIO_DEFAULT_VOLUME,
     label: 'VOLUME',
     group: 'envelope',
   },
-
   bitcrusherWet: {
     min: 0.0,
     max: 1.0,

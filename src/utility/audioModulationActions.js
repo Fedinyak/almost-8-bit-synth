@@ -2,11 +2,19 @@ import * as Tone from 'tone';
 import { checkBypassCondition } from './audioMathUtils';
 import { synthAnalysers } from './visualizerState';
 import { SOUND_PARAMS } from '../constants/soundParamsConfig';
+import {
+  ANALYSER_TYPE,
+  ANALYSER_SIZE,
+  AUDIO_DEFAULT_VOLUME,
+  AUDIO_DEFAULT_ATTACK,
+  AUDIO_DEFAULT_DECAY,
+  AUDIO_DEFAULT_RELEASE,
+} from '../constants/audioEngineConfig';
 
 export const createAudioChannel = () => new Tone.Volume();
 
 export const createAudioAnalyser = () =>
-  new Tone.Analyser({ type: 'waveform', size: 32 });
+  new Tone.Analyser({ type: ANALYSER_TYPE, size: ANALYSER_SIZE });
 
 export const connectSynthToMixer = (synthInstance, channel, analyser) => {
   if (!synthInstance?.output) return;
@@ -39,28 +47,28 @@ export const initializeAudioRouting = (
   });
 };
 
-// ИСПРАВЛЕНИЕ: Научили функцию живьем крутить и DECAY, и громкость VOLUME!
-export const applySynthEnvelope = (synthInstance, settings) => {
-  if (!synthInstance.instrument || !settings) return;
-
-  const attack = settings.attack ?? 0.005;
-  const decay = settings.decay ?? 0.1; // Ловим живой спад
-  const release = settings.release ?? 0.3;
-  const volume = settings.volume ?? -12; // Ловим живую громкость
-
-  // 1. Аппаратно крутим громкость нативного синта в децибелах
-  if (synthInstance.instrument.volume) {
-    synthInstance.instrument.volume.value = volume;
+export const updateInstrumentVolume = (instrument, volumeValue) => {
+  if (instrument?.volume) {
+    instrument.volume.value = volumeValue ?? AUDIO_DEFAULT_VOLUME;
   }
+};
 
-  // 2. Аппаратно обновляем всю огибающую инструмента разом
-  if (synthInstance.instrument.envelope) {
-    synthInstance.instrument.envelope.set({
-      attack,
-      decay,
-      release,
+export const updateInstrumentEnvelope = (instrument, settings) => {
+  if (instrument?.envelope) {
+    instrument.envelope.set({
+      attack: settings.attack ?? AUDIO_DEFAULT_ATTACK,
+      decay: settings.decay ?? AUDIO_DEFAULT_DECAY,
+      release: settings.release ?? AUDIO_DEFAULT_RELEASE,
     });
   }
+};
+
+export const applySynthEnvelope = (synthInstance, settings) => {
+  const nativeInstrument = synthInstance?.instrument;
+  if (!nativeInstrument || !settings) return;
+
+  updateInstrumentVolume(nativeInstrument, settings.volume);
+  updateInstrumentEnvelope(nativeInstrument, settings);
 };
 
 export const updateEffectMix = (fxNode, value) => {
@@ -89,21 +97,26 @@ export const toggleNodeBypass = (fxNode, shouldBypass, label, synthName) => {
   fxNode.bypassed = shouldBypass;
 };
 
+const isValidEffectNode = (fxNode, liveValue) => {
+  return fxNode && typeof liveValue === 'number';
+};
+
+const applyEffectSettings = (fxNode, liveValue, paramConfig, synthName) => {
+  updateEffectMix(fxNode, liveValue);
+
+  const shouldBypass = checkBypassCondition(liveValue, paramConfig.bypassValue);
+  toggleNodeBypass(fxNode, shouldBypass, paramConfig.label, synthName);
+};
+
 export const applyDynamicBypass = (synthName, synthInstance, settings) => {
-  Object.entries(SOUND_PARAMS).forEach(([paramName, paramConfig]) => {
-    if (!paramConfig.isEffect || !paramConfig.nodeKey) return;
+  Object.entries(SOUND_PARAMS)
+    .filter(([_, paramConfig]) => paramConfig.isEffect && paramConfig.nodeKey)
+    .forEach(([paramName, paramConfig]) => {
+      const fxNode = synthInstance[paramConfig.nodeKey];
+      const liveValue = settings[paramName];
 
-    const fxNode = synthInstance[paramConfig.nodeKey];
-    const liveValue = settings[paramName];
-    if (!fxNode || typeof liveValue !== 'number') return;
-
-    updateEffectMix(fxNode, liveValue);
-
-    const shouldBypass = checkBypassCondition(
-      liveValue,
-      paramConfig.bypassValue,
-    );
-
-    toggleNodeBypass(fxNode, shouldBypass, paramConfig.label, synthName);
-  });
+      if (isValidEffectNode(fxNode, liveValue)) {
+        applyEffectSettings(fxNode, liveValue, paramConfig, synthName);
+      }
+    });
 };
