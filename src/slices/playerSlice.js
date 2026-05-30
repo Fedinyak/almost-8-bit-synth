@@ -15,7 +15,6 @@ const initialState = {
   pendingPatternIndex: null,
   currentStep: 0,
   pendingDeletePatternIndex: null,
-  // НОВЫЙ ФЛАГ ДЛЯ КВАНТОВАНИЯ УДАЛЕНИЯ ПОСЛЕДНЕГО ПАТТЕРНА
   pendingDeleteLast: false,
 };
 
@@ -115,7 +114,6 @@ export const {
   incrementPatternCount,
   scheduleDeletePattern,
   applyDeletePatternCount,
-  // Экспортируем новые экшены
   decrementPatternCountSync,
   scheduleDeleteLastPattern,
   clearPendingDeleteLastPattern,

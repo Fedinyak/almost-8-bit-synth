@@ -34,13 +34,11 @@ const processDrumPlaybackHit = (
 ) => {
   const instrumentName = drumNoteMap[noteData.note];
 
-  // Достаем контейнер барабана { instrument, fxBitcrusher } вместо голого синта
   const drumContainer = engine[instrumentName];
   if (!drumContainer || !drumContainer.instrument) return;
 
   const playTime = compensateLatency(time);
 
-  // Стреляем триггером ноты строго по внутреннему синту
   playDrumHit(drumContainer.instrument, release, playTime);
 
   if (typeof noteData.drumIndex === 'number') {
