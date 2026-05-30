@@ -1,59 +1,71 @@
 import * as Tone from 'tone';
-import { DRUM_PRESETS } from '../constants/soundParamsConfig';
+import {
+  DRUM_PRESETS,
+  EFFECT_DEVICES,
+  DRUM_EFFECTS_CHAIN,
+} from '../constants/soundParamsConfig';
 
-const createSleeperBitcrusher = () => {
-  const crusher = new Tone.BitCrusher({ bits: 4 });
-  crusher.set({ wet: 0 });
-  crusher.bypassed = true;
-  return crusher;
+// Универсальная слепая фабрика: собирает любой спящий аудио-узел Tone.js по его шаблону
+const createSleeperNode = (EffectClass, constructorParams) => {
+  const node = new EffectClass(constructorParams);
+
+  // Умный предохранитель: гасим wet в ноль, только если этот параметр существует у эффекта
+  if (node.wet) {
+    node.set({ wet: 0 });
+  }
+
+  // Аппаратно усыпляем узел для 0% нагрузки на процессор на старте
+  node.bypassed = true;
+  return node;
 };
 
-const createSleeperFilter = () => {
-  const filter = new Tone.Filter({
-    type: 'lowpass',
-    frequency: 10000, // Со старта полностью открыт на максимум
+// Автоматически соединяет любой массив аудио-узлов "паровозиком" через .reduce()
+const connectAudioChain = (nodes) => {
+  if (!Array.isArray(nodes) || nodes.length < 2) return;
+
+  nodes.reduce((prevNode, currentNode) => {
+    prevNode.connect(currentNode);
+    return currentNode;
   });
-  filter.bypassed = true; // Усыпляем на старте в точке байпаса
-  return filter;
-};
 
-const createSleeperDelay = () => {
-  const delay = new Tone.FeedbackDelay({
-    delayTime: '8n',
-    feedback: 0.25,
-    wet: 0,
-  });
-  delay.bypassed = true;
-  return delay;
-};
-
-const connectAudioChain = (rawSynth, crusher, filter, delay) => {
-  rawSynth.connect(crusher);
-  crusher.connect(filter);
-  filter.connect(delay);
-  delay.toDestination();
+  nodes[nodes.length - 1].toDestination();
 };
 
 /**
  * Вспомогательная фабрика-обертка: собирает чистую цепочку эффектов вокруг синта барабана.
  */
-const wrapDrumWithEffects = (rawSynth) => {
-  const crusher = createSleeperBitcrusher();
-  const filter = createSleeperFilter();
-  const delay = createSleeperDelay();
+const wrapDrumWithEffects = (rawSynth, drumName) => {
+  // Локальный реестр для динамической сборки контейнера (fxBitcrusher, fxDelay и т.д.)
+  const fxRegistry = {};
 
-  connectAudioChain(rawSynth, crusher, filter, delay);
+  // 🦾 ТОТАЛЬНО ДИНАМИЧЕСКИЙ СПАВН: Бежим по нашему манифесту строк из констант ['crusher', 'filter', 'delay']
+  const createdEffects = DRUM_EFFECTS_CHAIN.map((deviceKey) => {
+    const device = EFFECT_DEVICES[deviceKey];
+    if (!device) return null;
+
+    // Вытаскиваем специфические стартовые пресеты прибора для конкретного барабана из DRUM_PRESETS, если они там есть
+    const customParams = DRUM_PRESETS[drumName]?.[deviceKey] || {};
+    // Объединяем пресет с базовыми дефолтными настройками прибора
+    const finalParams = { ...device.defaultParams, ...customParams };
+
+    // Создаем спящий узел одной универсальной строчкой
+    const node = createSleeperNode(device.ClassRef, finalParams);
+
+    // Автоматически регистрируем живую ссылку по её nodeKey для хука модуляции
+    fxRegistry[device.nodeKey] = node;
+
+    return node;
+  }).filter(Boolean); // На всякий случай отсекаем null
+
+  // Соединяем нативный синт и весь массив созданных эффектов "паровозиком"
+  connectAudioChain([rawSynth, ...createdEffects]);
 
   return {
     instrument: rawSynth,
-    fxBitcrusher: crusher,
-    fxFilter: filter,
-    fxDelay: delay,
-    output: delay,
+    ...fxRegistry, // Раскрываем ссылки (fxBitcrusher, fxFilter, fxDelay) наружу для Redux
+    output: createdEffects[createdEffects.length - 1] || rawSynth, // Крайний эффект становится выходом
     dispose() {
-      delay.dispose();
-      filter.dispose();
-      crusher.dispose();
+      createdEffects.forEach((node) => node.dispose());
       rawSynth.dispose();
     },
   };
@@ -81,9 +93,10 @@ const createDrums = () => {
     {},
   );
 
+  // Передаем во wrapDrumWithEffects имя конкретного барабана для поиска его уникальных параметров
   const wrappedDrums = Object.entries(drumSynths).reduce(
     (acc, [drumName, rawSynth]) => {
-      acc[drumName] = wrapDrumWithEffects(rawSynth);
+      acc[drumName] = wrapDrumWithEffects(rawSynth, drumName);
       return acc;
     },
     {},

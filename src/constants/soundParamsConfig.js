@@ -1,3 +1,4 @@
+import * as Tone from 'tone';
 import {
   AUDIO_DEFAULT_ATTACK,
   AUDIO_DEFAULT_DECAY,
@@ -118,3 +119,23 @@ export const DRUM_PRESETS = {
     envelope: { attack: 0.005, decay: 0.4, release: 0.3 },
   },
 };
+
+export const EFFECT_DEVICES = {
+  crusher: {
+    nodeKey: 'fxBitcrusher',
+    ClassRef: Tone.BitCrusher,
+    defaultParams: { bits: 4 },
+  },
+  filter: {
+    nodeKey: 'fxFilter',
+    ClassRef: Tone.Filter,
+    defaultParams: { type: 'lowpass', frequency: 10000 },
+  },
+  delay: {
+    nodeKey: 'fxDelay',
+    ClassRef: Tone.FeedbackDelay,
+    defaultParams: { delayTime: '8n', feedback: 0.25 },
+  },
+};
+
+export const DRUM_EFFECTS_CHAIN = ['crusher', 'filter', 'delay'];
