@@ -1,5 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { SEQUENCER_CONFIG } from '../constants/sequencerConfig';
+import { SYNTH_LIST } from '../constants/constants';
 
 const initialState = {
   bpm: SEQUENCER_CONFIG.DEFAULT_BPM,
@@ -16,7 +17,8 @@ const initialState = {
   currentStep: 0,
   pendingDeletePatternIndex: null,
   pendingDeleteLast: false,
-  activeTab: 'drums',
+  tabs: ['drums', ...SYNTH_LIST],
+  activeTabIndex: 0,
 };
 
 const safelyAdjustPlayBounds = (state) => {
@@ -96,9 +98,9 @@ export const playerSlice = createSlice({
     clearPendingDeleteLastPattern: (state) => {
       state.pendingDeleteLast = false;
     },
-    // Экшен для изменения активной вкладки в Workspace
-    setActiveTab: (state, action) => {
-      state.activeTab = action.payload;
+    // Изменяем индекс активной вкладки (принимает число 0, 1, 2...)
+    setActiveTabByIndex: (state, action) => {
+      state.activeTabIndex = action.payload;
     },
   },
 });
@@ -121,7 +123,7 @@ export const {
   decrementPatternCountSync,
   scheduleDeleteLastPattern,
   clearPendingDeleteLastPattern,
-  setActiveTab,
+  setActiveTabByIndex,
 } = playerSlice.actions;
 
 export default playerSlice.reducer;

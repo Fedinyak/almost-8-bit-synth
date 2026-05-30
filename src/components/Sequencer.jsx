@@ -5,8 +5,7 @@ import ControlPanel from './Sequencer/Controls/ControlPanel';
 import DrumGrid from './Sequencer/Drums/DrumGrid';
 import PatternList from './Sequencer/Controls/PatternsList';
 import SynthGrid from './Sequencer/Synths/SynthGrid';
-import { SYNTH_LIST } from '../constants/constants';
-import { setActiveTab } from '../slices/playerSlice';
+import { setActiveTabByIndex } from '../slices/playerSlice';
 
 const Sequencer = () => {
   const dispatch = useDispatch();
@@ -21,7 +20,10 @@ const Sequencer = () => {
     (state) => state.player.selectedPatternIndex,
   );
 
-  const activeTab = useSelector((state) => state.player.activeTab);
+  const tabs = useSelector((state) => state.player.tabs || []);
+  const activeTabIndex = useSelector((state) => state.player.activeTabIndex);
+
+  const activeTabName = tabs[activeTabIndex];
 
   const activeVisualPattern = isFollowMode
     ? currentPlayPatternIndex
@@ -32,20 +34,13 @@ const Sequencer = () => {
       <h3>currentPlayPatternIndex {currentPlayPatternIndex}</h3>
 
       <div className="workspace-tabs">
-        <button
-          disabled={activeTab === 'drums'}
-          onClick={() => dispatch(setActiveTab('drums'))}
-        >
-          DRUMS
-        </button>
-
-        {SYNTH_LIST.map((synthName) => (
+        {tabs.map((tabName, index) => (
           <button
-            key={synthName}
-            disabled={activeTab === synthName}
-            onClick={() => dispatch(setActiveTab(synthName))}
+            key={tabName}
+            disabled={activeTabIndex === index}
+            onClick={() => dispatch(setActiveTabByIndex(index))}
           >
-            {synthName.toUpperCase()}
+            {tabName.toUpperCase()}
           </button>
         ))}
       </div>
@@ -54,10 +49,10 @@ const Sequencer = () => {
       <TimerTransport />
       <PatternList />
 
-      {activeTab === 'drums' && <DrumGrid />}
-      {SYNTH_LIST.includes(activeTab) && (
+      {activeTabName === 'drums' && <DrumGrid />}
+      {activeTabName !== 'drums' && (
         <SynthGrid
-          synthName={activeTab}
+          synthName={activeTabName}
           activeVisualPattern={activeVisualPattern}
         />
       )}
