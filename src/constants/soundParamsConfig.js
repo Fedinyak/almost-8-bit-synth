@@ -14,9 +14,9 @@ export const SOUND_PARAMS = {
   },
   decay: {
     min: 0.01,
-    max: 2.0,
+    max: 3.0,
     step: 0.01,
-    default: 0.1, // 100 миллисекунд по умолчанию (как у твоего снэра)
+    default: 0.1,
     label: 'DECAY',
     group: 'envelope',
   },
@@ -28,12 +28,11 @@ export const SOUND_PARAMS = {
     label: 'RELEASE',
     group: 'envelope',
   },
-
   volume: {
     min: -60,
     max: 0,
     step: 1,
-    default: -12, // -12 децибел по умолчанию, чтобы звук был комфортным
+    default: -12,
     label: 'VOLUME',
     group: 'envelope',
   },
@@ -60,4 +59,15 @@ export const SOUND_PARAMS = {
     bypassValue: 0.0,
     group: 'effects',
   },
+};
+
+export const DRUM_PRESETS = {
+  kick: { decay: 0.12, volume: -10 },
+  snare: { decay: 0.1, volume: -12 },
+  hiHat: { decay: 0.05, volume: -14 },
+  hiHatClose: { decay: 0.04, volume: -14 },
+  hiHatOpen: { decay: 0.35, volume: -12 },
+  crash: { decay: 1.8, volume: -10 },
+  ride: { decay: 0.8, volume: -12 },
+  tom: { decay: 0.4, volume: -12 },
 };

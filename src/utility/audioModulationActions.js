@@ -39,18 +39,28 @@ export const initializeAudioRouting = (
   });
 };
 
+// ИСПРАВЛЕНИЕ: Научили функцию живьем крутить и DECAY, и громкость VOLUME!
 export const applySynthEnvelope = (synthInstance, settings) => {
   if (!synthInstance.instrument || !settings) return;
 
   const attack = settings.attack ?? 0.005;
+  const decay = settings.decay ?? 0.1; // Ловим живой спад
   const release = settings.release ?? 0.3;
+  const volume = settings.volume ?? -12; // Ловим живую громкость
 
-  synthInstance.instrument.set({
-    envelope: {
+  // 1. Аппаратно крутим громкость нативного синта в децибелах
+  if (synthInstance.instrument.volume) {
+    synthInstance.instrument.volume.value = volume;
+  }
+
+  // 2. Аппаратно обновляем всю огибающую инструмента разом
+  if (synthInstance.instrument.envelope) {
+    synthInstance.instrument.envelope.set({
       attack,
+      decay,
       release,
-    },
-  });
+    });
+  }
 };
 
 export const updateEffectMix = (fxNode, value) => {
