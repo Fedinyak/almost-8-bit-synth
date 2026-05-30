@@ -1,12 +1,15 @@
 import React from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import StepIndicator from '../Controls/StepIndicator';
 import DrumCell from './DrumCell';
 import DrumMonitor from '../../visualizers/DrumMonitor';
 import { SOUND_PARAM_GROUPS } from '../../../constants/soundParamsConfig';
 import SoundParamGroup from '../Controls/SoundParamGroup';
+import { setActiveSoundControlDrumTabIndex } from '../../../slices/playerSlice';
 
 const DrumGrid = () => {
+  const dispatch = useDispatch();
+
   const drumKit = useSelector((state) => state.patterns.drumKitList);
   const isFollowMode = useSelector((state) => state.player.isFollowMode);
 
@@ -27,6 +30,16 @@ const DrumGrid = () => {
   const soundSettings = useSelector(
     (state) => state.soundSettings?.synths || {},
   );
+
+  const activeDrumIndex = useSelector(
+    (state) => state.player.activeSoundControlDrumTabIndex,
+  );
+
+  const activeDrumName = drumKit[activeDrumIndex];
+
+  const activeDrumSettings = activeDrumName
+    ? soundSettings[activeDrumName]
+    : {};
 
   return (
     <section className="sequencer">
@@ -61,26 +74,37 @@ const DrumGrid = () => {
       <div className="drum-mixer-panel">
         <h4>DRUM CONTROLS:</h4>
 
-        {drumKit.map((drumName) => {
-          const settings = soundSettings[drumName] || {};
+        <div
+          className="drum-tab-selectors"
+          style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}
+        >
+          {drumKit.map((drumName, index) => (
+            <button
+              key={`${drumName}-tab-btn`}
+              disabled={activeDrumIndex === index}
+              onClick={() => dispatch(setActiveSoundControlDrumTabIndex(index))}
+            >
+              {drumName.toUpperCase()}
+            </button>
+          ))}
+        </div>
 
-          return (
-            <div key={`${drumName}-channel`}>
-              <h5>{drumName.toUpperCase()}:</h5>
+        {activeDrumName && (
+          <div key={`${activeDrumName}-channel-active`}>
+            <h5>{activeDrumName.toUpperCase()} CHANNEL:</h5>
 
-              {SOUND_PARAM_GROUPS.map((group) => (
-                <SoundParamGroup
-                  key={`${drumName}-${group.key}`}
-                  groupKey={group.key}
-                  title={group.label}
-                  className={`drum-group-${group.key}`}
-                  synthName={drumName}
-                  instrumentSettings={settings}
-                />
-              ))}
-            </div>
-          );
-        })}
+            {SOUND_PARAM_GROUPS.map((group) => (
+              <SoundParamGroup
+                key={`${activeDrumName}-${group.key}`}
+                groupKey={group.key}
+                title={group.label}
+                className={`drum-group-${group.key}`}
+                synthName={activeDrumName}
+                instrumentSettings={activeDrumSettings}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

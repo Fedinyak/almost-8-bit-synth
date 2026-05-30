@@ -19,6 +19,7 @@ const initialState = {
   pendingDeleteLast: false,
   tabs: ['drums', ...SYNTH_LIST],
   activeTabIndex: 0,
+  activeSoundControlDrumTabIndex: 0,
 };
 
 const safelyAdjustPlayBounds = (state) => {
@@ -98,9 +99,11 @@ export const playerSlice = createSlice({
     clearPendingDeleteLastPattern: (state) => {
       state.pendingDeleteLast = false;
     },
-    // Изменяем индекс активной вкладки (принимает число 0, 1, 2...)
     setActiveTabByIndex: (state, action) => {
       state.activeTabIndex = action.payload;
+    },
+    setActiveSoundControlDrumTabIndex: (state, action) => {
+      state.activeSoundControlDrumTabIndex = action.payload;
     },
   },
 });
@@ -124,6 +127,7 @@ export const {
   scheduleDeleteLastPattern,
   clearPendingDeleteLastPattern,
   setActiveTabByIndex,
+  setActiveSoundControlDrumTabIndex,
 } = playerSlice.actions;
 
 export default playerSlice.reducer;
