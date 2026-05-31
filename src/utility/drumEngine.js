@@ -3,7 +3,14 @@ import {
   DRUM_PRESETS,
   EFFECT_DEVICES,
   DRUM_EFFECTS_CHAIN,
+  DRUM_TYPE_MAP,
 } from '../constants/soundParamsConfig';
+
+const TONE_CLASS_RESOLVER = {
+  MembraneSynth: Tone.MembraneSynth,
+  NoiseSynth: Tone.NoiseSynth,
+  MetalSynth: Tone.MetalSynth,
+};
 
 const resetEffectMix = (node) => {
   if (node.wet) {
@@ -77,8 +84,11 @@ const wrapDrumWithEffects = (rawSynth, drumName) => {
 };
 
 const initializeRawDrumSynths = (typeMap) => {
-  return Object.entries(typeMap).reduce((acc, [drumName, SynthClass]) => {
+  return Object.entries(typeMap).reduce((acc, [drumName, typeString]) => {
     const presetConfig = DRUM_PRESETS[drumName] || {};
+    // Находим реальный класс Tone.js по строковому ключу
+    const SynthClass = TONE_CLASS_RESOLVER[typeString] || Tone.MembraneSynth;
+
     acc[drumName] = new SynthClass(presetConfig);
     return acc;
   }, {});
@@ -92,17 +102,6 @@ const buildWrappedDrumsRack = (drumSynths) => {
 };
 
 const createDrums = () => {
-  const DRUM_TYPE_MAP = {
-    kick: Tone.MembraneSynth,
-    snare: Tone.NoiseSynth,
-    hiHat: Tone.MetalSynth,
-    hiHatClose: Tone.MetalSynth,
-    hiHatOpen: Tone.MetalSynth,
-    crash: Tone.MetalSynth,
-    ride: Tone.MetalSynth,
-    tom: Tone.MembraneSynth,
-  };
-
   const drumSynths = initializeRawDrumSynths(DRUM_TYPE_MAP);
   const wrappedDrums = buildWrappedDrumsRack(drumSynths);
 

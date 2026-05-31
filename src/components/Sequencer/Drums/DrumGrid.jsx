@@ -3,7 +3,10 @@ import { useSelector, useDispatch } from 'react-redux';
 import StepIndicator from '../Controls/StepIndicator';
 import DrumCell from './DrumCell';
 import DrumMonitor from '../../visualizers/DrumMonitor';
-import { SOUND_PARAM_GROUPS } from '../../../constants/soundParamsConfig';
+import {
+  SOUND_PARAM_GROUPS,
+  DRUM_TYPE_MAP,
+} from '../../../constants/soundParamsConfig';
 import SoundParamGroup from '../Controls/SoundParamGroup';
 import { setActiveSoundControlDrumTabIndex } from '../../../slices/playerSlice';
 
@@ -40,6 +43,9 @@ const DrumGrid = () => {
   const activeDrumSettings = activeDrumName
     ? soundSettings[activeDrumName]
     : {};
+
+  // Прямое, моментальное и безопасное чтение строки из конфига
+  const drumTypeName = DRUM_TYPE_MAP[activeDrumName] || 'Synth';
 
   return (
     <section className="sequencer">
@@ -91,7 +97,9 @@ const DrumGrid = () => {
 
         {activeDrumName && (
           <div key={`${activeDrumName}-channel-active`}>
-            <h5>{activeDrumName.toUpperCase()} CHANNEL:</h5>
+            <h5>
+              {activeDrumName.toUpperCase()} CHANNEL ({drumTypeName}):
+            </h5>
 
             {SOUND_PARAM_GROUPS.map((group) => (
               <SoundParamGroup

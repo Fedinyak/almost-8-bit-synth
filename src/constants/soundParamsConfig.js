@@ -180,3 +180,14 @@ export const SYNTH_PRESETS = {
     bitcrusherWet: 0.0,
   },
 };
+
+export const DRUM_TYPE_MAP = {
+  kick: 'MembraneSynth',
+  snare: 'NoiseSynth',
+  hiHat: 'MetalSynth',
+  hiHatClose: 'MetalSynth',
+  hiHatOpen: 'MetalSynth',
+  crash: 'MetalSynth',
+  ride: 'MetalSynth',
+  tom: 'MembraneSynth',
+};
