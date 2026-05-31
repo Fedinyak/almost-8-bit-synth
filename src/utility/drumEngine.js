@@ -86,7 +86,6 @@ const wrapDrumWithEffects = (rawSynth, drumName) => {
 const initializeRawDrumSynths = (typeMap) => {
   return Object.entries(typeMap).reduce((acc, [drumName, typeString]) => {
     const presetConfig = DRUM_PRESETS[drumName] || {};
-    // Находим реальный класс Tone.js по строковому ключу
     const SynthClass = TONE_CLASS_RESOLVER[typeString] || Tone.MembraneSynth;
 
     acc[drumName] = new SynthClass(presetConfig);

@@ -44,7 +44,6 @@ const DrumGrid = () => {
     ? soundSettings[activeDrumName]
     : {};
 
-  // Прямое, моментальное и безопасное чтение строки из конфига
   const drumTypeName = DRUM_TYPE_MAP[activeDrumName] || 'Synth';
 
   return (
