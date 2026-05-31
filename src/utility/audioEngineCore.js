@@ -78,3 +78,75 @@ export const enableGlobalTransportLoop = (numberOfMeasures) => {
   Tone.Transport.loopEnd = `${numberOfMeasures}m`;
   Tone.Transport.loop = true;
 };
+
+const resetEffectMix = (node) => {
+  if (node.wet) {
+    node.set({ wet: 0 });
+  }
+};
+
+const bypassAudioNode = (node) => {
+  node.bypassed = true;
+};
+
+export const createSleeperNode = (EffectClass, constructorParams) => {
+  const node = new EffectClass(constructorParams);
+  resetEffectMix(node);
+  bypassAudioNode(node);
+  return node;
+};
+
+export const connectAudioChain = (nodes) => {
+  if (!Array.isArray(nodes) || nodes.length < 2) return;
+
+  nodes.reduce((prevNode, currentNode) => {
+    prevNode.connect(currentNode);
+    return currentNode;
+  });
+
+  nodes[nodes.length - 1].toDestination();
+};
+
+const buildDeviceParams = (instrumentPreset, deviceKey, defaultParams) => {
+  const customParams = instrumentPreset?.[deviceKey] || {};
+  return { ...defaultParams, ...customParams };
+};
+
+export const wrapInstrumentWithEffects = (
+  rawSynth,
+  instrumentPreset,
+  effectsChain,
+  effectDevices,
+) => {
+  const fxRegistry = {};
+
+  const createdEffects = effectsChain
+    .map((deviceKey) => {
+      const device = effectDevices[deviceKey];
+      if (!device) return null;
+
+      const finalParams = buildDeviceParams(
+        instrumentPreset,
+        deviceKey,
+        device.defaultParams,
+      );
+      const node = createSleeperNode(device.ClassRef, finalParams);
+
+      fxRegistry[device.nodeKey] = node;
+
+      return node;
+    })
+    .filter(Boolean);
+
+  connectAudioChain([rawSynth, ...createdEffects]);
+
+  return {
+    instrument: rawSynth,
+    ...fxRegistry,
+    output: createdEffects[createdEffects.length - 1] || rawSynth,
+    dispose() {
+      createdEffects.forEach((node) => node.dispose());
+      rawSynth.dispose();
+    },
+  };
+};
