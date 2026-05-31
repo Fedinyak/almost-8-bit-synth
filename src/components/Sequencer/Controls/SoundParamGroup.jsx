@@ -20,7 +20,7 @@ export const SoundParamGroup = ({
             synthName={synthName}
             paramName={paramKey}
             config={paramConfig}
-            initialValue={instrumentSettings[paramKey]}
+            initialValue={instrumentSettings?.[paramKey] ?? paramConfig.default}
           />
         ))}
     </div>

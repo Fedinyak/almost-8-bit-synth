@@ -86,37 +86,53 @@ export const SOUND_PARAMS = {
 export const DRUM_PRESETS = {
   kick: {
     volume: -10,
-    envelope: { attack: 0.005, decay: 0.12, release: 0.3 },
+    attack: 0.005,
+    decay: 0.12,
+    release: 0.3,
   },
   snare: {
     volume: -12,
-    envelope: { attack: 0.005, decay: 0.1, release: 0.3 },
+    attack: 0.005,
+    decay: 0.1,
+    release: 0.3,
   },
   hiHat: {
     volume: -12,
-    envelope: { attack: 0.005, decay: 0.05, release: 0.3 },
+    attack: 0.005,
+    decay: 0.05,
+    release: 0.3,
   },
   hiHatClose: {
     volume: -12,
-    envelope: { attack: 0.005, decay: 0.04, release: 0.3 },
+    attack: 0.005,
+    decay: 0.04,
+    release: 0.3,
   },
   hiHatOpen: {
     volume: -10,
-    envelope: { attack: 0.005, decay: 0.3, release: 0.3 },
+    attack: 0.005,
+    decay: 0.3,
+    release: 0.3,
   },
   crash: {
     volume: -8,
-    envelope: { attack: 0.01, decay: 1.5, release: 0.3 },
+    attack: 0.01,
+    decay: 1.5,
+    release: 0.3,
   },
   ride: {
     volume: -10,
-    envelope: { attack: 0.001, decay: 0.8, release: 0.3 },
+    attack: 0.001,
+    decay: 0.8,
+    release: 0.3,
   },
   tom: {
     volume: -12,
     pitchDecay: 0.08,
     octaves: 4,
-    envelope: { attack: 0.005, decay: 0.4, release: 0.3 },
+    attack: 0.005,
+    decay: 0.4,
+    release: 0.3,
   },
 };
 
@@ -139,3 +155,28 @@ export const EFFECT_DEVICES = {
 };
 
 export const DRUM_EFFECTS_CHAIN = ['crusher', 'filter', 'delay'];
+
+export const SYNTH_PRESETS = {
+  synth1: {
+    oscillatorType: 'square',
+    volume: -14,
+    attack: 0.005,
+    decay: 0.2,
+    sustain: 0.3,
+    release: 0.15,
+    filterCutoff: 4500,
+    delayWet: 0.25,
+    bitcrusherWet: 0.15,
+  },
+  synth2: {
+    oscillatorType: 'triangle',
+    volume: -10,
+    attack: 0.005,
+    decay: 0.5,
+    sustain: 0.6,
+    release: 0.2,
+    filterCutoff: 800,
+    delayWet: 0.0,
+    bitcrusherWet: 0.0,
+  },
+};

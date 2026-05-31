@@ -8,8 +8,6 @@ export const SynthSoundPanel = ({ synthName }) => {
     (state) => state.soundSettings?.synths?.[synthName],
   );
 
-  if (!synthSettings) return null;
-
   return (
     <div
       style={{ padding: '8px', border: '1px solid #444', marginBottom: '10px' }}

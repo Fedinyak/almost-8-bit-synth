@@ -1,26 +1,11 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { SYNTH_LIST, DRUM_KIT_LIST } from '../constants/constants';
-import { SOUND_PARAMS, DRUM_PRESETS } from '../constants/soundParamsConfig'; // Импортируем заводские пресеты
-
-const ALL_AUDIO_ENGINES = [...SYNTH_LIST, ...DRUM_KIT_LIST];
+import { DRUM_PRESETS, SYNTH_PRESETS } from '../constants/soundParamsConfig';
 
 const initialState = {
-  synths: ALL_AUDIO_ENGINES.reduce((acc, engineName) => {
-    acc[engineName] = Object.entries(SOUND_PARAMS).reduce(
-      (paramAcc, [paramKey, paramConfig]) => {
-        const drumPresetValue = DRUM_PRESETS?.[engineName]?.[paramKey];
-
-        paramAcc[paramKey] =
-          typeof drumPresetValue === 'number'
-            ? drumPresetValue
-            : paramConfig.default;
-
-        return paramAcc;
-      },
-      {},
-    );
-    return acc;
-  }, {}),
+  synths: {
+    ...DRUM_PRESETS,
+    ...SYNTH_PRESETS,
+  },
 };
 
 export const soundSettingsSlice = createSlice({
