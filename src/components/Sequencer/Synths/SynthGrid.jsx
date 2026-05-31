@@ -28,7 +28,6 @@ const SynthGrid = ({ activeVisualPattern, synthName }) => {
       </div>
 
       <React.Fragment key={synthName}>
-        <SynthSoundPanel synthName={synthName} />
         <div>{synthName} GRID:</div>
 
         <WaveMonitor synthName={synthName} />
@@ -41,6 +40,7 @@ const SynthGrid = ({ activeVisualPattern, synthName }) => {
             synthData={synthData}
           />
         </div>
+        <SynthSoundPanel synthName={synthName} />
       </React.Fragment>
     </>
   );

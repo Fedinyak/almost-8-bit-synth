@@ -5,6 +5,7 @@ import ControlPanel from './Sequencer/Controls/ControlPanel';
 import DrumGrid from './Sequencer/Drums/DrumGrid';
 import PatternList from './Sequencer/Controls/PatternsList';
 import SynthGrid from './Sequencer/Synths/SynthGrid';
+import WorkspaceInstrumentTabs from './Sequencer/Controls/WorkspaceInstrumentTabs'; // Новый импорт
 import { setActiveTabByIndex } from '../slices/playerSlice';
 
 const Sequencer = () => {
@@ -32,22 +33,15 @@ const Sequencer = () => {
   return (
     <section className="sequencer">
       <h3>currentPlayPatternIndex {currentPlayPatternIndex}</h3>
-
-      <div className="workspace-tabs">
-        {tabs.map((tabName, index) => (
-          <button
-            key={tabName}
-            disabled={activeTabIndex === index}
-            onClick={() => dispatch(setActiveTabByIndex(index))}
-          >
-            {tabName.toUpperCase()}
-          </button>
-        ))}
-      </div>
-
-      <ControlPanel />
       <TimerTransport />
+      <ControlPanel />
       <PatternList />
+
+      <WorkspaceInstrumentTabs
+        tabs={tabs}
+        activeTabIndex={activeTabIndex}
+        onTabClick={(index) => dispatch(setActiveTabByIndex(index))}
+      />
 
       {activeTabName === 'drums' && <DrumGrid />}
       {activeTabName !== 'drums' && (

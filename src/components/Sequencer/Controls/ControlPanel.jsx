@@ -35,7 +35,7 @@ const SequencerControlPanel = () => {
       }
       <button onClick={() => dispatch(setBpm(100))}>100</button>
       <button onClick={() => dispatch(setBpm(200))}>200</button>
-      <BpmVisualizer />
+      {/* <BpmVisualizer /> */}
     </div>
   );
 };
