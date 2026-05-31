@@ -14,27 +14,34 @@ const TONE_CLASS_RESOLVER = {
 };
 
 const initializeRawDrumSynths = (typeMap) => {
-  return Object.entries(typeMap).reduce((acc, [drumName, typeString]) => {
+  const synthEntries = Object.entries(typeMap).map(([drumName, typeString]) => {
     const presetConfig = DRUM_PRESETS[drumName] || {};
     const SynthClass = TONE_CLASS_RESOLVER[typeString] || Tone.MembraneSynth;
 
-    acc[drumName] = new SynthClass(presetConfig);
-    return acc;
-  }, {});
+    const nativeSynth = new SynthClass(presetConfig);
+    return [drumName, nativeSynth];
+  });
+
+  return Object.fromEntries(synthEntries);
 };
 
 const buildWrappedDrumsRack = (drumSynths) => {
-  return Object.entries(drumSynths).reduce((acc, [drumName, rawSynth]) => {
-    const instrumentPreset = DRUM_PRESETS[drumName] || {};
+  const wrappedEntries = Object.entries(drumSynths).map(
+    ([drumName, rawSynth]) => {
+      const instrumentPreset = DRUM_PRESETS[drumName] || {};
 
-    acc[drumName] = wrapInstrumentWithEffects(
-      rawSynth,
-      instrumentPreset,
-      DRUM_EFFECTS_CHAIN,
-      EFFECT_DEVICES,
-    );
-    return acc;
-  }, {});
+      const wrappedSynth = wrapInstrumentWithEffects(
+        rawSynth,
+        instrumentPreset,
+        DRUM_EFFECTS_CHAIN,
+        EFFECT_DEVICES,
+      );
+
+      return [drumName, wrappedSynth];
+    },
+  );
+
+  return Object.fromEntries(wrappedEntries);
 };
 
 const createDrums = () => {

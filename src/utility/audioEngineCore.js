@@ -99,10 +99,9 @@ export const createSleeperNode = (EffectClass, constructorParams) => {
 export const connectAudioChain = (nodes) => {
   if (!Array.isArray(nodes) || nodes.length < 2) return;
 
-  nodes.reduce((prevNode, currentNode) => {
-    prevNode.connect(currentNode);
-    return currentNode;
-  });
+  for (let i = 0; i < nodes.length - 1; i++) {
+    nodes[i].connect(nodes[i + 1]);
+  }
 
   nodes[nodes.length - 1].toDestination();
 };
