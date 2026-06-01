@@ -1,7 +1,7 @@
 import * as Tone from 'tone';
 import { checkBypassCondition } from './audioMathUtils';
 import { synthAnalysers } from './visualizerState';
-import { SOUND_PARAMS } from '../constants/soundParamsConfig';
+import { SOUND_PARAMS, EFFECT_DEVICES } from '../constants/soundParamsConfig'; // Импортируем EFFECT_DEVICES для поиска ключей активности
 import {
   ANALYSER_TYPE,
   ANALYSER_SIZE,
@@ -114,7 +114,6 @@ export const applySynthEnvelope = (synthInstance, settings) => {
   if (!nativeInstrument || !settings) return;
 
   // Если это БАРАБАН — у него есть ВНЕШНИЙ фильтр fxFilter в контейнере эффектов!
-  // Крутим срез (Cutoff) и резонанс (Q) внешнего фильтра, если они покручены в UI
   if (synthInstance.fxFilter) {
     if (settings.filterCutoff !== undefined) {
       synthInstance.fxFilter.frequency.value = settings.filterCutoff;
@@ -128,11 +127,9 @@ export const applySynthEnvelope = (synthInstance, settings) => {
   updateInstrumentEnvelope(nativeInstrument, settings);
 };
 
-// 🆕 УНИВЕРСАЛЬНЫЙ РОУТЕР ПАРАМЕТРОВ ЭФФЕКТОВ НА ОСНОВЕ ПАСПОРТА РУЧКИ:
 export const updateEffectParam = (fxNode, targetParam, value) => {
   if (!fxNode || !targetParam) return;
 
-  // В Tone.js параметры могут быть плоскими свойствами или объектами AudioParam (со свойством .value)
   if (targetParam === 'wet') {
     fxNode.set({ wet: value });
   } else if (targetParam === 'frequency' && fxNode.frequency) {
@@ -140,11 +137,11 @@ export const updateEffectParam = (fxNode, targetParam, value) => {
   } else if (targetParam === 'Q' && fxNode.Q) {
     fxNode.Q.value = value;
   } else if (targetParam === 'bits') {
-    fxNode.bits = value; // Для BitCrusher
+    fxNode.bits = value;
   } else if (targetParam === 'distortion') {
-    fxNode.distortion = value; // Для Distortion
+    fxNode.distortion = value;
   } else if (targetParam === 'feedback' && fxNode.feedback) {
-    fxNode.feedback.value = value; // Для FeedbackDelay
+    fxNode.feedback.value = value;
   }
 };
 
@@ -181,11 +178,26 @@ const applyEffectSettings = (
   synthName,
   allSettings,
 ) => {
-  // 1. Обновляем текущий параметр (будь то микс, фидбек или драйв)
-  updateEffectParam(fxNode, paramConfig.targetParam, liveValue);
+  // 1. Ищем, к какому девайсу принадлежит этот nodeKey, чтобы узнать его флаг активности
+  const deviceConfig = Object.values(EFFECT_DEVICES).find(
+    (device) => device.nodeKey === paramConfig.nodeKey,
+  );
 
-  // 2. АППАРТНЫЙ БАЙПАС ПРИВЯЗЫВАЕМ СТРОГО К РУЧКЕ МИКСА (WET) ЭТОГО ПРИБОРА!
-  // Вытаскиваем имя главной ручки микса для текущего nodeKey из паспорта
+  // 🆕 Проверяем флаг из Редакса (например, settings.bitcrusherActive). По умолчанию считаем активным (true)
+  const isEffectActiveByButton = deviceConfig?.activeKey
+    ? allSettings[deviceConfig.activeKey] !== false
+    : true;
+
+  // 2. Обновляем текущий аудио-параметр в Tone.js
+  // Если прибор выключен кнопкой (Active === false), принудительно зануляем микс wet в железе,
+  // игнорируя положение слайдера на экране. Иначе — шлём живое значение из UI.
+  if (!isEffectActiveByButton && paramConfig.targetParam === 'wet') {
+    updateEffectParam(fxNode, 'wet', 0);
+  } else {
+    updateEffectParam(fxNode, paramConfig.targetParam, liveValue);
+  }
+
+  // 3. УМНЫЙ КОМБИНИРОВАННЫЙ БАЙПАС (Слайдер в 0 ИЛИ Кнопка в OFF)
   const mainWetParamName = Object.keys(SOUND_PARAMS).find(
     (key) =>
       SOUND_PARAMS[key].nodeKey === paramConfig.nodeKey &&
@@ -196,10 +208,15 @@ const applyEffectSettings = (
     const wetValue = allSettings[mainWetParamName] ?? 0;
     const wetParamConfig = SOUND_PARAMS[mainWetParamName];
 
-    const shouldBypass = checkBypassCondition(
+    const isSliderAtBypassValue = checkBypassCondition(
       wetValue,
       wetParamConfig.bypassValue,
     );
+
+    const isMutedByButton = !isEffectActiveByButton;
+
+    const shouldBypass = isSliderAtBypassValue || isMutedByButton;
+
     toggleNodeBypass(fxNode, shouldBypass, wetParamConfig.label, synthName);
   }
 };
@@ -212,7 +229,6 @@ export const applyDynamicBypass = (synthName, synthInstance, settings) => {
       const liveValue = settings[paramName];
 
       if (isValidEffectNode(fxNode, liveValue)) {
-        // Передаем весь объект настроек, чтобы функция могла проверить ручку микса
         applyEffectSettings(
           fxNode,
           liveValue,

@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import StepIndicator from '../Controls/StepIndicator';
 import DrumCell from './DrumCell';
 import DrumMonitor from '../../visualizers/DrumMonitor';
+import { updateSynthParam } from '../../../slices/soundSettingsSlice'; // Импортируем экшен для кнопок ON/OFF
 import {
   SOUND_PARAM_GROUPS,
   DRUM_TYPE_MAP,
@@ -50,7 +51,6 @@ const DrumGrid = () => {
   const drumTypeName = DRUM_TYPE_MAP[activeDrumName] || 'Synth';
 
   const [activeGroup, setActiveGroup] = useState('filter');
-
   const [activeFxTab, setActiveFxTab] = useState('crusher');
 
   return (
@@ -133,7 +133,6 @@ const DrumGrid = () => {
               />
             </div>
 
-            {/* 1. Базовые секции (Envelope и Filter) */}
             {SOUND_PARAM_GROUPS.map((group) => (
               <div
                 key={`${activeDrumName}-${group.key}`}
@@ -150,35 +149,85 @@ const DrumGrid = () => {
               </div>
             ))}
 
-            {/* 2. 🆕 Модульный чистый рэк эффектов для барабанов */}
+            {/* Модульный чистый рэк эффектов для барабанов с кнопками ON / OFF */}
             <div style={{ marginTop: '16px' }}>
               <h6>EFFECTS RACK:</h6>
 
               <div style={{ display: 'flex', gap: '16px' }}>
-                {/* Сортировка кнопок выбора эффекта строго вертикально слева */}
+                {/* Список эффектов с переключателями слева */}
                 <div
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '4px',
+                    gap: '8px',
                   }}
                 >
                   {UI_EFFECTS_LIST.map((deviceKey) => {
                     const device = EFFECT_DEVICES[deviceKey];
+                    const isTabSelected = activeFxTab === device.groupKey;
+
+                    const isEffectOn =
+                      activeDrumSettings[device.activeKey] !== false;
+
                     return (
-                      <button
+                      <div
                         key={deviceKey}
-                        type="button"
-                        disabled={activeFxTab === device.groupKey}
-                        onClick={() => setActiveFxTab(device.groupKey)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
                       >
-                        {device.label}
-                      </button>
+                        <button
+                          type="button"
+                          disabled={isTabSelected}
+                          onClick={() => setActiveFxTab(device.groupKey)}
+                          style={{ minWidth: '110px', textAlign: 'left' }}
+                        >
+                          {device.label}
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={isEffectOn}
+                          onClick={() =>
+                            dispatch(
+                              updateSynthParam({
+                                synthName: activeDrumName,
+                                paramName: device.activeKey,
+                                value: true,
+                              }),
+                            )
+                          }
+                          style={{
+                            backgroundColor: isEffectOn ? 'red' : 'transparent',
+                            color: isEffectOn ? 'white' : 'inherit',
+                          }}
+                        >
+                          ON
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={!isEffectOn}
+                          onClick={() =>
+                            dispatch(
+                              updateSynthParam({
+                                synthName: activeDrumName,
+                                paramName: device.activeKey,
+                                value: false,
+                              }),
+                            )
+                          }
+                        >
+                          OFF
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
 
-                {/* Выбранные слайдеры справа */}
+                {/* Слайдеры выбранного эффекта справа */}
                 <div
                   className="drum-param-group-container"
                   data-group="effects"

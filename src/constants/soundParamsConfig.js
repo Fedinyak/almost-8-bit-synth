@@ -179,6 +179,9 @@ export const DRUM_PRESETS = {
     attack: 0.005,
     decay: 0.12,
     release: 0.3,
+    bitcrusherActive: false,
+    distortionActive: false,
+    delayActive: false,
   },
   snare: {
     engineType: 'noiseSynth',
@@ -186,6 +189,9 @@ export const DRUM_PRESETS = {
     attack: 0.005,
     decay: 0.1,
     release: 0.3,
+    bitcrusherActive: false,
+    distortionActive: false,
+    delayActive: false,
   },
   hiHat: {
     engineType: 'metalSynth',
@@ -193,6 +199,9 @@ export const DRUM_PRESETS = {
     attack: 0.005,
     decay: 0.05,
     release: 0.3,
+    bitcrusherActive: false,
+    distortionActive: false,
+    delayActive: false,
   },
   hiHatClose: {
     engineType: 'metalSynth',
@@ -200,6 +209,9 @@ export const DRUM_PRESETS = {
     attack: 0.005,
     decay: 0.04,
     release: 0.3,
+    bitcrusherActive: false,
+    distortionActive: false,
+    delayActive: false,
   },
   hiHatOpen: {
     engineType: 'metalSynth',
@@ -207,6 +219,9 @@ export const DRUM_PRESETS = {
     attack: 0.005,
     decay: 0.3,
     release: 0.3,
+    bitcrusherActive: false,
+    distortionActive: false,
+    delayActive: false,
   },
   crash: {
     engineType: 'metalSynth',
@@ -214,6 +229,9 @@ export const DRUM_PRESETS = {
     attack: 0.01,
     decay: 1.5,
     release: 0.3,
+    bitcrusherActive: false,
+    distortionActive: false,
+    delayActive: false,
   },
   ride: {
     engineType: 'metalSynth',
@@ -221,6 +239,9 @@ export const DRUM_PRESETS = {
     attack: 0.001,
     decay: 0.8,
     release: 0.3,
+    bitcrusherActive: false,
+    distortionActive: false,
+    delayActive: false,
   },
   tom: {
     engineType: 'membraneSynth',
@@ -230,6 +251,9 @@ export const DRUM_PRESETS = {
     attack: 0.005,
     decay: 0.4,
     release: 0.3,
+    bitcrusherActive: false,
+    distortionActive: false,
+    delayActive: false,
   },
 };
 
@@ -240,6 +264,7 @@ export const EFFECT_DEVICES = {
     defaultParams: { bits: 4 },
     label: 'BITCRUSHER',
     groupKey: 'crusher',
+    activeKey: 'bitcrusherActive',
   },
   distortion: {
     nodeKey: 'fxDistortion',
@@ -247,6 +272,7 @@ export const EFFECT_DEVICES = {
     defaultParams: { distortion: 1.5, oversample: '4x' },
     label: 'DISTORTION',
     groupKey: 'distortion',
+    activeKey: 'distortionActive',
   },
   filter: {
     nodeKey: 'fxFilter',
@@ -261,13 +287,11 @@ export const EFFECT_DEVICES = {
     defaultParams: { delayTime: '8n', feedback: 0.25 },
     label: 'DELAY',
     groupKey: 'delay',
+    activeKey: 'delayActive',
   },
 };
 
-// Цепочка прохождения звука в движке
 export const DRUM_EFFECTS_CHAIN = ['crusher', 'distortion', 'filter', 'delay'];
-
-// Изолированный список только для FX-рэка в UI (чтобы фильтр не лез в список эффектов, он отдельным табом)
 export const UI_EFFECTS_LIST = ['crusher', 'distortion', 'delay'];
 
 export const SYNTH_PRESETS = {
@@ -289,6 +313,9 @@ export const SYNTH_PRESETS = {
     synthGlide: 0.0,
     filterQ: 1.0,
     filterEnvOctaves: 0.0,
+    bitcrusherActive: true,
+    distortionActive: false,
+    delayActive: true,
   },
   synth2: {
     engineType: 'monoSynth',
@@ -308,6 +335,9 @@ export const SYNTH_PRESETS = {
     synthGlide: 0.0,
     filterQ: 1.0,
     filterEnvOctaves: 0.0,
+    bitcrusherActive: false,
+    distortionActive: false,
+    delayActive: false,
   },
 };
 

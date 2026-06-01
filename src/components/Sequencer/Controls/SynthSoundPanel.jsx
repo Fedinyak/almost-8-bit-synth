@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux'; // Добавили useDispatch
 import SoundParamGroup from './SoundParamGroup';
+import { updateSynthParam } from '../../../slices/soundSettingsSlice'; // Импортируем твой экшен обновления стейта
 import {
   SOUND_PARAM_GROUPS,
   UI_EFFECTS_LIST,
@@ -9,6 +10,8 @@ import {
 import { WaveformMirror } from '../Synths/WaveformMirror';
 
 export const SynthSoundPanel = ({ synthName }) => {
+  const dispatch = useDispatch();
+
   const synthSettings = useSelector(
     (state) => state.soundSettings?.synths?.[synthName],
   );
@@ -29,12 +32,7 @@ export const SynthSoundPanel = ({ synthName }) => {
       }}
     >
       <div
-        style={{
-          display: 'flex',
-          // justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '12px',
-        }}
+        style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}
       >
         <div>
           <strong>{synthName.toUpperCase()} CONTROLS:</strong>
@@ -64,24 +62,73 @@ export const SynthSoundPanel = ({ synthName }) => {
         </div>
       ))}
 
-      {/* 2. Чистый рэк эффектов без лишних стилей */}
+      {/* 2. Модульный рэк эффектов с кнопками ON / OFF */}
       <div style={{ marginTop: '16px' }}>
         <h6>EFFECTS RACK:</h6>
 
         <div style={{ display: 'flex', gap: '16px' }}>
-          {/* Сортировка кнопок слева в вертикальный ряд */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {/* Вертикальный стек приборов слева */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {UI_EFFECTS_LIST.map((deviceKey) => {
               const device = EFFECT_DEVICES[deviceKey];
+              const isTabSelected = activeFxTab === device.groupKey;
+
+              // Читаем живой статус активности этого эффекта из Редакса (true/false)
+              const isEffectOn = synthSettings[device.activeKey] !== false;
+
               return (
-                <button
+                <div
                   key={deviceKey}
-                  type="button"
-                  disabled={activeFxTab === device.groupKey}
-                  onClick={() => setActiveFxTab(device.groupKey)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
                 >
-                  {device.label}
-                </button>
+                  {/* Кнопка-таб для выбора и открытия ручек эффекта */}
+                  <button
+                    type="button"
+                    disabled={isTabSelected}
+                    onClick={() => setActiveFxTab(device.groupKey)}
+                    style={{ minWidth: '110px', textAlign: 'left' }}
+                  >
+                    {device.label}
+                  </button>
+
+                  {/* Кнопка ON: активна, горит красным, если эффект включен */}
+                  <button
+                    type="button"
+                    disabled={isEffectOn} // Дизейблим, если уже включен
+                    onClick={() =>
+                      dispatch(
+                        updateSynthParam({
+                          synthName,
+                          paramName: device.activeKey,
+                          value: true,
+                        }),
+                      )
+                    }
+                    style={{
+                      backgroundColor: isEffectOn ? 'red' : 'transparent',
+                      color: isEffectOn ? 'white' : 'inherit',
+                    }}
+                  >
+                    ON
+                  </button>
+
+                  {/* Кнопка OFF: обычная серая, утапливается (disabled) при выключении */}
+                  <button
+                    type="button"
+                    disabled={!isEffectOn} // Дизейблим, если уже выключен
+                    onClick={() =>
+                      dispatch(
+                        updateSynthParam({
+                          synthName,
+                          paramName: device.activeKey,
+                          value: false,
+                        }),
+                      )
+                    }
+                  >
+                    OFF
+                  </button>
+                </div>
               );
             })}
           </div>
