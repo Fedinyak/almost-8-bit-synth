@@ -19,38 +19,45 @@ export const SOUND_PARAM_GROUPS = [
   { key: 'effects', label: 'EFFECTS:' },
 ];
 
+const ALL_ENGINES = ['monoSynth', 'membraneSynth', 'noiseSynth', 'metalSynth'];
+
 export const SOUND_PARAMS = {
   attack: {
-    min: 0.005, // Оставляем protective микро-минимум от щелчка на старте ноты
+    min: 0.005,
     max: 2.0,
     step: 0.005,
     default: AUDIO_DEFAULT_ATTACK,
     label: 'ATTACK',
     group: 'envelope',
+    supportedEngines: ALL_ENGINES, // Нужна всем
   },
   decay: {
     ...RANGE_TIME_ADR,
     default: AUDIO_DEFAULT_DECAY,
     label: 'DECAY',
     group: 'envelope',
+    supportedEngines: ALL_ENGINES, // Нужна всем
   },
   sustain: {
     ...RANGE_MIX_WET,
     default: AUDIO_DEFAULT_SUSTAIN,
     label: 'SUSTAIN',
     group: 'envelope',
+    supportedEngines: ['monoSynth'], // Сустейн есть только у синтов
   },
   release: {
     ...RANGE_TIME_ADR,
     default: AUDIO_DEFAULT_RELEASE,
     label: 'RELEASE',
     group: 'envelope',
+    supportedEngines: ['monoSynth', 'membraneSynth'], // Есть у синтов, бочки и томов. У шума/металла релиза нет
   },
   volume: {
     ...RANGE_VOLUME_DB,
     default: AUDIO_DEFAULT_VOLUME,
     label: 'VOLUME',
     group: 'envelope',
+    supportedEngines: ALL_ENGINES,
   },
   synthGlide: {
     min: 0.0,
@@ -59,6 +66,7 @@ export const SOUND_PARAMS = {
     default: 0.0,
     label: 'GLIDE (GLIDE/PORTAMENTO)',
     group: 'envelope',
+    supportedEngines: ['monoSynth'], // Глайд только у синтов
   },
 
   filterCutoff: {
@@ -69,6 +77,7 @@ export const SOUND_PARAMS = {
     nodeKey: 'fxFilter',
     bypassValue: 10000,
     group: 'filter',
+    supportedEngines: ALL_ENGINES, // Наш внешний fxFilter привязан ко всем
   },
   filterQ: {
     min: 1.0,
@@ -77,6 +86,7 @@ export const SOUND_PARAMS = {
     default: 1.0,
     label: 'RESONANCE (Q)',
     group: 'filter',
+    supportedEngines: ALL_ENGINES, // Есть у всех
   },
   filterEnvOctaves: {
     min: 0.0,
@@ -85,6 +95,7 @@ export const SOUND_PARAMS = {
     default: 0.0,
     label: 'ENV MOD (OCTAVES)',
     group: 'filter',
+    supportedEngines: ['monoSynth'], // Огибающая фильтра встроена только в синты
   },
 
   bitcrusherWet: {
@@ -95,6 +106,7 @@ export const SOUND_PARAMS = {
     nodeKey: 'fxBitcrusher',
     bypassValue: 0.0,
     group: 'effects',
+    supportedEngines: ALL_ENGINES,
   },
   distortionWet: {
     ...RANGE_MIX_WET,
@@ -104,6 +116,7 @@ export const SOUND_PARAMS = {
     nodeKey: 'fxDistortion',
     bypassValue: 0.0,
     group: 'effects',
+    supportedEngines: ALL_ENGINES,
   },
   delayWet: {
     ...RANGE_MIX_WET,
@@ -113,53 +126,62 @@ export const SOUND_PARAMS = {
     nodeKey: 'fxDelay',
     bypassValue: 0.0,
     group: 'effects',
+    supportedEngines: ALL_ENGINES,
   },
 };
 
 export const DRUM_PRESETS = {
   kick: {
+    engineType: 'membraneSynth', // 🆕 Маркируем тип движка
     volume: -10,
     attack: 0.005,
     decay: 0.12,
     release: 0.3,
   },
   snare: {
+    engineType: 'noiseSynth',
     volume: -12,
     attack: 0.005,
     decay: 0.1,
     release: 0.3,
   },
   hiHat: {
+    engineType: 'metalSynth',
     volume: -12,
     attack: 0.005,
     decay: 0.05,
     release: 0.3,
   },
   hiHatClose: {
+    engineType: 'metalSynth',
     volume: -12,
     attack: 0.005,
     decay: 0.04,
     release: 0.3,
   },
   hiHatOpen: {
+    engineType: 'metalSynth',
     volume: -10,
     attack: 0.005,
     decay: 0.3,
     release: 0.3,
   },
   crash: {
+    engineType: 'metalSynth',
     volume: -8,
     attack: 0.01,
     decay: 1.5,
     release: 0.3,
   },
   ride: {
+    engineType: 'metalSynth',
     volume: -10,
     attack: 0.001,
     decay: 0.8,
     release: 0.3,
   },
   tom: {
+    engineType: 'membraneSynth',
     volume: -12,
     pitchDecay: 0.08,
     octaves: 4,
@@ -196,6 +218,7 @@ export const DRUM_EFFECTS_CHAIN = ['crusher', 'distortion', 'filter', 'delay'];
 
 export const SYNTH_PRESETS = {
   synth1: {
+    engineType: 'monoSynth',
     oscillatorType: 'square',
     volume: -14,
     attack: 0.005,
@@ -211,6 +234,7 @@ export const SYNTH_PRESETS = {
     filterEnvOctaves: 0.0,
   },
   synth2: {
+    engineType: 'monoSynth',
     oscillatorType: 'triangle',
     volume: -10,
     attack: 0.005,

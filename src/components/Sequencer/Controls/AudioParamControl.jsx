@@ -7,24 +7,29 @@ export const AudioParamControl = ({
   paramName,
   config,
   initialValue,
+  instrumentSettings, // 🆕 Передаем весь объект настроек, чтобы прочитать engineType
 }) => {
   const dispatch = useDispatch();
 
-  // предохранитель от undefined на случай расширения паспорта
   const sliderValue = initialValue ?? config.defaultValue ?? 0;
-
-  // ДИНАМИЧЕСКИЙ РАСЧЕТ ИНДИКАТОРА ПО ПАСПОРТУ:
-  // Проверяем, помечен ли параметр в паспорте как аудио-эффект
   const isEffect = config.isEffect && config.nodeKey;
 
-  // граничное значение из конфига (если вдруг забыли прописать — фолбек в 0)
   const bypassTarget =
     typeof config.bypassValue === 'number' ? config.bypassValue : 0;
 
-  // Эффект активен, только если его текущее живое число ушло с точки выключения из паспорта
   const isEffectActive = isEffect ? sliderValue !== bypassTarget : false;
 
+  // 🧱 АБСОЛЮТНО ЧЕСТНЫЙ DATA-DRIVEN ДИЗЕЙБЛ:
+  // Извлекаем тип движка текущего прибора ('monoSynth', 'metalSynth' и т.д.)
+  const currentEngineType = instrumentSettings?.engineType || 'monoSynth';
+
+  // Ручка блокируется, если в её массиве supportedEngines нет типа текущего движка
+  const isParamDisabled = config.supportedEngines
+    ? !config.supportedEngines.includes(currentEngineType)
+    : false;
+
   const handleChange = (e) => {
+    if (isParamDisabled) return;
     const newValue = Number(e.target.value);
     dispatch(updateSynthParam({ synthName, paramName, value: newValue }));
   };
@@ -36,6 +41,8 @@ export const AudioParamControl = ({
         alignItems: 'center',
         margin: '6px 0',
         gap: '8px',
+        opacity: isParamDisabled ? 0.4 : 1,
+        pointerEvents: isParamDisabled ? 'none' : 'auto',
       }}
     >
       {isEffect && (
@@ -43,8 +50,10 @@ export const AudioParamControl = ({
           style={{
             width: '8px',
             height: '8px',
-            backgroundColor: isEffectActive ? '#00ff00' : '#555555',
-            boxShadow: isEffectActive ? '0 0 6px #00ff00' : 'none',
+            backgroundColor:
+              isEffectActive && !isParamDisabled ? '#00ff00' : '#555555',
+            boxShadow:
+              isEffectActive && !isParamDisabled ? '0 0 6px #00ff00' : 'none',
             flexShrink: 0,
           }}
         />
@@ -55,6 +64,7 @@ export const AudioParamControl = ({
           display: 'inline-block',
           width: '100px',
           marginLeft: isEffect ? '0' : '16px',
+          color: isParamDisabled ? '#777777' : 'inherit',
         }}
       >
         {config.label}:
@@ -67,9 +77,16 @@ export const AudioParamControl = ({
         step={config.step}
         value={sliderValue}
         onChange={handleChange}
+        disabled={isParamDisabled}
       />
 
-      <span style={{ marginLeft: '8px', fontFamily: 'monospace' }}>
+      <span
+        style={{
+          marginLeft: '8px',
+          fontFamily: 'monospace',
+          color: isParamDisabled ? '#777777' : 'inherit',
+        }}
+      >
         {typeof sliderValue === 'number' ? sliderValue.toFixed(3) : '0.000'}
       </span>
     </div>

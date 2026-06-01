@@ -21,6 +21,7 @@ export const SoundParamGroup = ({
             paramName={paramKey}
             config={paramConfig}
             initialValue={instrumentSettings?.[paramKey] ?? paramConfig.default}
+            instrumentSettings={instrumentSettings}
           />
         ))}
     </div>
