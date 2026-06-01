@@ -52,6 +52,14 @@ export const SOUND_PARAMS = {
     label: 'VOLUME',
     group: 'envelope',
   },
+  synthGlide: {
+    min: 0.0,
+    max: 0.5,
+    step: 0.01,
+    default: 0.0,
+    label: 'GLIDE (GLIDE/PORTAMENTO)',
+    group: 'envelope',
+  },
 
   filterCutoff: {
     ...RANGE_FILTER_HZ,
@@ -60,6 +68,22 @@ export const SOUND_PARAMS = {
     isEffect: true,
     nodeKey: 'fxFilter',
     bypassValue: 10000,
+    group: 'filter',
+  },
+  filterQ: {
+    min: 1.0,
+    max: 15.0,
+    step: 0.5,
+    default: 1.0,
+    label: 'RESONANCE (Q)',
+    group: 'filter',
+  },
+  filterEnvOctaves: {
+    min: 0.0,
+    max: 6.0,
+    step: 0.5,
+    default: 0.0,
+    label: 'ENV MOD (OCTAVES)',
     group: 'filter',
   },
 
@@ -182,6 +206,9 @@ export const SYNTH_PRESETS = {
     delayWet: 0.25,
     bitcrusherWet: 0.15,
     distortionWet: 0.0,
+    synthGlide: 0.0,
+    filterQ: 1.0,
+    filterEnvOctaves: 0.0,
   },
   synth2: {
     oscillatorType: 'triangle',
@@ -194,6 +221,9 @@ export const SYNTH_PRESETS = {
     delayWet: 0.0,
     bitcrusherWet: 0.0,
     distortionWet: 0.0,
+    synthGlide: 0.0,
+    filterQ: 1.0,
+    filterEnvOctaves: 0.0,
   },
 };
 

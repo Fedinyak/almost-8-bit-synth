@@ -82,6 +82,18 @@ export const updateInstrumentEnvelope = (instrument, settings) => {
   const sustain = settings.sustain ?? AUDIO_DEFAULT_SUSTAIN;
   const release = settings.release ?? AUDIO_DEFAULT_RELEASE;
 
+  if (settings.synthGlide !== undefined && instrument.name !== 'MetalSynth') {
+    instrument.portamento = settings.synthGlide;
+  }
+
+  if (settings.filterQ !== undefined && instrument.filter) {
+    instrument.filter.Q.value = settings.filterQ;
+  }
+
+  if (settings.filterEnvOctaves !== undefined && instrument.filterEnvelope) {
+    instrument.filterEnvelope.octaves = settings.filterEnvOctaves;
+  }
+
   if (instrument.name === 'MetalSynth') {
     updateMetalSynthEnvelope(instrument, attack, decay);
     return;
