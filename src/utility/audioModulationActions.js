@@ -86,6 +86,7 @@ export const updateInstrumentEnvelope = (instrument, settings) => {
     instrument.portamento = settings.synthGlide;
   }
 
+  // 1. Если это СИНТ (MonoSynth) — крутим параметры его ВНУТРЕННЕГО фильтра
   if (settings.filterQ !== undefined && instrument.filter) {
     instrument.filter.Q.value = settings.filterQ;
   }
@@ -111,6 +112,17 @@ export const updateInstrumentEnvelope = (instrument, settings) => {
 export const applySynthEnvelope = (synthInstance, settings) => {
   const nativeInstrument = synthInstance?.instrument;
   if (!nativeInstrument || !settings) return;
+
+  // 2. Если это БАРАБАН — у него есть ВНЕШНИЙ фильтр fxFilter в контейнере эффектов!
+  // Крутим срез (Cutoff) и резонанс (Q) внешнего фильтра, если они покручены в UI
+  if (synthInstance.fxFilter) {
+    if (settings.filterCutoff !== undefined) {
+      synthInstance.fxFilter.frequency.value = settings.filterCutoff;
+    }
+    if (settings.filterQ !== undefined) {
+      synthInstance.fxFilter.Q.value = settings.filterQ;
+    }
+  }
 
   updateInstrumentVolume(nativeInstrument, settings.volume);
   updateInstrumentEnvelope(nativeInstrument, settings);
