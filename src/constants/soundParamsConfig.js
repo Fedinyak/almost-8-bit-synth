@@ -101,7 +101,7 @@ export const SOUND_PARAMS = {
 
   bitcrusherWet: {
     ...RANGE_MIX_WET,
-    default: 0.0,
+    default: 0.4,
     label: 'CRUSHER MIX',
     isEffect: true,
     nodeKey: 'fxBitcrusher',
@@ -125,7 +125,7 @@ export const SOUND_PARAMS = {
 
   distortionWet: {
     ...RANGE_MIX_WET,
-    default: 0.0,
+    default: 0.35,
     label: 'DISTORTION MIX',
     isEffect: true,
     nodeKey: 'fxDistortion',
@@ -138,7 +138,7 @@ export const SOUND_PARAMS = {
     min: 0.0,
     max: 2.0,
     step: 0.1,
-    default: 1.5,
+    default: 1.2,
     label: 'DISTORTION DRIVE',
     isEffect: true,
     nodeKey: 'fxDistortion',
@@ -149,7 +149,7 @@ export const SOUND_PARAMS = {
 
   delayWet: {
     ...RANGE_MIX_WET,
-    default: 0.0,
+    default: 0.3,
     label: 'DELAY MIX',
     isEffect: true,
     nodeKey: 'fxDelay',
@@ -162,7 +162,7 @@ export const SOUND_PARAMS = {
     min: 0.0,
     max: 0.95,
     step: 0.05,
-    default: 0.25,
+    default: 0.4,
     label: 'DELAY FEEDBACK',
     isEffect: true,
     nodeKey: 'fxDelay',
@@ -326,12 +326,6 @@ export const SYNTH_PRESETS = {
     sustain: 0.6,
     release: 0.2,
     filterCutoff: 800,
-    bitcrusherWet: 0.0,
-    bitcrusherBits: 4,
-    distortionWet: 0.0,
-    distortionDrive: 1.5,
-    delayWet: 0.0,
-    delayFeedback: 0.25,
     synthGlide: 0.0,
     filterQ: 1.0,
     filterEnvOctaves: 0.0,

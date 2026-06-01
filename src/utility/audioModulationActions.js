@@ -1,7 +1,7 @@
 import * as Tone from 'tone';
 import { checkBypassCondition } from './audioMathUtils';
 import { synthAnalysers } from './visualizerState';
-import { SOUND_PARAMS, EFFECT_DEVICES } from '../constants/soundParamsConfig'; // Импортируем EFFECT_DEVICES для поиска ключей активности
+import { SOUND_PARAMS, EFFECT_DEVICES } from '../constants/soundParamsConfig';
 import {
   ANALYSER_TYPE,
   ANALYSER_SIZE,
@@ -178,26 +178,24 @@ const applyEffectSettings = (
   synthName,
   allSettings,
 ) => {
-  // 1. Ищем, к какому девайсу принадлежит этот nodeKey, чтобы узнать его флаг активности
   const deviceConfig = Object.values(EFFECT_DEVICES).find(
     (device) => device.nodeKey === paramConfig.nodeKey,
   );
 
-  // 🆕 Проверяем флаг из Редакса (например, settings.bitcrusherActive). По умолчанию считаем активным (true)
+  // 🆕 ЧЕСТНАЯ СТРОГАЯ ПРОВЕРКА:
+  // Эффект в Tone.js включается ТОЛЬКО тогда, когда флаг активности в Редаксе равен явной true.
+  // Если там false или undefined — прибор спит. Это убирает фантомный запуск эффектов на старте.
   const isEffectActiveByButton = deviceConfig?.activeKey
-    ? allSettings[deviceConfig.activeKey] !== false
+    ? allSettings[deviceConfig.activeKey] === true
     : true;
 
-  // 2. Обновляем текущий аудио-параметр в Tone.js
-  // Если прибор выключен кнопкой (Active === false), принудительно зануляем микс wet в железе,
-  // игнорируя положение слайдера на экране. Иначе — шлём живое значение из UI.
+  // Если прибор выключен кнопкой (Active === false), принудительно зануляем микс wet в железе
   if (!isEffectActiveByButton && paramConfig.targetParam === 'wet') {
     updateEffectParam(fxNode, 'wet', 0);
   } else {
     updateEffectParam(fxNode, paramConfig.targetParam, liveValue);
   }
 
-  // 3. УМНЫЙ КОМБИНИРОВАННЫЙ БАЙПАС (Слайдер в 0 ИЛИ Кнопка в OFF)
   const mainWetParamName = Object.keys(SOUND_PARAMS).find(
     (key) =>
       SOUND_PARAMS[key].nodeKey === paramConfig.nodeKey &&
@@ -205,17 +203,23 @@ const applyEffectSettings = (
   );
 
   if (mainWetParamName) {
-    const wetValue = allSettings[mainWetParamName] ?? 0;
+    const wetValue =
+      allSettings[mainWetParamName] ??
+      SOUND_PARAMS[mainWetParamName].default ??
+      0;
     const wetParamConfig = SOUND_PARAMS[mainWetParamName];
 
+    // Условие слайдера: равен ли он нулю руками
     const isSliderAtBypassValue = checkBypassCondition(
       wetValue,
       wetParamConfig.bypassValue,
     );
 
-    const isMutedByButton = !isEffectActiveByButton;
-
-    const shouldBypass = isSliderAtBypassValue || isMutedByButton;
+    // Нода уходит в байпас (0% ЦП), если кнопка выключена (OFF)
+    // ИЛИ если кнопка включена (ON), но сам ползунок микса Wet равен нулю!
+    const shouldBypass =
+      !isEffectActiveByButton ||
+      (isEffectActiveByButton && isSliderAtBypassValue);
 
     toggleNodeBypass(fxNode, shouldBypass, wetParamConfig.label, synthName);
   }
@@ -226,7 +230,11 @@ export const applyDynamicBypass = (synthName, synthInstance, settings) => {
     .filter(([_, paramConfig]) => paramConfig.isEffect && paramConfig.nodeKey)
     .forEach(([paramName, paramConfig]) => {
       const fxNode = synthInstance[paramConfig.nodeKey];
-      const liveValue = settings[paramName];
+
+      // 🆕 БЕЗОПАСНЫЙ ПОДХВАТ ДЕФОЛТОВ ИЗ ПАСПОРТА:
+      // Если в стейте Редакса ползунка еще нет (undefined на чистых пресетах),
+      // мы берем его сочное дефолтное число прямо из SOUND_PARAMS.
+      const liveValue = settings[paramName] ?? paramConfig.default ?? 0;
 
       if (isValidEffectNode(fxNode, liveValue)) {
         applyEffectSettings(
