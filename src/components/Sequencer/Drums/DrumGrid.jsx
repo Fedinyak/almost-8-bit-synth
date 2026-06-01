@@ -1,4 +1,4 @@
-import React, { useState } from 'react'; // Добавили useState
+import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import StepIndicator from '../Controls/StepIndicator';
 import DrumCell from './DrumCell';
@@ -6,10 +6,12 @@ import DrumMonitor from '../../visualizers/DrumMonitor';
 import {
   SOUND_PARAM_GROUPS,
   DRUM_TYPE_MAP,
+  UI_EFFECTS_LIST,
+  EFFECT_DEVICES,
 } from '../../../constants/soundParamsConfig';
 import SoundParamGroup from '../Controls/SoundParamGroup';
 import { setActiveSoundControlDrumTabIndex } from '../../../slices/playerSlice';
-import { WaveformMirror } from '../Synths/WaveformMirror'; // Твой импорт
+import { WaveformMirror } from '../Synths/WaveformMirror';
 
 const DrumGrid = () => {
   const dispatch = useDispatch();
@@ -47,8 +49,9 @@ const DrumGrid = () => {
 
   const drumTypeName = DRUM_TYPE_MAP[activeDrumName] || 'Synth';
 
-  // 🆕 Локальный стейт для слежения за фокусом на барабанах
   const [activeGroup, setActiveGroup] = useState('filter');
+
+  const [activeFxTab, setActiveFxTab] = useState('crusher');
 
   return (
     <section className="sequencer">
@@ -82,7 +85,6 @@ const DrumGrid = () => {
 
       <div
         className="drum-mixer-panel"
-        // 🆕 Ловим кручение ручек на барабанах
         onChange={(e) => {
           const groupDiv = e.target.closest('.drum-param-group-container');
           if (groupDiv?.dataset?.group) {
@@ -121,7 +123,6 @@ const DrumGrid = () => {
                 {activeDrumName.toUpperCase()} CHANNEL ({drumTypeName}):
               </h5>
 
-              {/* 🆕 Теперь и на барабанах цвет волны ожил и завязан на activeGroup */}
               <WaveformMirror
                 synthName={activeDrumName}
                 activeParamGroup={activeGroup}
@@ -132,8 +133,8 @@ const DrumGrid = () => {
               />
             </div>
 
+            {/* 1. Базовые секции (Envelope и Filter) */}
             {SOUND_PARAM_GROUPS.map((group) => (
-              // Упаковываем группу барабанных параметров
               <div
                 key={`${activeDrumName}-${group.key}`}
                 className="drum-param-group-container"
@@ -148,6 +149,50 @@ const DrumGrid = () => {
                 />
               </div>
             ))}
+
+            {/* 2. 🆕 Модульный чистый рэк эффектов для барабанов */}
+            <div style={{ marginTop: '16px' }}>
+              <h6>EFFECTS RACK:</h6>
+
+              <div style={{ display: 'flex', gap: '16px' }}>
+                {/* Сортировка кнопок выбора эффекта строго вертикально слева */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                  }}
+                >
+                  {UI_EFFECTS_LIST.map((deviceKey) => {
+                    const device = EFFECT_DEVICES[deviceKey];
+                    return (
+                      <button
+                        key={deviceKey}
+                        type="button"
+                        disabled={activeFxTab === device.groupKey}
+                        onClick={() => setActiveFxTab(device.groupKey)}
+                      >
+                        {device.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Выбранные слайдеры справа */}
+                <div
+                  className="drum-param-group-container"
+                  data-group="effects"
+                >
+                  <SoundParamGroup
+                    groupKey={activeFxTab}
+                    title={`${activeFxTab.toUpperCase()}:`}
+                    className={`drum-group-fx-${activeFxTab}`}
+                    synthName={activeDrumName}
+                    instrumentSettings={activeDrumSettings}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

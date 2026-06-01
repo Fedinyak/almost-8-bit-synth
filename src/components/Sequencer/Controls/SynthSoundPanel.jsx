@@ -1,25 +1,27 @@
 import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
 import SoundParamGroup from './SoundParamGroup';
-import { SOUND_PARAM_GROUPS } from '../../../constants/soundParamsConfig';
-import { WaveformMirror } from '../Synths/WaveformMirror'; // Твой импорт
+import {
+  SOUND_PARAM_GROUPS,
+  UI_EFFECTS_LIST,
+  EFFECT_DEVICES,
+} from '../../../constants/soundParamsConfig';
+import { WaveformMirror } from '../Synths/WaveformMirror';
 
 export const SynthSoundPanel = ({ synthName }) => {
   const synthSettings = useSelector(
     (state) => state.soundSettings?.synths?.[synthName],
   );
 
-  // 🆕 Локальный стейт для слежения за фокусом группы ручек
   const [activeGroup, setActiveGroup] = useState('envelope');
+  const [activeFxTab, setActiveFxTab] = useState('crusher');
 
   if (!synthSettings) return null;
 
   return (
     <div
       style={{ padding: '8px', border: '1px solid #444', marginBottom: '10px' }}
-      // Позволяет ловить всплытие событий изменения (onChange) от любого слайдера в этой панели
       onChange={(e) => {
-        // Ищем, к какой группе принадлежит покрученная ручка через родительский div
         const groupDiv = e.target.closest('.sound-param-group-container');
         if (groupDiv?.dataset?.group) {
           setActiveGroup(groupDiv.dataset.group);
@@ -38,7 +40,6 @@ export const SynthSoundPanel = ({ synthName }) => {
           <strong>{synthName.toUpperCase()} CONTROLS:</strong>
         </div>
 
-        {/* 🆕 Теперь цвет меняется динамически на основе activeGroup! */}
         <WaveformMirror
           synthName={synthName}
           activeParamGroup={activeGroup}
@@ -46,8 +47,8 @@ export const SynthSoundPanel = ({ synthName }) => {
         />
       </div>
 
+      {/* 1. Базовые секции */}
       {SOUND_PARAM_GROUPS.map((group) => (
-        // Упаковываем группу в div с дата-атрибутом, чтобы ловить его при onChange
         <div
           key={group.key}
           className="sound-param-group-container"
@@ -62,6 +63,41 @@ export const SynthSoundPanel = ({ synthName }) => {
           />
         </div>
       ))}
+
+      {/* 2. Чистый рэк эффектов без лишних стилей */}
+      <div style={{ marginTop: '16px' }}>
+        <h6>EFFECTS RACK:</h6>
+
+        <div style={{ display: 'flex', gap: '16px' }}>
+          {/* Сортировка кнопок слева в вертикальный ряд */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {UI_EFFECTS_LIST.map((deviceKey) => {
+              const device = EFFECT_DEVICES[deviceKey];
+              return (
+                <button
+                  key={deviceKey}
+                  type="button"
+                  disabled={activeFxTab === device.groupKey}
+                  onClick={() => setActiveFxTab(device.groupKey)}
+                >
+                  {device.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Слайдеры выбранного эффекта справа */}
+          <div className="sound-param-group-container" data-group="effects">
+            <SoundParamGroup
+              groupKey={activeFxTab}
+              title={`${activeFxTab.toUpperCase()}:`}
+              className={`group-fx-${activeFxTab}`}
+              synthName={synthName}
+              instrumentSettings={synthSettings}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

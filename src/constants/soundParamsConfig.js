@@ -16,7 +16,6 @@ const RANGE_FILTER_HZ = { min: 20, max: 10000, step: 10 };
 export const SOUND_PARAM_GROUPS = [
   { key: 'envelope', label: 'ENVELOPE:' },
   { key: 'filter', label: 'FILTER:' },
-  { key: 'effects', label: 'EFFECTS:' },
 ];
 
 const ALL_ENGINES = ['monoSynth', 'membraneSynth', 'noiseSynth', 'metalSynth'];
@@ -75,7 +74,7 @@ export const SOUND_PARAMS = {
     label: 'CUTOFF HZ',
     isEffect: true,
     nodeKey: 'fxFilter',
-    targetParam: 'frequency', // Указываем целевое свойство
+    targetParam: 'frequency',
     bypassValue: 10000,
     group: 'filter',
     supportedEngines: ALL_ENGINES,
@@ -108,7 +107,7 @@ export const SOUND_PARAMS = {
     nodeKey: 'fxBitcrusher',
     targetParam: 'wet',
     bypassValue: 0.0,
-    group: 'effects',
+    group: 'crusher',
     supportedEngines: ALL_ENGINES,
   },
   bitcrusherBits: {
@@ -120,20 +119,19 @@ export const SOUND_PARAMS = {
     isEffect: true,
     nodeKey: 'fxBitcrusher',
     targetParam: 'bits',
-    group: 'effects',
+    group: 'crusher',
     supportedEngines: ALL_ENGINES,
   },
 
-  // --- РУЧКИ ДИСТОРШНА ---
   distortionWet: {
     ...RANGE_MIX_WET,
     default: 0.0,
     label: 'DISTORTION MIX',
     isEffect: true,
     nodeKey: 'fxDistortion',
-    targetParam: 'wet', // Отвечает за байпас
+    targetParam: 'wet',
     bypassValue: 0.0,
-    group: 'effects',
+    group: 'distortion',
     supportedEngines: ALL_ENGINES,
   },
   distortionDrive: {
@@ -145,20 +143,19 @@ export const SOUND_PARAMS = {
     isEffect: true,
     nodeKey: 'fxDistortion',
     targetParam: 'distortion',
-    group: 'effects',
+    group: 'distortion',
     supportedEngines: ALL_ENGINES,
   },
 
-  // --- РУЧКИ ДИЛЕЯ (ЭХО) ---
   delayWet: {
     ...RANGE_MIX_WET,
     default: 0.0,
     label: 'DELAY MIX',
     isEffect: true,
     nodeKey: 'fxDelay',
-    targetParam: 'wet', // Отвечает за байпас
+    targetParam: 'wet',
     bypassValue: 0.0,
-    group: 'effects',
+    group: 'delay',
     supportedEngines: ALL_ENGINES,
   },
   delayFeedback: {
@@ -170,7 +167,7 @@ export const SOUND_PARAMS = {
     isEffect: true,
     nodeKey: 'fxDelay',
     targetParam: 'feedback',
-    group: 'effects',
+    group: 'delay',
     supportedEngines: ALL_ENGINES,
   },
 };
@@ -241,25 +238,37 @@ export const EFFECT_DEVICES = {
     nodeKey: 'fxBitcrusher',
     ClassRef: Tone.BitCrusher,
     defaultParams: { bits: 4 },
+    label: 'BITCRUSHER',
+    groupKey: 'crusher',
   },
   distortion: {
     nodeKey: 'fxDistortion',
     ClassRef: Tone.Distortion,
     defaultParams: { distortion: 1.5, oversample: '4x' },
+    label: 'DISTORTION',
+    groupKey: 'distortion',
   },
   filter: {
     nodeKey: 'fxFilter',
     ClassRef: Tone.Filter,
     defaultParams: { type: 'lowpass', frequency: 10000 },
+    label: 'FILTER',
+    groupKey: 'filter',
   },
   delay: {
     nodeKey: 'fxDelay',
     ClassRef: Tone.FeedbackDelay,
     defaultParams: { delayTime: '8n', feedback: 0.25 },
+    label: 'DELAY',
+    groupKey: 'delay',
   },
 };
 
+// Цепочка прохождения звука в движке
 export const DRUM_EFFECTS_CHAIN = ['crusher', 'distortion', 'filter', 'delay'];
+
+// Изолированный список только для FX-рэка в UI (чтобы фильтр не лез в список эффектов, он отдельным табом)
+export const UI_EFFECTS_LIST = ['crusher', 'distortion', 'delay'];
 
 export const SYNTH_PRESETS = {
   synth1: {
