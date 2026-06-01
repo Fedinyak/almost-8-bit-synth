@@ -29,28 +29,28 @@ export const SOUND_PARAMS = {
     default: AUDIO_DEFAULT_ATTACK,
     label: 'ATTACK',
     group: 'envelope',
-    supportedEngines: ALL_ENGINES, // Нужна всем
+    supportedEngines: ALL_ENGINES,
   },
   decay: {
     ...RANGE_TIME_ADR,
     default: AUDIO_DEFAULT_DECAY,
     label: 'DECAY',
     group: 'envelope',
-    supportedEngines: ALL_ENGINES, // Нужна всем
+    supportedEngines: ALL_ENGINES,
   },
   sustain: {
     ...RANGE_MIX_WET,
     default: AUDIO_DEFAULT_SUSTAIN,
     label: 'SUSTAIN',
     group: 'envelope',
-    supportedEngines: ['monoSynth'], // Сустейн есть только у синтов
+    supportedEngines: ['monoSynth'],
   },
   release: {
     ...RANGE_TIME_ADR,
     default: AUDIO_DEFAULT_RELEASE,
     label: 'RELEASE',
     group: 'envelope',
-    supportedEngines: ['monoSynth', 'membraneSynth'], // Есть у синтов, бочки и томов. У шума/металла релиза нет
+    supportedEngines: ['monoSynth', 'membraneSynth'],
   },
   volume: {
     ...RANGE_VOLUME_DB,
@@ -66,7 +66,7 @@ export const SOUND_PARAMS = {
     default: 0.0,
     label: 'GLIDE (GLIDE/PORTAMENTO)',
     group: 'envelope',
-    supportedEngines: ['monoSynth'], // Глайд только у синтов
+    supportedEngines: ['monoSynth'],
   },
 
   filterCutoff: {
@@ -75,9 +75,10 @@ export const SOUND_PARAMS = {
     label: 'CUTOFF HZ',
     isEffect: true,
     nodeKey: 'fxFilter',
+    targetParam: 'frequency', // Указываем целевое свойство
     bypassValue: 10000,
     group: 'filter',
-    supportedEngines: ALL_ENGINES, // Наш внешний fxFilter привязан ко всем
+    supportedEngines: ALL_ENGINES,
   },
   filterQ: {
     min: 1.0,
@@ -86,7 +87,8 @@ export const SOUND_PARAMS = {
     default: 1.0,
     label: 'RESONANCE (Q)',
     group: 'filter',
-    supportedEngines: ALL_ENGINES, // Есть у всех
+    targetParam: 'Q',
+    supportedEngines: ALL_ENGINES,
   },
   filterEnvOctaves: {
     min: 0.0,
@@ -95,7 +97,7 @@ export const SOUND_PARAMS = {
     default: 0.0,
     label: 'ENV MOD (OCTAVES)',
     group: 'filter',
-    supportedEngines: ['monoSynth'], // Огибающая фильтра встроена только в синты
+    supportedEngines: ['monoSynth'],
   },
 
   bitcrusherWet: {
@@ -104,27 +106,70 @@ export const SOUND_PARAMS = {
     label: 'CRUSHER MIX',
     isEffect: true,
     nodeKey: 'fxBitcrusher',
+    targetParam: 'wet',
     bypassValue: 0.0,
     group: 'effects',
     supportedEngines: ALL_ENGINES,
   },
+  bitcrusherBits: {
+    min: 1,
+    max: 8,
+    step: 1,
+    default: 4,
+    label: 'CRUSHER BITS',
+    isEffect: true,
+    nodeKey: 'fxBitcrusher',
+    targetParam: 'bits',
+    group: 'effects',
+    supportedEngines: ALL_ENGINES,
+  },
+
+  // --- РУЧКИ ДИСТОРШНА ---
   distortionWet: {
     ...RANGE_MIX_WET,
     default: 0.0,
     label: 'DISTORTION MIX',
     isEffect: true,
     nodeKey: 'fxDistortion',
+    targetParam: 'wet', // Отвечает за байпас
     bypassValue: 0.0,
     group: 'effects',
     supportedEngines: ALL_ENGINES,
   },
+  distortionDrive: {
+    min: 0.0,
+    max: 2.0,
+    step: 0.1,
+    default: 1.5,
+    label: 'DISTORTION DRIVE',
+    isEffect: true,
+    nodeKey: 'fxDistortion',
+    targetParam: 'distortion',
+    group: 'effects',
+    supportedEngines: ALL_ENGINES,
+  },
+
+  // --- РУЧКИ ДИЛЕЯ (ЭХО) ---
   delayWet: {
     ...RANGE_MIX_WET,
     default: 0.0,
     label: 'DELAY MIX',
     isEffect: true,
     nodeKey: 'fxDelay',
+    targetParam: 'wet', // Отвечает за байпас
     bypassValue: 0.0,
+    group: 'effects',
+    supportedEngines: ALL_ENGINES,
+  },
+  delayFeedback: {
+    min: 0.0,
+    max: 0.95,
+    step: 0.05,
+    default: 0.25,
+    label: 'DELAY FEEDBACK',
+    isEffect: true,
+    nodeKey: 'fxDelay',
+    targetParam: 'feedback',
     group: 'effects',
     supportedEngines: ALL_ENGINES,
   },
@@ -132,7 +177,7 @@ export const SOUND_PARAMS = {
 
 export const DRUM_PRESETS = {
   kick: {
-    engineType: 'membraneSynth', // 🆕 Маркируем тип движка
+    engineType: 'membraneSynth',
     volume: -10,
     attack: 0.005,
     decay: 0.12,
@@ -226,9 +271,12 @@ export const SYNTH_PRESETS = {
     sustain: 0.3,
     release: 0.15,
     filterCutoff: 4500,
-    delayWet: 0.25,
     bitcrusherWet: 0.15,
+    bitcrusherBits: 4,
     distortionWet: 0.0,
+    distortionDrive: 1.5,
+    delayWet: 0.25,
+    delayFeedback: 0.25,
     synthGlide: 0.0,
     filterQ: 1.0,
     filterEnvOctaves: 0.0,
@@ -242,9 +290,12 @@ export const SYNTH_PRESETS = {
     sustain: 0.6,
     release: 0.2,
     filterCutoff: 800,
-    delayWet: 0.0,
     bitcrusherWet: 0.0,
+    bitcrusherBits: 4,
     distortionWet: 0.0,
+    distortionDrive: 1.5,
+    delayWet: 0.0,
+    delayFeedback: 0.25,
     synthGlide: 0.0,
     filterQ: 1.0,
     filterEnvOctaves: 0.0,

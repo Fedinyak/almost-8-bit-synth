@@ -86,7 +86,7 @@ export const updateInstrumentEnvelope = (instrument, settings) => {
     instrument.portamento = settings.synthGlide;
   }
 
-  // 1. Если это СИНТ (MonoSynth) — крутим параметры его ВНУТРЕННЕГО фильтра
+  // Если это СИНТ (MonoSynth) — крутим параметры его ВНУТРЕННЕГО фильтра
   if (settings.filterQ !== undefined && instrument.filter) {
     instrument.filter.Q.value = settings.filterQ;
   }
@@ -113,7 +113,7 @@ export const applySynthEnvelope = (synthInstance, settings) => {
   const nativeInstrument = synthInstance?.instrument;
   if (!nativeInstrument || !settings) return;
 
-  // 2. Если это БАРАБАН — у него есть ВНЕШНИЙ фильтр fxFilter в контейнере эффектов!
+  // Если это БАРАБАН — у него есть ВНЕШНИЙ фильтр fxFilter в контейнере эффектов!
   // Крутим срез (Cutoff) и резонанс (Q) внешнего фильтра, если они покручены в UI
   if (synthInstance.fxFilter) {
     if (settings.filterCutoff !== undefined) {
@@ -128,11 +128,23 @@ export const applySynthEnvelope = (synthInstance, settings) => {
   updateInstrumentEnvelope(nativeInstrument, settings);
 };
 
-export const updateEffectMix = (fxNode, value) => {
-  if (fxNode.frequency) {
-    fxNode.frequency.value = value;
-  } else {
+// 🆕 УНИВЕРСАЛЬНЫЙ РОУТЕР ПАРАМЕТРОВ ЭФФЕКТОВ НА ОСНОВЕ ПАСПОРТА РУЧКИ:
+export const updateEffectParam = (fxNode, targetParam, value) => {
+  if (!fxNode || !targetParam) return;
+
+  // В Tone.js параметры могут быть плоскими свойствами или объектами AudioParam (со свойством .value)
+  if (targetParam === 'wet') {
     fxNode.set({ wet: value });
+  } else if (targetParam === 'frequency' && fxNode.frequency) {
+    fxNode.frequency.value = value;
+  } else if (targetParam === 'Q' && fxNode.Q) {
+    fxNode.Q.value = value;
+  } else if (targetParam === 'bits') {
+    fxNode.bits = value; // Для BitCrusher
+  } else if (targetParam === 'distortion') {
+    fxNode.distortion = value; // Для Distortion
+  } else if (targetParam === 'feedback' && fxNode.feedback) {
+    fxNode.feedback.value = value; // Для FeedbackDelay
   }
 };
 
@@ -162,11 +174,34 @@ const isValidEffectNode = (fxNode, liveValue) => {
   return fxNode && typeof liveValue === 'number';
 };
 
-const applyEffectSettings = (fxNode, liveValue, paramConfig, synthName) => {
-  updateEffectMix(fxNode, liveValue);
+const applyEffectSettings = (
+  fxNode,
+  liveValue,
+  paramConfig,
+  synthName,
+  allSettings,
+) => {
+  // 1. Обновляем текущий параметр (будь то микс, фидбек или драйв)
+  updateEffectParam(fxNode, paramConfig.targetParam, liveValue);
 
-  const shouldBypass = checkBypassCondition(liveValue, paramConfig.bypassValue);
-  toggleNodeBypass(fxNode, shouldBypass, paramConfig.label, synthName);
+  // 2. АППАРТНЫЙ БАЙПАС ПРИВЯЗЫВАЕМ СТРОГО К РУЧКЕ МИКСА (WET) ЭТОГО ПРИБОРА!
+  // Вытаскиваем имя главной ручки микса для текущего nodeKey из паспорта
+  const mainWetParamName = Object.keys(SOUND_PARAMS).find(
+    (key) =>
+      SOUND_PARAMS[key].nodeKey === paramConfig.nodeKey &&
+      SOUND_PARAMS[key].targetParam === 'wet',
+  );
+
+  if (mainWetParamName) {
+    const wetValue = allSettings[mainWetParamName] ?? 0;
+    const wetParamConfig = SOUND_PARAMS[mainWetParamName];
+
+    const shouldBypass = checkBypassCondition(
+      wetValue,
+      wetParamConfig.bypassValue,
+    );
+    toggleNodeBypass(fxNode, shouldBypass, wetParamConfig.label, synthName);
+  }
 };
 
 export const applyDynamicBypass = (synthName, synthInstance, settings) => {
@@ -177,7 +212,14 @@ export const applyDynamicBypass = (synthName, synthInstance, settings) => {
       const liveValue = settings[paramName];
 
       if (isValidEffectNode(fxNode, liveValue)) {
-        applyEffectSettings(fxNode, liveValue, paramConfig, synthName);
+        // Передаем весь объект настроек, чтобы функция могла проверить ручку микса
+        applyEffectSettings(
+          fxNode,
+          liveValue,
+          paramConfig,
+          synthName,
+          settings,
+        );
       }
     });
 };

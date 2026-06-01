@@ -1,6 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 
-export const WaveformMirror = ({ synthName, instrumentSettings }) => {
+export const WaveformMirror = ({
+  synthName,
+  activeParamGroup,
+  instrumentSettings,
+}) => {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -27,11 +31,13 @@ export const WaveformMirror = ({ synthName, instrumentSettings }) => {
     ctx.lineTo(width, centerY);
     ctx.stroke();
 
-    // 1. ВЫТАСКИВАЕМ ПАРАМЕТРЫ ИЗ REDUX
-    const crusherWet =
-      instrumentSettings?.bitcrusherWet ?? instrumentSettings?.crusherWet ?? 0;
-    const distortionWet =
-      instrumentSettings?.distortionWet ?? instrumentSettings?.distWet ?? 0;
+    // 1. ВЫТАСКИВАЕМ ВСЕ ПАРАМЕТРЫ ИЗ REDUX (включая новые ручки)
+    const crusherWet = instrumentSettings?.bitcrusherWet ?? 0;
+    const crusherBits = instrumentSettings?.bitcrusherBits ?? 4; // 🆕 Считываем ручку BITS (дефолт 4)
+
+    const distortionWet = instrumentSettings?.distortionWet ?? 0;
+    const distortionDrive = instrumentSettings?.distortionDrive ?? 1.5; // 🆕 Считываем ручку DRIVE (дефолт 1.5)
+
     const cutoffHz = instrumentSettings?.filterCutoff ?? 10000;
     const filterQ = instrumentSettings?.filterQ ?? 1;
     const filterEnvOctaves = instrumentSettings?.filterEnvOctaves ?? 0;
@@ -68,24 +74,33 @@ export const WaveformMirror = ({ synthName, instrumentSettings }) => {
 
     // 3. СКВОЗНОЙ КОНВЕЙЕР ДЕФОРМАЦИИ
 
-    // --- Шаг А: Биткрашер ---
+    // --- Шаг А: Биткрашер (Квантование на основе ручки BITS) ---
     if (crusherWet > 0) {
-      const steps = Math.max(2, Math.round(32 * Math.pow(1 - crusherWet, 2)));
+      // 🆕 Вместо слепой математики завязываемся на реальное положение ручки CRUSHER BITS
+      // Чем меньше бит выставлено на панели — тем меньше ступенек на графике (минимум 2)
+      const steps = Math.max(2, Math.round(Math.pow(2, crusherBits)));
       wavePoints = wavePoints.map((p) => {
         const steppedY = Math.round(p.y * steps) / steps;
         return { x: p.x, y: p.y * (1 - crusherWet) + steppedY * crusherWet };
       });
     }
 
-    // --- Шаг Б: Дисторшн ---
+    // --- Шаг Б: Дисторшн (Hard Clipping на основе ручки DRIVE) ---
     if (distortionWet > 0) {
-      const limit = 1 - distortionWet * 0.7;
+      // 🆕 Уровень среза теперь динамически зависит от DISTORTION DRIVE
+      // Чем выше драйв — тем сильнее распирает сигнал и сильнее срезаются пики
+      const limit = Math.max(0.1, 1 / (1 + distortionDrive * 2));
       wavePoints = wavePoints.map((p) => {
-        const clippedY = Math.min(
-          limit,
-          Math.max(-limit, p.y * (1 + distortionWet * 2)),
-        );
-        return { x: p.x, y: clippedY };
+        // Усиливаем амплитуду волны драйвом и жестко зажимаем в рамки лимита
+        const boostedY = p.y * (1 + distortionDrive * 3);
+        const clippedY = Math.min(limit, Math.max(-limit, boostedY));
+
+        // Масштабируем обратно к размерам холста и подмешиваем по Wet
+        const finalY = clippedY * (1 / limit);
+        return {
+          x: p.x,
+          y: p.y * (1 - distortionWet) + finalY * distortionWet,
+        };
       });
     }
 
@@ -115,10 +130,10 @@ export const WaveformMirror = ({ synthName, instrumentSettings }) => {
     }
 
     // 4. ОТРИСОВКА ОДНОЙ СТАБИЛЬНОЙ ЗЕЛИНОЙ ВОЛНЫ
-    ctx.strokeStyle = '#00ffaa'; // Всегда классический неоново-зеленый осциллограф
+    ctx.strokeStyle = '#00ffaa';
     ctx.lineWidth = 2.5;
     ctx.shadowBlur = 5;
-    ctx.shadowColor = '#00ffaa'; // Вкусное свечение лучевой трубки
+    ctx.shadowColor = '#00ffaa';
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
@@ -131,7 +146,7 @@ export const WaveformMirror = ({ synthName, instrumentSettings }) => {
     ctx.stroke();
 
     ctx.shadowBlur = 0;
-  }, [synthName, instrumentSettings]); // Лишний проп activeParamGroup выкинули из зависимостей
+  }, [synthName, instrumentSettings]);
 
   return (
     <div
