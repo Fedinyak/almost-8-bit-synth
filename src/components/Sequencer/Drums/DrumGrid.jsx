@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react'; // Добавили useState
 import { useSelector, useDispatch } from 'react-redux';
 import StepIndicator from '../Controls/StepIndicator';
 import DrumCell from './DrumCell';
@@ -9,6 +9,7 @@ import {
 } from '../../../constants/soundParamsConfig';
 import SoundParamGroup from '../Controls/SoundParamGroup';
 import { setActiveSoundControlDrumTabIndex } from '../../../slices/playerSlice';
+import { WaveformMirror } from '../Synths/WaveformMirror'; // Твой импорт
 
 const DrumGrid = () => {
   const dispatch = useDispatch();
@@ -46,6 +47,9 @@ const DrumGrid = () => {
 
   const drumTypeName = DRUM_TYPE_MAP[activeDrumName] || 'Synth';
 
+  // 🆕 Локальный стейт для слежения за фокусом на барабанах
+  const [activeGroup, setActiveGroup] = useState('filter');
+
   return (
     <section className="sequencer">
       <h3>isFollowMode {`${isFollowMode}`}</h3>
@@ -76,7 +80,16 @@ const DrumGrid = () => {
         })}
       </div>
 
-      <div className="drum-mixer-panel">
+      <div
+        className="drum-mixer-panel"
+        // 🆕 Ловим кручение ручек на барабанах
+        onChange={(e) => {
+          const groupDiv = e.target.closest('.drum-param-group-container');
+          if (groupDiv?.dataset?.group) {
+            setActiveGroup(groupDiv.dataset.group);
+          }
+        }}
+      >
         <h4>DRUM CONTROLS:</h4>
 
         <div
@@ -96,19 +109,44 @@ const DrumGrid = () => {
 
         {activeDrumName && (
           <div key={`${activeDrumName}-channel-active`}>
-            <h5>
-              {activeDrumName.toUpperCase()} CHANNEL ({drumTypeName}):
-            </h5>
+            <div
+              style={{
+                display: 'flex',
+                // justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '12px',
+              }}
+            >
+              <h5 style={{ margin: 0 }}>
+                {activeDrumName.toUpperCase()} CHANNEL ({drumTypeName}):
+              </h5>
+
+              {/* 🆕 Теперь и на барабанах цвет волны ожил и завязан на activeGroup */}
+              <WaveformMirror
+                synthName={activeDrumName}
+                activeParamGroup={activeGroup}
+                instrumentSettings={{
+                  ...activeDrumSettings,
+                  oscillatorType: drumTypeName,
+                }}
+              />
+            </div>
 
             {SOUND_PARAM_GROUPS.map((group) => (
-              <SoundParamGroup
+              // Упаковываем группу барабанных параметров
+              <div
                 key={`${activeDrumName}-${group.key}`}
-                groupKey={group.key}
-                title={group.label}
-                className={`drum-group-${group.key}`}
-                synthName={activeDrumName}
-                instrumentSettings={activeDrumSettings}
-              />
+                className="drum-param-group-container"
+                data-group={group.key}
+              >
+                <SoundParamGroup
+                  groupKey={group.key}
+                  title={group.label}
+                  className={`drum-group-${group.key}`}
+                  synthName={activeDrumName}
+                  instrumentSettings={activeDrumSettings}
+                />
+              </div>
             ))}
           </div>
         )}
