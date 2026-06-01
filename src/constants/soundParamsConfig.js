@@ -21,7 +21,7 @@ export const SOUND_PARAM_GROUPS = [
 
 export const SOUND_PARAMS = {
   attack: {
-    min: 0.005, // Оставляем защитный микро-минимум от щелчка на старте ноты
+    min: 0.005, // Оставляем protective микро-минимум от щелчка на старте ноты
     max: 2.0,
     step: 0.005,
     default: AUDIO_DEFAULT_ATTACK,
@@ -59,7 +59,7 @@ export const SOUND_PARAMS = {
     label: 'CUTOFF HZ',
     isEffect: true,
     nodeKey: 'fxFilter',
-    bypassValue: 10000, // В крайнем положении фильтр полностью усыпляется, экономя ЦП
+    bypassValue: 10000,
     group: 'filter',
   },
 
@@ -69,6 +69,15 @@ export const SOUND_PARAMS = {
     label: 'CRUSHER MIX',
     isEffect: true,
     nodeKey: 'fxBitcrusher',
+    bypassValue: 0.0,
+    group: 'effects',
+  },
+  distortionWet: {
+    ...RANGE_MIX_WET,
+    default: 0.0,
+    label: 'DISTORTION MIX',
+    isEffect: true,
+    nodeKey: 'fxDistortion',
     bypassValue: 0.0,
     group: 'effects',
   },
@@ -142,6 +151,11 @@ export const EFFECT_DEVICES = {
     ClassRef: Tone.BitCrusher,
     defaultParams: { bits: 4 },
   },
+  distortion: {
+    nodeKey: 'fxDistortion',
+    ClassRef: Tone.Distortion,
+    defaultParams: { distortion: 1.5, oversample: '4x' },
+  },
   filter: {
     nodeKey: 'fxFilter',
     ClassRef: Tone.Filter,
@@ -154,7 +168,7 @@ export const EFFECT_DEVICES = {
   },
 };
 
-export const DRUM_EFFECTS_CHAIN = ['crusher', 'filter', 'delay'];
+export const DRUM_EFFECTS_CHAIN = ['crusher', 'distortion', 'filter', 'delay'];
 
 export const SYNTH_PRESETS = {
   synth1: {
@@ -167,6 +181,7 @@ export const SYNTH_PRESETS = {
     filterCutoff: 4500,
     delayWet: 0.25,
     bitcrusherWet: 0.15,
+    distortionWet: 0.0,
   },
   synth2: {
     oscillatorType: 'triangle',
@@ -178,6 +193,7 @@ export const SYNTH_PRESETS = {
     filterCutoff: 800,
     delayWet: 0.0,
     bitcrusherWet: 0.0,
+    distortionWet: 0.0,
   },
 };
 
