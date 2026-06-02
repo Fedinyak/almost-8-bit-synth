@@ -7,17 +7,20 @@ export const AudioParamControl = ({
   paramName,
   config,
   initialValue,
-  instrumentSettings, // 🆕 Передаем весь объект настроек, чтобы прочитать engineType
+  instrumentSettings, // Передаем весь объект настроек, чтобы прочитать engineType
 }) => {
   const dispatch = useDispatch();
 
   const sliderValue = initialValue ?? config.defaultValue ?? 0;
-  const isEffect = config.isEffect && config.nodeKey;
 
-  const bypassTarget =
-    typeof config.bypassValue === 'number' ? config.bypassValue : 0;
+  // Индикатор рендерится ТОЛЬКО для главных ручек эффектов, которые управляют байпасом (у них есть bypassValue)
+  const hasBypassIndicator =
+    config.isEffect && typeof config.bypassValue === 'number';
 
-  const isEffectActive = isEffect ? sliderValue !== bypassTarget : false;
+  // Логика активности лампочки: горит, если текущее значение не равно значению усыпления (bypassValue)
+  const isEffectActive = hasBypassIndicator
+    ? sliderValue !== config.bypassValue
+    : false;
 
   // 🧱 АБСОЛЮТНО ЧЕСТНЫЙ DATA-DRIVEN ДИЗЕЙБЛ:
   // Извлекаем тип движка текущего прибора ('monoSynth', 'metalSynth' и т.д.)
@@ -45,7 +48,8 @@ export const AudioParamControl = ({
         pointerEvents: isParamDisabled ? 'none' : 'auto',
       }}
     >
-      {isEffect && (
+      {/* Лампочка рендерится только у 4 главных управляющих ручек */}
+      {hasBypassIndicator && (
         <div
           style={{
             width: '8px',
@@ -63,7 +67,8 @@ export const AudioParamControl = ({
         style={{
           display: 'inline-block',
           width: '100px',
-          marginLeft: isEffect ? '0' : '16px',
+          // Если лампочки нет, делаем отступ в 16px (8px ширина лампочки + 8px gap), чтобы выровнять текст всех ручек в один ряд
+          marginLeft: hasBypassIndicator ? '0' : '16px',
           color: isParamDisabled ? '#777777' : 'inherit',
         }}
       >
