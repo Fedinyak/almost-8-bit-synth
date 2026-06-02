@@ -48,7 +48,8 @@ const EFFECT_TRANSFORMERS = {
   },
 
   filter: (points, settings) => {
-    const cutoffHz = settings?.filterCutoff ?? 10000;
+    // ПОЧИНЕНО: Подвязываемся под новое имя ручки из паспорта параметров
+    const cutoffHz = settings?.filterLowpassCutoff ?? 10000;
     const filterQ = settings?.filterQ ?? 1;
 
     if (cutoffHz >= 9500 && filterQ <= 1) return points;
@@ -73,6 +74,57 @@ const EFFECT_TRANSFORMERS = {
       smoothedPoints.push({ ...points[i], y: targetY });
     }
     return smoothedPoints;
+  },
+
+  // Временный пропуск для highpass-ноды в визуализаторе, чтобы конвейер не ругался
+  filterHigh: (points) => points,
+
+  // 🆕 СТИЛЬНАЯ ВИЗУАЛИЗАЦИЯ КЛАССИЧЕСКОГО ДИЛЕЯ
+  delay: (points, settings) => {
+    const isActive = settings?.delayActive ?? true;
+    const wet = settings?.delayWet ?? 0;
+    if (!isActive || wet <= 0) return points;
+
+    const feedback = settings?.delayFeedback ?? 0.4;
+    const timeIndex = settings?.delayTime ?? 2; // Берем индекс (0 - длинный, 4 - короткий)
+
+    // Чем меньше индекс (длиннее дилей), тем больше физический сдвиг эха по оси X
+    const shiftSamples = Math.max(4, (5 - timeIndex) * 8);
+
+    return points.map((p, i) => {
+      // Ищем предыдущую точку в истории буфера на расстоянии shiftSamples
+      const pastPoint = points[i - shiftSamples];
+      const echoY = pastPoint ? pastPoint.y * feedback : 0;
+
+      // Подмешиваем затухающее эхо к основному сигналу по правилу Wet микса
+      return {
+        ...p,
+        y: p.y * (1 - wet) + (p.y + echoY) * wet,
+      };
+    });
+  },
+
+  // 🆕 СТИЛЬНАЯ ВИЗУАЛИЗАЦИЯ ПИНГ-ПОНГ ДИЛЕЯ
+  pingpong: (points, settings) => {
+    const isActive = settings?.pingpongActive ?? true;
+    const wet = settings?.pingpongWet ?? 0;
+    if (!isActive || wet <= 0) return points;
+
+    const feedback = settings?.pingpongFeedback ?? 0.3;
+    const timeIndex = settings?.pingpongTime ?? 2;
+
+    // Пинг-понг летает по каналам, сделаем его сдвиг чуть более асимметричным
+    const shiftSamples = Math.max(6, (5 - timeIndex) * 11);
+
+    return points.map((p, i) => {
+      const pastPoint = points[i - shiftSamples];
+      const echoY = pastPoint ? pastPoint.y * feedback : 0;
+
+      return {
+        ...p,
+        y: p.y * (1 - wet) + (p.y + echoY) * wet,
+      };
+    });
   },
 };
 

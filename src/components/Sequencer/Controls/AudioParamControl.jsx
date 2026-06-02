@@ -1,6 +1,9 @@
 import React from 'react';
 import { useDispatch } from 'react-redux';
 import { updateSynthParam } from '../../../slices/soundSettingsSlice';
+// ИМПОРТИРУЕМ ГЛОБАЛЬНЫЕ СЛОВАРЬ МАТПИНГОВ И РЕЕСТР ДВИЖКОВ (из visualizerState или твоего общего файла реестра)
+import { TEXT_PARAM_DICTIONARIES } from '../../../constants/soundParamsConfig';
+import { synthEnginesRegistry } from '../../../utility/visualizerState'; // Поправь путь к реестру, если visualizerState лежит в другом месте
 
 export const AudioParamControl = ({
   synthName,
@@ -12,6 +15,12 @@ export const AudioParamControl = ({
   const dispatch = useDispatch();
 
   const sliderValue = initialValue ?? config.defaultValue ?? 0;
+
+  // Извлекаем текстовый словарь, если этот параметр помечен как текстовый
+  const targetDictionary =
+    config.isTextParam && config.dictionaryKey
+      ? TEXT_PARAM_DICTIONARIES[config.dictionaryKey]
+      : null;
 
   // Индикатор рендерится ТОЛЬКО для главных ручек эффектов, которые управляют байпасом (у них есть bypassValue)
   const hasBypassIndicator =
@@ -34,7 +43,31 @@ export const AudioParamControl = ({
   const handleChange = (e) => {
     if (isParamDisabled) return;
     const newValue = Number(e.target.value);
+
+    // 1. Отправляем в Redux синхронное число-индекс (0, 1, 2...), чтобы стор не лагал
     dispatch(updateSynthParam({ synthName, paramName, value: newValue }));
+
+    // 2. ПРЯМОЙ LIVE-ПРОВОД ДЛЯ СТРОКОВЫХ ПАРАМЕТРОВ TONE.JS
+    if (targetDictionary) {
+      // Ищем инстанс играющего синта в глобальном shared-реестре
+      const synthInstance = synthEnginesRegistry
+        ? synthEnginesRegistry[synthName]
+        : null;
+      const fxNode = synthInstance ? synthInstance[config.nodeKey] : null;
+
+      if (fxNode) {
+        // Достаем из справочника точную строковую команду, которую ждет Tone.js ('4x', '8n' и т.д.)
+        const audioStringValue = targetDictionary.audioValues[newValue];
+
+        // Передаем строку напрямую в свойство аудио-ноды без захода в редьюсер
+        // if (audioStringValue !== undefined) {
+        //   fxNode[config.targetParam] = audioStringValue;
+        // }
+        if (audioStringValue !== undefined) {
+          fxNode.set({ [config.targetParam]: audioStringValue });
+        }
+      }
+    }
   };
 
   return (
@@ -92,7 +125,12 @@ export const AudioParamControl = ({
           color: isParamDisabled ? '#777777' : 'inherit',
         }}
       >
-        {typeof sliderValue === 'number' ? sliderValue.toFixed(3) : '0.000'}
+        {/* КРАСИВЫЙ МУЗЫКАЛЬНЫЙ ВЫВОД: Если параметр текстовый — берем строку по индексу, иначе крутим число */}
+        {targetDictionary
+          ? (targetDictionary.options[sliderValue] ?? 'error')
+          : typeof sliderValue === 'number'
+            ? sliderValue.toFixed(3)
+            : '0.000'}
       </span>
     </div>
   );

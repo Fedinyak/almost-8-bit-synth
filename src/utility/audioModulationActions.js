@@ -1,7 +1,12 @@
 import * as Tone from 'tone';
 import { checkBypassCondition } from './audioMathUtils';
 import { synthAnalysers } from './visualizerState';
-import { SOUND_PARAMS, EFFECT_DEVICES } from '../constants/soundParamsConfig';
+// 🆕 ДОБАВЛЕН ИМПОРТ ТЕКСТОВЫХ СЛОВАРЕЙ ИЗ ПАСПОРТА КОНФИГА
+import {
+  SOUND_PARAMS,
+  EFFECT_DEVICES,
+  TEXT_PARAM_DICTIONARIES,
+} from '../constants/soundParamsConfig';
 import {
   ANALYSER_TYPE,
   ANALYSER_SIZE,
@@ -156,17 +161,44 @@ export const updateEffectParam = (fxNode, targetParam, value) => {
     return;
   }
 
+  // 🆕 ИНТЕГРАЦИЯ ТЕКСТОВЫХ СЛОВАРЕЙ ДЛЯ ИНИЦИАЛИЗАЦИИ И АВТОМАТИЗАЦИИ СТЕЙТА:
+  // Ищем текущий параметр в паспорте SOUND_PARAMS по совпадению nodeKey и targetParam
+  const paramConfig = Object.values(SOUND_PARAMS).find(
+    (p) =>
+      p.nodeKey === fxNode.name ||
+      (fxNode.label && p.nodeKey === fxNode.label) ||
+      p.targetParam === targetParam,
+  );
+
+  let finalValue = value;
+
+  // Если в паспорте указано, что параметр текстовый — преобразуем прилетевший числовой индекс в сочную строку
+  if (paramConfig?.isTextParam && paramConfig.dictionaryKey) {
+    const dict = TEXT_PARAM_DICTIONARIES[paramConfig.dictionaryKey];
+    if (dict && dict.audioValues[value] !== undefined) {
+      finalValue = dict.audioValues[value];
+
+      // Передаем строку через .set() или прямым присвоением свойства
+      if (typeof fxNode.set === 'function') {
+        fxNode.set({ [targetParam]: finalValue });
+      } else {
+        fxNode[targetParam] = finalValue;
+      }
+      return;
+    }
+  }
+
   const paramNode = fxNode[targetParam];
   if (paramNode === undefined) return;
 
   // 2. Универсальное сглаживание для всех нативных AudioParam (frequency, Q, feedback, delayTime и т.д.)
   if (paramNode && typeof paramNode.rampTo === 'function') {
-    paramNode.rampTo(value, 0.05);
+    paramNode.rampTo(finalValue, 0.05);
     return;
   }
 
   // 3. Прямая перезапись для обычных JS-свойств и примитивов (bits, distortion и т.д.)
-  fxNode[targetParam] = value;
+  fxNode[targetParam] = finalValue;
 };
 
 export const logBypassTransition = (
@@ -192,7 +224,9 @@ export const toggleNodeBypass = (fxNode, shouldBypass, label, synthName) => {
 };
 
 const isValidEffectNode = (fxNode, liveValue) => {
-  return fxNode && typeof liveValue === 'number';
+  return (
+    fxNode && (typeof liveValue === 'number' || typeof liveValue === 'string')
+  );
 };
 
 const applyEffectSettings = (
@@ -257,7 +291,7 @@ export const applyDynamicBypass = (synthName, synthInstance, settings) => {
 
       // 🆕 БЕЗОПАСНЫЙ ПОДХВАТ ДЕФОЛТОВ ИЗ ПАСПОРТА:
       // Если в стейте Редакса ползунка еще нет (undefined на чистых пресетах),
-      // мы берем его сочное дефолтное число прямо из SOUND_PARAMS.
+      // мы берем его сочное дефолтное число или индекс прямо из SOUND_PARAMS.
       const liveValue = settings[paramName] ?? paramConfig.default ?? 0;
 
       if (isValidEffectNode(fxNode, liveValue)) {

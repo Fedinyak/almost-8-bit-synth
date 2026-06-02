@@ -8,6 +8,16 @@ import {
   AUDIO_DEFAULT_CUTOFF,
 } from './audioEngineConfig';
 
+// ============================================================================
+// ГЛОБАЛЬНЫЕ СПРАВОЧНИКИ (LOOKUP TABLES) ДЛЯ ТЕКСТОВЫХ ПАРАМЕТРОВ
+// ============================================================================
+export const TEXT_PARAM_DICTIONARIES = {
+  NOTE_VALUES: {
+    options: ['1/2', '1/4', '1/8', '1/16', '1/32'], // Отображение в UI
+    audioValues: ['2n', '4n', '8n', '16n', '32n'], // Команда для Tone.js
+  },
+};
+
 const RANGE_VOLUME_DB = { min: -60, max: 0, step: 1 };
 const RANGE_TIME_ADR = { min: 0.01, max: 3.0, step: 0.01 };
 const RANGE_MIX_WET = { min: 0.0, max: 1.0, step: 0.05 };
@@ -68,10 +78,10 @@ export const SOUND_PARAMS = {
     supportedEngines: ['monoSynth'],
   },
 
-  filterCutoff: {
+  filterLowpassCutoff: {
     ...RANGE_FILTER_HZ,
-    default: AUDIO_DEFAULT_CUTOFF,
-    label: 'CUTOFF HZ',
+    default: AUDIO_DEFAULT_CUTOFF, // Полный возврат к дефолту
+    label: 'LOWPASS CUTOFF HZ',
     isEffect: true,
     nodeKey: 'fxFilter',
     targetParam: 'frequency',
@@ -79,11 +89,22 @@ export const SOUND_PARAMS = {
     group: 'filter',
     supportedEngines: ALL_ENGINES,
   },
+  filterHighpassCutoff: {
+    ...RANGE_FILTER_HZ,
+    default: 20, // Полный возврат к дефолту
+    label: 'HIGHPASS CUTOFF HZ',
+    isEffect: true,
+    nodeKey: 'fxFilterHigh',
+    targetParam: 'frequency',
+    bypassValue: 20,
+    group: 'filter',
+    supportedEngines: ALL_ENGINES,
+  },
   filterQ: {
     min: 1.0,
     max: 15.0,
     step: 0.5,
-    default: 1.0,
+    default: 1.0, // Полный возврат к дефолту
     label: 'RESONANCE (Q)',
     group: 'filter',
     targetParam: 'Q',
@@ -93,7 +114,7 @@ export const SOUND_PARAMS = {
     min: 0.0,
     max: 6.0,
     step: 0.5,
-    default: 0.0,
+    default: 0.0, // Полный возврат к дефолту
     label: 'ENV MOD (OCTAVES)',
     group: 'filter',
     supportedEngines: ['monoSynth'],
@@ -149,7 +170,7 @@ export const SOUND_PARAMS = {
 
   delayWet: {
     ...RANGE_MIX_WET,
-    default: 0.3,
+    default: 0.3, // Возврат к твоему оригинальному дефолту 0.3
     label: 'DELAY MIX',
     isEffect: true,
     nodeKey: 'fxDelay',
@@ -162,7 +183,7 @@ export const SOUND_PARAMS = {
     min: 0.0,
     max: 0.95,
     step: 0.05,
-    default: 0.4,
+    default: 0.4, // Возврат к твоему оригинальному дефолту 0.4
     label: 'DELAY FEEDBACK',
     isEffect: true,
     nodeKey: 'fxDelay',
@@ -171,15 +192,55 @@ export const SOUND_PARAMS = {
     supportedEngines: ALL_ENGINES,
   },
   delayTime: {
-    min: 0.05,
-    max: 1.0,
-    step: 0.05,
-    default: 0.25,
+    min: 0,
+    max: 4,
+    step: 1,
+    default: 2,
     label: 'DELAY TIME',
     isEffect: true,
     nodeKey: 'fxDelay',
     targetParam: 'delayTime',
     group: 'delay',
+    isTextParam: true,
+    dictionaryKey: 'NOTE_VALUES',
+    supportedEngines: ALL_ENGINES,
+  },
+
+  pingpongWet: {
+    ...RANGE_MIX_WET,
+    default: 0.35, // Оставили приятный дефолт только для нового эффекта
+    label: 'PINGPONG MIX',
+    isEffect: true,
+    nodeKey: 'fxPingPong',
+    targetParam: 'wet',
+    bypassValue: 0.0,
+    group: 'pingpong',
+    supportedEngines: ALL_ENGINES,
+  },
+  pingpongFeedback: {
+    min: 0.0,
+    max: 0.95,
+    step: 0.05,
+    default: 0.4, // Оставили приятный дефолт только для нового эффекта
+    label: 'PINGPONG FEEDBACK',
+    isEffect: true,
+    nodeKey: 'fxPingPong',
+    targetParam: 'feedback',
+    group: 'pingpong',
+    supportedEngines: ALL_ENGINES,
+  },
+  pingpongTime: {
+    min: 0,
+    max: 4,
+    step: 1,
+    default: 2,
+    label: 'PINGPONG TIME',
+    isEffect: true,
+    nodeKey: 'fxPingPong',
+    targetParam: 'delayTime',
+    group: 'pingpong',
+    isTextParam: true,
+    dictionaryKey: 'NOTE_VALUES',
     supportedEngines: ALL_ENGINES,
   },
 };
@@ -194,6 +255,7 @@ export const DRUM_PRESETS = {
     bitcrusherActive: false,
     distortionActive: false,
     delayActive: false,
+    pingpongActive: false,
   },
   snare: {
     engineType: 'noiseSynth',
@@ -204,6 +266,7 @@ export const DRUM_PRESETS = {
     bitcrusherActive: false,
     distortionActive: false,
     delayActive: false,
+    pingpongActive: false,
   },
   hiHat: {
     engineType: 'metalSynth',
@@ -214,6 +277,7 @@ export const DRUM_PRESETS = {
     bitcrusherActive: false,
     distortionActive: false,
     delayActive: false,
+    pingpongActive: false,
   },
   hiHatClose: {
     engineType: 'metalSynth',
@@ -224,6 +288,7 @@ export const DRUM_PRESETS = {
     bitcrusherActive: false,
     distortionActive: false,
     delayActive: false,
+    pingpongActive: false,
   },
   hiHatOpen: {
     engineType: 'metalSynth',
@@ -234,6 +299,7 @@ export const DRUM_PRESETS = {
     bitcrusherActive: false,
     distortionActive: false,
     delayActive: false,
+    pingpongActive: false,
   },
   crash: {
     engineType: 'metalSynth',
@@ -244,6 +310,7 @@ export const DRUM_PRESETS = {
     bitcrusherActive: false,
     distortionActive: false,
     delayActive: false,
+    pingpongActive: false,
   },
   ride: {
     engineType: 'metalSynth',
@@ -254,6 +321,7 @@ export const DRUM_PRESETS = {
     bitcrusherActive: false,
     distortionActive: false,
     delayActive: false,
+    pingpongActive: false,
   },
   tom: {
     engineType: 'membraneSynth',
@@ -266,6 +334,7 @@ export const DRUM_PRESETS = {
     bitcrusherActive: false,
     distortionActive: false,
     delayActive: false,
+    pingpongActive: false,
   },
 };
 
@@ -290,21 +359,43 @@ export const EFFECT_DEVICES = {
     nodeKey: 'fxFilter',
     ClassRef: Tone.Filter,
     defaultParams: { type: 'lowpass', frequency: 10000 },
-    label: 'FILTER',
+    label: 'LOWPASS FILTER',
+    groupKey: 'filter',
+  },
+  filterHigh: {
+    nodeKey: 'fxFilterHigh',
+    ClassRef: Tone.Filter,
+    defaultParams: { type: 'highpass', frequency: 20 },
+    label: 'HIGHPASS FILTER',
     groupKey: 'filter',
   },
   delay: {
     nodeKey: 'fxDelay',
     ClassRef: Tone.FeedbackDelay,
-    defaultParams: { delayTime: 0.25, feedback: 0.25 }, // Исправлено с '8n' на число 0.25
+    defaultParams: { delayTime: 0.25, feedback: 0.25 },
     label: 'DELAY',
     groupKey: 'delay',
     activeKey: 'delayActive',
   },
+  pingpong: {
+    nodeKey: 'fxPingPong',
+    ClassRef: Tone.PingPongDelay,
+    defaultParams: { delayTime: 0.25, feedback: 0.3 },
+    label: 'PING-PONG DELAY',
+    groupKey: 'pingpong',
+    activeKey: 'pingpongActive',
+  },
 };
 
-export const DRUM_EFFECTS_CHAIN = ['crusher', 'distortion', 'filter', 'delay'];
-export const UI_EFFECTS_LIST = ['crusher', 'distortion', 'delay'];
+export const DRUM_EFFECTS_CHAIN = [
+  'crusher',
+  'distortion',
+  'filter',
+  'filterHigh',
+  'delay',
+  'pingpong',
+];
+export const UI_EFFECTS_LIST = ['crusher', 'distortion', 'delay', 'pingpong'];
 
 export const SYNTH_PRESETS = {
   synth1: {
@@ -315,19 +406,25 @@ export const SYNTH_PRESETS = {
     decay: 0.2,
     sustain: 0.3,
     release: 0.15,
-    filterCutoff: 4500,
+    filterLowpassCutoff: 4500,
+    filterHighpassCutoff: 20,
     bitcrusherWet: 0.15,
     bitcrusherBits: 4,
     distortionWet: 0.0,
     distortionDrive: 1.5,
-    delayWet: 0.25,
-    delayFeedback: 0.25,
+    delayWet: 0.3,
+    delayFeedback: 0.4,
+    delayTime: 2,
+    pingpongWet: 0.35,
+    pingpongFeedback: 0.4,
+    pingpongTime: 2,
     synthGlide: 0.0,
     filterQ: 1.0,
     filterEnvOctaves: 0.0,
     bitcrusherActive: true,
     distortionActive: false,
     delayActive: true,
+    pingpongActive: false,
   },
   synth2: {
     engineType: 'monoSynth',
@@ -337,13 +434,19 @@ export const SYNTH_PRESETS = {
     decay: 0.5,
     sustain: 0.6,
     release: 0.2,
-    filterCutoff: 800,
+    filterLowpassCutoff: 800,
+    filterHighpassCutoff: 20,
+    delayTime: 2,
+    pingpongWet: 0.35,
+    pingpongFeedback: 0.4,
+    pingpongTime: 2,
     synthGlide: 0.0,
     filterQ: 1.0,
     filterEnvOctaves: 0.0,
     bitcrusherActive: false,
     distortionActive: false,
     delayActive: false,
+    pingpongActive: false,
   },
 };
 
