@@ -6,338 +6,33 @@ import {
   AUDIO_DEFAULT_RELEASE,
   AUDIO_DEFAULT_VOLUME,
   AUDIO_DEFAULT_CUTOFF,
+  RANGE_VOLUME_DB,
+  RANGE_TIME_ADR,
+  RANGE_MIX_WET,
+  RANGE_FILTER_HZ,
+  ALL_ENGINES,
+  RAW_DRUM_PRESETS,
+  STATIC_DRUM_TYPE_MAP,
 } from './audioEngineConfig';
 
 // ============================================================================
-// ГЛОБАЛЬНЫЕ СПРАВОЧНИКИ (LOOKUP TABLES) ДЛЯ ТЕКСТОВЫХ ПАРАМЕТРОВ
+// 1. ГЛОБАЛЬНЫЕ ТЕКСТОВЫЕ СЛОВАРИ
 // ============================================================================
 export const TEXT_PARAM_DICTIONARIES = {
   NOTE_VALUES: {
-    options: ['1/2', '1/4', '1/8', '1/16', '1/32'], // Отображение в UI
-    audioValues: ['2n', '4n', '8n', '16n', '32n'], // Команда для Tone.js
+    options: ['1/2', '1/4', '1/8', '1/16', '1/32'],
+    audioValues: ['2n', '4n', '8n', '16n', '32n'],
   },
 };
-
-const RANGE_VOLUME_DB = { min: -60, max: 0, step: 1 };
-const RANGE_TIME_ADR = { min: 0.01, max: 3.0, step: 0.01 };
-const RANGE_MIX_WET = { min: 0.0, max: 1.0, step: 0.05 };
-const RANGE_FILTER_HZ = { min: 20, max: 10000, step: 10 };
 
 export const SOUND_PARAM_GROUPS = [
   { key: 'envelope', label: 'ENVELOPE:' },
   { key: 'filter', label: 'FILTER:' },
 ];
 
-const ALL_ENGINES = ['monoSynth', 'membraneSynth', 'noiseSynth', 'metalSynth'];
-
-export const SOUND_PARAMS = {
-  attack: {
-    min: 0.005,
-    max: 2.0,
-    step: 0.005,
-    default: AUDIO_DEFAULT_ATTACK,
-    label: 'ATTACK',
-    group: 'envelope',
-    supportedEngines: ALL_ENGINES,
-  },
-  decay: {
-    ...RANGE_TIME_ADR,
-    default: AUDIO_DEFAULT_DECAY,
-    label: 'DECAY',
-    group: 'envelope',
-    supportedEngines: ALL_ENGINES,
-  },
-  sustain: {
-    ...RANGE_MIX_WET,
-    default: AUDIO_DEFAULT_SUSTAIN,
-    label: 'SUSTAIN',
-    group: 'envelope',
-    supportedEngines: ['monoSynth'],
-  },
-  release: {
-    ...RANGE_TIME_ADR,
-    default: AUDIO_DEFAULT_RELEASE,
-    label: 'RELEASE',
-    group: 'envelope',
-    supportedEngines: ['monoSynth', 'membraneSynth'],
-  },
-  volume: {
-    ...RANGE_VOLUME_DB,
-    default: AUDIO_DEFAULT_VOLUME,
-    label: 'VOLUME',
-    group: 'envelope',
-    supportedEngines: ALL_ENGINES,
-  },
-  synthGlide: {
-    min: 0.0,
-    max: 0.5,
-    step: 0.01,
-    default: 0.0,
-    label: 'GLIDE (GLIDE/PORTAMENTO)',
-    group: 'envelope',
-    supportedEngines: ['monoSynth'],
-  },
-
-  filterLowpassCutoff: {
-    ...RANGE_FILTER_HZ,
-    default: AUDIO_DEFAULT_CUTOFF, // Полный возврат к дефолту
-    label: 'LOWPASS CUTOFF HZ',
-    isEffect: true,
-    nodeKey: 'fxFilter',
-    targetParam: 'frequency',
-    bypassValue: 10000,
-    group: 'filter',
-    supportedEngines: ALL_ENGINES,
-  },
-  filterHighpassCutoff: {
-    ...RANGE_FILTER_HZ,
-    default: 20, // Полный возврат к дефолту
-    label: 'HIGHPASS CUTOFF HZ',
-    isEffect: true,
-    nodeKey: 'fxFilterHigh',
-    targetParam: 'frequency',
-    bypassValue: 20,
-    group: 'filter',
-    supportedEngines: ALL_ENGINES,
-  },
-  filterQ: {
-    min: 1.0,
-    max: 15.0,
-    step: 0.5,
-    default: 1.0, // Полный возврат к дефолту
-    label: 'RESONANCE (Q)',
-    group: 'filter',
-    targetParam: 'Q',
-    supportedEngines: ALL_ENGINES,
-  },
-  filterEnvOctaves: {
-    min: 0.0,
-    max: 6.0,
-    step: 0.5,
-    default: 0.0, // Полный возврат к дефолту
-    label: 'ENV MOD (OCTAVES)',
-    group: 'filter',
-    supportedEngines: ['monoSynth'],
-  },
-
-  bitcrusherWet: {
-    ...RANGE_MIX_WET,
-    default: 0.4,
-    label: 'CRUSHER MIX',
-    isEffect: true,
-    nodeKey: 'fxBitcrusher',
-    targetParam: 'wet',
-    bypassValue: 0.0,
-    group: 'crusher',
-    supportedEngines: ALL_ENGINES,
-  },
-  bitcrusherBits: {
-    min: 1,
-    max: 8,
-    step: 1,
-    default: 4,
-    label: 'CRUSHER BITS',
-    isEffect: true,
-    nodeKey: 'fxBitcrusher',
-    targetParam: 'bits',
-    group: 'crusher',
-    supportedEngines: ALL_ENGINES,
-  },
-
-  distortionWet: {
-    ...RANGE_MIX_WET,
-    default: 0.35,
-    label: 'DISTORTION MIX',
-    isEffect: true,
-    nodeKey: 'fxDistortion',
-    targetParam: 'wet',
-    bypassValue: 0.0,
-    group: 'distortion',
-    supportedEngines: ALL_ENGINES,
-  },
-  distortionDrive: {
-    min: 0.0,
-    max: 2.0,
-    step: 0.1,
-    default: 1.2,
-    label: 'DISTORTION DRIVE',
-    isEffect: true,
-    nodeKey: 'fxDistortion',
-    targetParam: 'distortion',
-    group: 'distortion',
-    supportedEngines: ALL_ENGINES,
-  },
-
-  delayWet: {
-    ...RANGE_MIX_WET,
-    default: 0.3, // Возврат к твоему оригинальному дефолту 0.3
-    label: 'DELAY MIX',
-    isEffect: true,
-    nodeKey: 'fxDelay',
-    targetParam: 'wet',
-    bypassValue: 0.0,
-    group: 'delay',
-    supportedEngines: ALL_ENGINES,
-  },
-  delayFeedback: {
-    min: 0.0,
-    max: 0.95,
-    step: 0.05,
-    default: 0.4, // Возврат к твоему оригинальному дефолту 0.4
-    label: 'DELAY FEEDBACK',
-    isEffect: true,
-    nodeKey: 'fxDelay',
-    targetParam: 'feedback',
-    group: 'delay',
-    supportedEngines: ALL_ENGINES,
-  },
-  delayTime: {
-    min: 0,
-    max: 4,
-    step: 1,
-    default: 2,
-    label: 'DELAY TIME',
-    isEffect: true,
-    nodeKey: 'fxDelay',
-    targetParam: 'delayTime',
-    group: 'delay',
-    isTextParam: true,
-    dictionaryKey: 'NOTE_VALUES',
-    supportedEngines: ALL_ENGINES,
-  },
-
-  pingpongWet: {
-    ...RANGE_MIX_WET,
-    default: 0.35, // Оставили приятный дефолт только для нового эффекта
-    label: 'PINGPONG MIX',
-    isEffect: true,
-    nodeKey: 'fxPingPong',
-    targetParam: 'wet',
-    bypassValue: 0.0,
-    group: 'pingpong',
-    supportedEngines: ALL_ENGINES,
-  },
-  pingpongFeedback: {
-    min: 0.0,
-    max: 0.95,
-    step: 0.05,
-    default: 0.4, // Оставили приятный дефолт только для нового эффекта
-    label: 'PINGPONG FEEDBACK',
-    isEffect: true,
-    nodeKey: 'fxPingPong',
-    targetParam: 'feedback',
-    group: 'pingpong',
-    supportedEngines: ALL_ENGINES,
-  },
-  pingpongTime: {
-    min: 0,
-    max: 4,
-    step: 1,
-    default: 2,
-    label: 'PINGPONG TIME',
-    isEffect: true,
-    nodeKey: 'fxPingPong',
-    targetParam: 'delayTime',
-    group: 'pingpong',
-    isTextParam: true,
-    dictionaryKey: 'NOTE_VALUES',
-    supportedEngines: ALL_ENGINES,
-  },
-};
-
-export const DRUM_PRESETS = {
-  kick: {
-    engineType: 'membraneSynth',
-    volume: -10,
-    attack: 0.005,
-    decay: 0.12,
-    release: 0.3,
-    bitcrusherActive: false,
-    distortionActive: false,
-    delayActive: false,
-    pingpongActive: false,
-  },
-  snare: {
-    engineType: 'noiseSynth',
-    volume: -12,
-    attack: 0.005,
-    decay: 0.1,
-    release: 0.3,
-    bitcrusherActive: false,
-    distortionActive: false,
-    delayActive: false,
-    pingpongActive: false,
-  },
-  hiHat: {
-    engineType: 'metalSynth',
-    volume: -12,
-    attack: 0.005,
-    decay: 0.05,
-    release: 0.3,
-    bitcrusherActive: false,
-    distortionActive: false,
-    delayActive: false,
-    pingpongActive: false,
-  },
-  hiHatClose: {
-    engineType: 'metalSynth',
-    volume: -12,
-    attack: 0.005,
-    decay: 0.04,
-    release: 0.3,
-    bitcrusherActive: false,
-    distortionActive: false,
-    delayActive: false,
-    pingpongActive: false,
-  },
-  hiHatOpen: {
-    engineType: 'metalSynth',
-    volume: -10,
-    attack: 0.005,
-    decay: 0.3,
-    release: 0.3,
-    bitcrusherActive: false,
-    distortionActive: false,
-    delayActive: false,
-    pingpongActive: false,
-  },
-  crash: {
-    engineType: 'metalSynth',
-    volume: -8,
-    attack: 0.01,
-    decay: 1.5,
-    release: 0.3,
-    bitcrusherActive: false,
-    distortionActive: false,
-    delayActive: false,
-    pingpongActive: false,
-  },
-  ride: {
-    engineType: 'metalSynth',
-    volume: -10,
-    attack: 0.001,
-    decay: 0.8,
-    release: 0.3,
-    bitcrusherActive: false,
-    distortionActive: false,
-    delayActive: false,
-    pingpongActive: false,
-  },
-  tom: {
-    engineType: 'membraneSynth',
-    volume: -12,
-    pitchDecay: 0.08,
-    octaves: 4,
-    attack: 0.005,
-    decay: 0.4,
-    release: 0.3,
-    bitcrusherActive: false,
-    distortionActive: false,
-    delayActive: false,
-    pingpongActive: false,
-  },
-};
-
+// ============================================================================
+// 2. ЖЕЛЕЗНЫЕ ДЕВАЙСЫ ДЛЯ АУДИО-ДВИЖКА (Сюда ты дописываешь новые эффекты)
+// ============================================================================
 export const EFFECT_DEVICES = {
   crusher: {
     nodeKey: 'fxBitcrusher',
@@ -397,8 +92,235 @@ export const DRUM_EFFECTS_CHAIN = [
 ];
 export const UI_EFFECTS_LIST = ['crusher', 'distortion', 'delay', 'pingpong'];
 
+const DEFAULT_FX_SWITCHES = Object.values(EFFECT_DEVICES).reduce((acc, dev) => {
+  if (dev.activeKey) acc[dev.activeKey] = false;
+  return acc;
+}, {});
+
+// ============================================================================
+// 3. РАБОЧИЙ ПАСПОРТ РУЧЕК (Сюда ты дописываешь новые крутилки)
+// ============================================================================
+export const SOUND_PARAMS = {
+  attack: {
+    min: 0.005,
+    max: 2.0,
+    step: 0.005,
+    default: AUDIO_DEFAULT_ATTACK,
+    label: 'ATTACK',
+    group: 'envelope',
+    supportedEngines: ALL_ENGINES,
+  },
+  decay: {
+    ...RANGE_TIME_ADR,
+    default: AUDIO_DEFAULT_DECAY,
+    label: 'DECAY',
+    group: 'envelope',
+    supportedEngines: ALL_ENGINES,
+  },
+  sustain: {
+    ...RANGE_MIX_WET,
+    default: AUDIO_DEFAULT_SUSTAIN,
+    label: 'SUSTAIN',
+    group: 'envelope',
+    supportedEngines: ['monoSynth'],
+  },
+  release: {
+    ...RANGE_TIME_ADR,
+    default: AUDIO_DEFAULT_RELEASE,
+    label: 'RELEASE',
+    group: 'envelope',
+    supportedEngines: ['monoSynth', 'membraneSynth'],
+  },
+  volume: {
+    ...RANGE_VOLUME_DB,
+    default: AUDIO_DEFAULT_VOLUME,
+    label: 'VOLUME',
+    group: 'envelope',
+    supportedEngines: ALL_ENGINES,
+  },
+  synthGlide: {
+    min: 0.0,
+    max: 0.5,
+    step: 0.01,
+    default: 0.0,
+    label: 'GLIDE (GLIDE/PORTAMENTO)',
+    group: 'envelope',
+    supportedEngines: ['monoSynth'],
+  },
+
+  filterLowpassCutoff: {
+    ...RANGE_FILTER_HZ,
+    default: AUDIO_DEFAULT_CUTOFF,
+    label: 'LOWPASS CUTOFF HZ',
+    isEffect: true,
+    nodeKey: 'fxFilter',
+    targetParam: 'frequency',
+    bypassValue: 10000,
+    group: 'filter',
+    supportedEngines: ALL_ENGINES,
+  },
+  filterHighpassCutoff: {
+    ...RANGE_FILTER_HZ,
+    default: 20,
+    label: 'HIGHPASS CUTOFF HZ',
+    isEffect: true,
+    nodeKey: 'fxFilterHigh',
+    targetParam: 'frequency',
+    bypassValue: 20,
+    group: 'filter',
+    supportedEngines: ALL_ENGINES,
+  },
+  filterQ: {
+    min: 1.0,
+    max: 15.0,
+    step: 0.5,
+    default: 1.0,
+    label: 'RESONANCE (Q)',
+    group: 'filter',
+    targetParam: 'Q',
+    supportedEngines: ALL_ENGINES,
+  },
+  filterEnvOctaves: {
+    min: 0.0,
+    max: 6.0,
+    step: 0.5,
+    default: 0.0,
+    label: 'ENV MOD (OCTAVES)',
+    group: 'filter',
+    supportedEngines: ['monoSynth'],
+  },
+
+  bitcrusherWet: {
+    ...RANGE_MIX_WET,
+    default: 0.4,
+    label: 'CRUSHER MIX',
+    isEffect: true,
+    nodeKey: 'fxBitcrusher',
+    targetParam: 'wet',
+    bypassValue: 0.0,
+    group: 'crusher',
+    supportedEngines: ALL_ENGINES,
+  },
+  bitcrusherBits: {
+    min: 1,
+    max: 8,
+    step: 1,
+    default: 4,
+    label: 'CRUSHER BITS',
+    isEffect: true,
+    nodeKey: 'fxBitcrusher',
+    targetParam: 'bits',
+    group: 'crusher',
+    supportedEngines: ALL_ENGINES,
+  },
+
+  distortionWet: {
+    ...RANGE_MIX_WET,
+    default: 0.35,
+    label: 'DISTORTION MIX',
+    isEffect: true,
+    nodeKey: 'fxDistortion',
+    targetParam: 'wet',
+    bypassValue: 0.0,
+    group: 'distortion',
+    supportedEngines: ALL_ENGINES,
+  },
+  distortionDrive: {
+    min: 0.0,
+    max: 2.0,
+    step: 0.1,
+    default: 1.2,
+    label: 'DISTORTION DRIVE',
+    isEffect: true,
+    nodeKey: 'fxDistortion',
+    targetParam: 'distortion',
+    group: 'distortion',
+    supportedEngines: ALL_ENGINES,
+  },
+
+  delayWet: {
+    ...RANGE_MIX_WET,
+    default: 0.3,
+    label: 'DELAY MIX',
+    isEffect: true,
+    nodeKey: 'fxDelay',
+    targetParam: 'wet',
+    bypassValue: 0.0,
+    group: 'delay',
+    supportedEngines: ALL_ENGINES,
+  },
+  delayFeedback: {
+    min: 0.0,
+    max: 0.95,
+    step: 0.05,
+    default: 0.4,
+    label: 'DELAY FEEDBACK',
+    isEffect: true,
+    nodeKey: 'fxDelay',
+    targetParam: 'feedback',
+    group: 'delay',
+    supportedEngines: ALL_ENGINES,
+  },
+  delayTime: {
+    min: 0,
+    max: 4,
+    step: 1,
+    default: 2,
+    label: 'DELAY TIME',
+    isEffect: true,
+    nodeKey: 'fxDelay',
+    targetParam: 'delayTime',
+    group: 'delay',
+    isTextParam: true,
+    dictionaryKey: 'NOTE_VALUES',
+    supportedEngines: ALL_ENGINES,
+  },
+
+  pingpongWet: {
+    ...RANGE_MIX_WET,
+    default: 0.35,
+    label: 'PINGPONG MIX',
+    isEffect: true,
+    nodeKey: 'fxPingPong',
+    targetParam: 'wet',
+    bypassValue: 0.0,
+    group: 'pingpong',
+    supportedEngines: ALL_ENGINES,
+  },
+  pingpongFeedback: {
+    min: 0.0,
+    max: 0.95,
+    step: 0.05,
+    default: 0.4,
+    label: 'PINGPONG FEEDBACK',
+    isEffect: true,
+    nodeKey: 'fxPingPong',
+    targetParam: 'feedback',
+    group: 'pingpong',
+    supportedEngines: ALL_ENGINES,
+  },
+  pingpongTime: {
+    min: 0,
+    max: 4,
+    step: 1,
+    default: 2,
+    label: 'PINGPONG TIME',
+    isEffect: true,
+    nodeKey: 'fxPingPong',
+    targetParam: 'delayTime',
+    group: 'pingpong',
+    isTextParam: true,
+    dictionaryKey: 'NOTE_VALUES',
+    supportedEngines: ALL_ENGINES,
+  },
+};
+
+// ============================================================================
+// 4. ПРЕСЕТЫ СИНТОВ
+// ============================================================================
 export const SYNTH_PRESETS = {
   synth1: {
+    ...DEFAULT_FX_SWITCHES,
     engineType: 'monoSynth',
     oscillatorType: 'square',
     volume: -14,
@@ -422,11 +344,10 @@ export const SYNTH_PRESETS = {
     filterQ: 1.0,
     filterEnvOctaves: 0.0,
     bitcrusherActive: true,
-    distortionActive: false,
     delayActive: true,
-    pingpongActive: false,
   },
   synth2: {
+    ...DEFAULT_FX_SWITCHES,
     engineType: 'monoSynth',
     oscillatorType: 'triangle',
     volume: -10,
@@ -443,20 +364,18 @@ export const SYNTH_PRESETS = {
     synthGlide: 0.0,
     filterQ: 1.0,
     filterEnvOctaves: 0.0,
-    bitcrusherActive: false,
-    distortionActive: false,
-    delayActive: false,
-    pingpongActive: false,
   },
 };
 
-export const DRUM_TYPE_MAP = {
-  kick: 'MembraneSynth',
-  snare: 'NoiseSynth',
-  hiHat: 'MetalSynth',
-  hiHatClose: 'MetalSynth',
-  hiHatOpen: 'MetalSynth',
-  crash: 'MetalSynth',
-  ride: 'MetalSynth',
-  tom: 'MembraneSynth',
-};
+// ============================================================================
+// 5. ДИНАМИЧЕСКИЙ СБОРЩИК БАРАБАНОВ (Вклеивает DEFAULT_FX_SWITCHES автоматически!)
+// ============================================================================
+export const DRUM_PRESETS = Object.entries(RAW_DRUM_PRESETS).reduce(
+  (acc, [drumKey, drumConfig]) => {
+    acc[drumKey] = { ...DEFAULT_FX_SWITCHES, ...drumConfig };
+    return acc;
+  },
+  {},
+);
+
+export const DRUM_TYPE_MAP = STATIC_DRUM_TYPE_MAP;
