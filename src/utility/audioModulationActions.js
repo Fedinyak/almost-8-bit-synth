@@ -50,7 +50,12 @@ export const initializeAudioRouting = (
 
 export const updateInstrumentVolume = (instrument, volumeValue) => {
   if (instrument?.volume) {
-    instrument.volume.value = volumeValue ?? AUDIO_DEFAULT_VOLUME;
+    // Декларативное сглаживание общей громкости для предотвращения щелчков
+    if (typeof instrument.volume.rampTo === 'function') {
+      instrument.volume.rampTo(volumeValue ?? AUDIO_DEFAULT_VOLUME, 0.05);
+    } else {
+      instrument.volume.value = volumeValue ?? AUDIO_DEFAULT_VOLUME;
+    }
   }
 };
 
@@ -88,7 +93,11 @@ export const updateInstrumentEnvelope = (instrument, settings) => {
 
   // Если это СИНТ (MonoSynth) — крутим параметры его ВНУТРЕННЕГО фильтра
   if (settings.filterQ !== undefined && instrument.filter) {
-    instrument.filter.Q.value = settings.filterQ;
+    if (typeof instrument.filter.Q.rampTo === 'function') {
+      instrument.filter.Q.rampTo(settings.filterQ, 0.05);
+    } else {
+      instrument.filter.Q.value = settings.filterQ;
+    }
   }
 
   if (settings.filterEnvOctaves !== undefined && instrument.filterEnvelope) {
@@ -115,11 +124,22 @@ export const applySynthEnvelope = (synthInstance, settings) => {
 
   // Если это БАРАБАН — у него есть ВНЕШНИЙ фильтр fxFilter в контейнере эффектов!
   if (synthInstance.fxFilter) {
-    if (settings.filterCutoff !== undefined) {
-      synthInstance.fxFilter.frequency.value = settings.filterCutoff;
+    if (
+      settings.filterCutoff !== undefined &&
+      synthInstance.fxFilter.frequency
+    ) {
+      if (typeof synthInstance.fxFilter.frequency.rampTo === 'function') {
+        synthInstance.fxFilter.frequency.rampTo(settings.filterCutoff, 0.05);
+      } else {
+        synthInstance.fxFilter.frequency.value = settings.filterCutoff;
+      }
     }
-    if (settings.filterQ !== undefined) {
-      synthInstance.fxFilter.Q.value = settings.filterQ;
+    if (settings.filterQ !== undefined && synthInstance.fxFilter.Q) {
+      if (typeof synthInstance.fxFilter.Q.rampTo === 'function') {
+        synthInstance.fxFilter.Q.rampTo(settings.filterQ, 0.05);
+      } else {
+        synthInstance.fxFilter.Q.value = settings.filterQ;
+      }
     }
   }
 
@@ -130,19 +150,23 @@ export const applySynthEnvelope = (synthInstance, settings) => {
 export const updateEffectParam = (fxNode, targetParam, value) => {
   if (!fxNode || !targetParam) return;
 
+  // 1. Декларативная обработка комплексных параметров через метод .set()
   if (targetParam === 'wet') {
     fxNode.set({ wet: value });
-  } else if (targetParam === 'frequency' && fxNode.frequency) {
-    fxNode.frequency.value = value;
-  } else if (targetParam === 'Q' && fxNode.Q) {
-    fxNode.Q.value = value;
-  } else if (targetParam === 'bits') {
-    fxNode.bits = value;
-  } else if (targetParam === 'distortion') {
-    fxNode.distortion = value;
-  } else if (targetParam === 'feedback' && fxNode.feedback) {
-    fxNode.feedback.value = value;
+    return;
   }
+
+  const paramNode = fxNode[targetParam];
+  if (paramNode === undefined) return;
+
+  // 2. Универсальное сглаживание для всех нативных AudioParam (frequency, Q, feedback, delayTime и т.д.)
+  if (paramNode && typeof paramNode.rampTo === 'function') {
+    paramNode.rampTo(value, 0.05);
+    return;
+  }
+
+  // 3. Прямая перезапись для обычных JS-свойств и примитивов (bits, distortion и т.д.)
+  fxNode[targetParam] = value;
 };
 
 export const logBypassTransition = (

@@ -170,6 +170,18 @@ export const SOUND_PARAMS = {
     group: 'delay',
     supportedEngines: ALL_ENGINES,
   },
+  delayTime: {
+    min: 0.05,
+    max: 1.0,
+    step: 0.05,
+    default: 0.25,
+    label: 'DELAY TIME',
+    isEffect: true,
+    nodeKey: 'fxDelay',
+    targetParam: 'delayTime',
+    group: 'delay',
+    supportedEngines: ALL_ENGINES,
+  },
 };
 
 export const DRUM_PRESETS = {
@@ -284,7 +296,7 @@ export const EFFECT_DEVICES = {
   delay: {
     nodeKey: 'fxDelay',
     ClassRef: Tone.FeedbackDelay,
-    defaultParams: { delayTime: '8n', feedback: 0.25 },
+    defaultParams: { delayTime: 0.25, feedback: 0.25 }, // Исправлено с '8n' на число 0.25
     label: 'DELAY',
     groupKey: 'delay',
     activeKey: 'delayActive',
