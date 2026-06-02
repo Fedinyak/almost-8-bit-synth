@@ -20,8 +20,8 @@ import {
 // ============================================================================
 export const TEXT_PARAM_DICTIONARIES = {
   NOTE_VALUES: {
-    options: ['1/2', '1/4', '1/8', '1/16', '1/32'],
-    audioValues: ['2n', '4n', '8n', '16n', '32n'],
+    options: ['1/2', '1/4', '1/8', '1/16', '1/32'], // Отображение в UI
+    audioValues: ['2n', '4n', '8n', '16n', '32n'], // Команда для Tone.js
   },
 };
 
@@ -31,9 +31,17 @@ export const SOUND_PARAM_GROUPS = [
 ];
 
 // ============================================================================
-// 2. ЖЕЛЕЗНЫЕ ДЕВАЙСЫ ДЛЯ АУДИО-ДВИЖКА (Сюда ты дописываешь новые эффекты)
+// 2. ЖЕЛЕЗНЫЕ ДЕВАЙСЫ ДЛЯ АУДИО-ДВИЖКА (Сюда добавили Сатуратор и Хорус)
 // ============================================================================
 export const EFFECT_DEVICES = {
+  saturator: {
+    nodeKey: 'fxSaturator',
+    ClassRef: Tone.Chebyshev,
+    defaultParams: { order: 3 },
+    label: 'SATURATOR',
+    groupKey: 'saturator',
+    activeKey: 'saturatorActive',
+  }, // 🆕 Сатуратор для жира
   crusher: {
     nodeKey: 'fxBitcrusher',
     ClassRef: Tone.BitCrusher,
@@ -64,6 +72,14 @@ export const EFFECT_DEVICES = {
     label: 'HIGHPASS FILTER',
     groupKey: 'filter',
   },
+  chorus: {
+    nodeKey: 'fxChorus',
+    ClassRef: Tone.Chorus,
+    defaultParams: { frequency: 1.5, delayTime: 3.5, depth: 0.7 },
+    label: 'CHORUS / FLANGER',
+    groupKey: 'chorus',
+    activeKey: 'chorusActive',
+  }, // 🆕 Космический хорус
   delay: {
     nodeKey: 'fxDelay',
     ClassRef: Tone.FeedbackDelay,
@@ -82,23 +98,34 @@ export const EFFECT_DEVICES = {
   },
 };
 
+// СЕТКИ И ПОРЯДОК ЦЕПОЧЕК ЭФФЕКТОВ (Включаем новые модули в общую цепь)
 export const DRUM_EFFECTS_CHAIN = [
+  'saturator',
   'crusher',
   'distortion',
   'filter',
   'filterHigh',
+  'chorus',
   'delay',
   'pingpong',
 ];
-export const UI_EFFECTS_LIST = ['crusher', 'distortion', 'delay', 'pingpong'];
+export const UI_EFFECTS_LIST = [
+  'saturator',
+  'crusher',
+  'distortion',
+  'chorus',
+  'delay',
+  'pingpong',
+];
 
+// 🔥 АВТО-СБОРЩИК ДЕФОЛТОВ: Теперь он автоматически выставит saturatorActive: false и chorusActive: false на лету!
 const DEFAULT_FX_SWITCHES = Object.values(EFFECT_DEVICES).reduce((acc, dev) => {
   if (dev.activeKey) acc[dev.activeKey] = false;
   return acc;
 }, {});
 
 // ============================================================================
-// 3. РАБОЧИЙ ПАСПОРТ РУЧЕК (Сюда ты дописываешь новые крутилки)
+// 3. РАБОЧИЙ ПАСПОРТ РУЧЕК (Добавили Detune, Сатуратор и Хорус)
 // ============================================================================
 export const SOUND_PARAMS = {
   attack: {
@@ -138,6 +165,15 @@ export const SOUND_PARAMS = {
     group: 'envelope',
     supportedEngines: ALL_ENGINES,
   },
+  detune: {
+    min: -100,
+    max: 100,
+    step: 1,
+    default: 0,
+    label: 'DETUNE (OSC CENT)',
+    group: 'envelope',
+    supportedEngines: ALL_ENGINES,
+  }, // 🆕 Расстройка для жира баса
   synthGlide: {
     min: 0.0,
     max: 0.5,
@@ -190,6 +226,30 @@ export const SOUND_PARAMS = {
     supportedEngines: ['monoSynth'],
   },
 
+  saturatorWet: {
+    ...RANGE_MIX_WET,
+    default: 0.35,
+    label: 'SATURATOR MIX',
+    isEffect: true,
+    nodeKey: 'fxSaturator',
+    targetParam: 'wet',
+    bypassValue: 0.0,
+    group: 'saturator',
+    supportedEngines: ALL_ENGINES,
+  }, // 🆕 Слайдеры сатуратора
+  saturatorOrder: {
+    min: 1,
+    max: 6,
+    step: 1,
+    default: 3,
+    label: 'SATURATOR DRIVE (ORDER)',
+    isEffect: true,
+    nodeKey: 'fxSaturator',
+    targetParam: 'order',
+    group: 'saturator',
+    supportedEngines: ALL_ENGINES,
+  },
+
   bitcrusherWet: {
     ...RANGE_MIX_WET,
     default: 0.4,
@@ -235,6 +295,42 @@ export const SOUND_PARAMS = {
     nodeKey: 'fxDistortion',
     targetParam: 'distortion',
     group: 'distortion',
+    supportedEngines: ALL_ENGINES,
+  },
+
+  chorusWet: {
+    ...RANGE_MIX_WET,
+    default: 0.4,
+    label: 'CHORUS MIX',
+    isEffect: true,
+    nodeKey: 'fxChorus',
+    targetParam: 'wet',
+    bypassValue: 0.0,
+    group: 'chorus',
+    supportedEngines: ALL_ENGINES,
+  }, // 🆕 Слайдеры космического хоруса
+  chorusFrequency: {
+    min: 0.1,
+    max: 10.0,
+    step: 0.1,
+    default: 1.5,
+    label: 'CHORUS SPEED (HZ)',
+    isEffect: true,
+    nodeKey: 'fxChorus',
+    targetParam: 'frequency',
+    group: 'chorus',
+    supportedEngines: ALL_ENGINES,
+  },
+  chorusDepth: {
+    min: 0.0,
+    max: 1.0,
+    step: 0.05,
+    default: 0.7,
+    label: 'CHORUS DEPTH',
+    isEffect: true,
+    nodeKey: 'fxChorus',
+    targetParam: 'depth',
+    group: 'chorus',
     supportedEngines: ALL_ENGINES,
   },
 
@@ -316,7 +412,7 @@ export const SOUND_PARAMS = {
 };
 
 // ============================================================================
-// 4. ПРЕСЕТЫ СИНТОВ
+// 4. ПРЕСЕТЫ СИНТОВ (Добавлены стартовые дефолты для сатуратора и хоруса)
 // ============================================================================
 export const SYNTH_PRESETS = {
   synth1: {
@@ -328,6 +424,7 @@ export const SYNTH_PRESETS = {
     decay: 0.2,
     sustain: 0.3,
     release: 0.15,
+    detune: 0,
     filterLowpassCutoff: 4500,
     filterHighpassCutoff: 20,
     bitcrusherWet: 0.15,
@@ -343,6 +440,11 @@ export const SYNTH_PRESETS = {
     synthGlide: 0.0,
     filterQ: 1.0,
     filterEnvOctaves: 0.0,
+    saturatorWet: 0.35,
+    saturatorOrder: 3,
+    chorusWet: 0.4,
+    chorusFrequency: 1.5,
+    chorusDepth: 0.7, // 🆕 Инициализация значений
     bitcrusherActive: true,
     delayActive: true,
   },
@@ -355,6 +457,7 @@ export const SYNTH_PRESETS = {
     decay: 0.5,
     sustain: 0.6,
     release: 0.2,
+    detune: 0,
     filterLowpassCutoff: 800,
     filterHighpassCutoff: 20,
     delayTime: 2,
@@ -364,11 +467,16 @@ export const SYNTH_PRESETS = {
     synthGlide: 0.0,
     filterQ: 1.0,
     filterEnvOctaves: 0.0,
+    saturatorWet: 0.35,
+    saturatorOrder: 3,
+    chorusWet: 0.4,
+    chorusFrequency: 1.5,
+    chorusDepth: 0.7,
   },
 };
 
 // ============================================================================
-// 5. ДИНАМИЧЕСКИЙ СБОРЩИК БАРАБАНОВ (Вклеивает DEFAULT_FX_SWITCHES автоматически!)
+// 5. ДИНАМИЧЕСКИЙ СБОРЩИК БАРАБАНОВ (Вклеивает новые флаги автоматически)
 // ============================================================================
 export const DRUM_PRESETS = Object.entries(RAW_DRUM_PRESETS).reduce(
   (acc, [drumKey, drumConfig]) => {
@@ -377,5 +485,4 @@ export const DRUM_PRESETS = Object.entries(RAW_DRUM_PRESETS).reduce(
   },
   {},
 );
-
 export const DRUM_TYPE_MAP = STATIC_DRUM_TYPE_MAP;

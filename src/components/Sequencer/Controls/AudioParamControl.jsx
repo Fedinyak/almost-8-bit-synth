@@ -99,7 +99,8 @@ export const AudioParamControl = ({
       <label
         style={{
           display: 'inline-block',
-          width: '100px',
+          width: '150px',
+          fontSize: '12px',
           // Если лампочки нет, делаем отступ в 16px (8px ширина лампочки + 8px gap), чтобы выровнять текст всех ручек в один ряд
           marginLeft: hasBypassIndicator ? '0' : '16px',
           color: isParamDisabled ? '#777777' : 'inherit',

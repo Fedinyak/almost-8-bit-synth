@@ -1,7 +1,7 @@
 import * as Tone from 'tone';
 import { checkBypassCondition } from './audioMathUtils';
 import { synthAnalysers } from './visualizerState';
-// 🆕 ДОБАВЛЕН ИМПОРТ ТЕКСТОВЫХ СЛОВАРЕЙ ИЗ ПАСПОРТА КОНФИГА
+// ДОБАВЛЕН ИМПОРТ ТЕКСТОВЫХ СЛОВАРЕЙ ИЗ ПАСПОРТА КОНФИГА
 import {
   SOUND_PARAMS,
   EFFECT_DEVICES,
@@ -96,6 +96,15 @@ export const updateInstrumentEnvelope = (instrument, settings) => {
     instrument.portamento = settings.synthGlide;
   }
 
+  // ПОДДЕРЖКА DETUNE ДЛЯ ВСЕХ СИНТОВ: Плавно расстраиваем осциллятор
+  if (settings.detune !== undefined && instrument.detune) {
+    if (typeof instrument.detune.rampTo === 'function') {
+      instrument.detune.rampTo(settings.detune, 0.05);
+    } else {
+      instrument.detune.value = settings.detune;
+    }
+  }
+
   // Если это СИНТ (MonoSynth) — крутим параметры его ВНУТРЕННЕГО фильтра
   if (settings.filterQ !== undefined && instrument.filter) {
     if (typeof instrument.filter.Q.rampTo === 'function') {
@@ -161,7 +170,16 @@ export const updateEffectParam = (fxNode, targetParam, value) => {
     return;
   }
 
-  // 🆕 ИНТЕГРАЦИЯ ТЕКСТОВЫХ СЛОВАРЕЙ ДЛЯ ИНИЦИАЛИЗАЦИИ И АВТОМАТИЗАЦИИ СТЕЙТА:
+  // 🧱 ЧИСТЫЙ АВТО-СТАРТ БЕЗ ХАРДКОДА И ИМЁН:
+  // Будим любой прибор Tone.js со встроенным LFO (Chorus, Phaser, AutoPanner), если у него есть метод .start()
+  if (typeof fxNode.start === 'function' && fxNode.state !== 'started') {
+    try {
+      fxNode.start();
+    } catch (e) {
+      // Игнорируем ворнинг, если контекст Web Audio еще не разблокирован
+    }
+  }
+
   // Ищем текущий параметр в паспорте SOUND_PARAMS по совпадению nodeKey и targetParam
   const paramConfig = Object.values(SOUND_PARAMS).find(
     (p) =>
@@ -178,7 +196,7 @@ export const updateEffectParam = (fxNode, targetParam, value) => {
     if (dict && dict.audioValues[value] !== undefined) {
       finalValue = dict.audioValues[value];
 
-      // Передаем строку через .set() или прямым присвоением свойства
+      // Передаем строку через .set() or прямым присвоением свойства
       if (typeof fxNode.set === 'function') {
         fxNode.set({ [targetParam]: finalValue });
       } else {
@@ -240,9 +258,7 @@ const applyEffectSettings = (
     (device) => device.nodeKey === paramConfig.nodeKey,
   );
 
-  // 🆕 ЧЕСТНАЯ СТРОГАЯ ПРОВЕРКА:
-  // Эффект в Tone.js включается ТОЛЬКО тогда, когда флаг активности в Редаксе равен явной true.
-  // Если там false или undefined — прибор спит. Это убирает фантомный запуск эффектов на старте.
+  // ЧЕСТНАЯ СТРОГАЯ ПРОВЕРКА:
   const isEffectActiveByButton = deviceConfig?.activeKey
     ? allSettings[deviceConfig.activeKey] === true
     : true;
@@ -289,9 +305,7 @@ export const applyDynamicBypass = (synthName, synthInstance, settings) => {
     .forEach(([paramName, paramConfig]) => {
       const fxNode = synthInstance[paramConfig.nodeKey];
 
-      // 🆕 БЕЗОПАСНЫЙ ПОДХВАТ ДЕФОЛТОВ ИЗ ПАСПОРТА:
-      // Если в стейте Редакса ползунка еще нет (undefined на чистых пресетах),
-      // мы берем его сочное дефолтное число или индекс прямо из SOUND_PARAMS.
+      // БЕЗОПАСНЫЙ ПОДХВАТ ДЕФОЛТОВ ИЗ ПАСПОРТА:
       const liveValue = settings[paramName] ?? paramConfig.default ?? 0;
 
       if (isValidEffectNode(fxNode, liveValue)) {
