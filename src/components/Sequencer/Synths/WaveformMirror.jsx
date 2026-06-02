@@ -1,5 +1,122 @@
 import React, { useEffect, useRef } from 'react';
+// 🆕 ИМПОРТИРУЕМ ЕДИНЫЙ ИСТОЧНИК ПРАВДЫ ДЛЯ ЦЕПОЧКИ ЭФФЕКТОВ:
+import { DRUM_EFFECTS_CHAIN } from '../../../constants/soundParamsConfig';
 
+// ============================================================================
+// 1. ДЕКЛАРАТИВНЫЙ СЛОВАРЬ МАТЕМАТИЧЕСКИХ ТРАНСФОРМАЦИЙ ВОЛНЫ
+// ============================================================================
+const EFFECT_TRANSFORMERS = {
+  crusher: (points, settings) => {
+    // 🆕 ЧЕСТНАЯ ПРОВЕРКА КНОПКИ: Если крашер выключен кнопкой, пропускаем деформацию
+    const isActive = settings?.bitcrusherActive ?? true;
+    const wet = settings?.bitcrusherWet ?? 0;
+    if (!isActive || wet <= 0) return points;
+
+    const bits = settings?.bitcrusherBits ?? 4;
+    // Квантование на основе ручки BITS
+    const steps = Math.max(2, Math.round(Math.pow(2, bits)));
+
+    return points.map((p) => {
+      const steppedY = Math.round(p.y * steps) / steps;
+      return {
+        ...p,
+        y: p.y * (1 - wet) + steppedY * wet,
+      };
+    });
+  },
+
+  distortion: (points, settings) => {
+    // 🆕 ЧЕСТНАЯ ПРОВЕРКА КНОПКИ: Если дисторшн выключен кнопкой, пропускаем деформацию
+    const isActive = settings?.distortionActive ?? true;
+    const wet = settings?.distortionWet ?? 0;
+    if (!isActive || wet <= 0) return points;
+
+    const drive = settings?.distortionDrive ?? 1.5;
+    // Уровень среза динамически зависит от DISTORTION DRIVE
+    const limit = Math.max(0.1, 1 / (1 + drive * 2));
+
+    return points.map((p) => {
+      const boostedY = p.y * (1 + drive * 3);
+      const clippedY = Math.min(limit, Math.max(-limit, boostedY));
+      const finalY = clippedY * (1 / limit);
+
+      return {
+        ...p,
+        y: p.y * (1 - wet) + finalY * wet,
+      };
+    });
+  },
+
+  filter: (points, settings) => {
+    const cutoffHz = settings?.filterCutoff ?? 10000;
+    const filterQ = settings?.filterQ ?? 1;
+
+    if (cutoffHz >= 9500 && filterQ <= 1) return points;
+
+    const smoothness = Math.max(1, Math.round((10000 - cutoffHz) / 400));
+    const qBoost = (filterQ - 1) * 0.15;
+
+    const smoothedPoints = [];
+    for (let i = 0; i < points.length; i++) {
+      let sumY = 0;
+      let count = 0;
+      for (let j = -smoothness; j <= smoothness; j++) {
+        if (points[i + j]) {
+          sumY += points[i + j].y;
+          count++;
+        }
+      }
+      let targetY = sumY / count;
+      if (filterQ > 1) {
+        targetY += (points[i].y - targetY) * qBoost;
+      }
+      smoothedPoints.push({ ...points[i], y: targetY });
+    }
+    return smoothedPoints;
+  },
+};
+
+// ============================================================================
+// 2. ВСПОМОГАТЕЛЬНЫЙ ГЕНЕРАТОР ЧИСТЫХ ТОЧЕК ОСЦИЛЛЯТОРА
+// ============================================================================
+const generateBaseOscillatorPoints = (
+  oscillatorType,
+  filterEnvOctaves,
+  pointsCount,
+  padding,
+  renderWidth,
+) => {
+  const wavePoints = [];
+  const envPhaseMod = 1 + filterEnvOctaves * 0.5;
+
+  for (let i = 0; i < pointsCount; i++) {
+    const x = padding + (i / pointsCount) * renderWidth;
+    const progress = (i / pointsCount) * envPhaseMod;
+    let y = 0;
+
+    if (oscillatorType === 'sine' || oscillatorType === 'MembraneSynth') {
+      y = Math.sin(progress * Math.PI * 4);
+    } else if (oscillatorType === 'square') {
+      y = Math.sin(progress * Math.PI * 4) >= 0 ? 1 : -1;
+    } else if (oscillatorType === 'sawtooth') {
+      y = 1 - ((progress * 4) % 2);
+    } else if (oscillatorType === 'triangle') {
+      y = Math.abs(1 - ((progress * 4) % 2)) * 2 - 1;
+    } else if (
+      oscillatorType === 'NoiseSynth' ||
+      oscillatorType === 'MetalSynth'
+    ) {
+      y = Math.random() * 2 - 1;
+    }
+
+    wavePoints.push({ x, y });
+  }
+  return wavePoints;
+};
+
+// ============================================================================
+// 3. REACT КОМПОНЕНТ ВИЗУАЛИЗАТОРА
+// ============================================================================
 export const WaveformMirror = ({
   synthName,
   activeParamGroup,
@@ -19,11 +136,12 @@ export const WaveformMirror = ({
     const renderHeight = height - padding * 2;
     const centerY = height / 2;
 
+    // Сброс и отрисовка темного бэкграунда
     ctx.clearRect(0, 0, width, height);
-
     ctx.fillStyle = '#1e1e1e';
     ctx.fillRect(0, 0, width, height);
 
+    // Отрисовка центральной осевой линии
     ctx.strokeStyle = '#2d2d2d';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -31,105 +149,29 @@ export const WaveformMirror = ({
     ctx.lineTo(width, centerY);
     ctx.stroke();
 
-    // 1. ВЫТАСКИВАЕМ ВСЕ ПАРАМЕТРЫ ИЗ REDUX (включая новые ручки)
-    const crusherWet = instrumentSettings?.bitcrusherWet ?? 0;
-    const crusherBits = instrumentSettings?.bitcrusherBits ?? 4; // 🆕 Считываем ручку BITS (дефолт 4)
-
-    const distortionWet = instrumentSettings?.distortionWet ?? 0;
-    const distortionDrive = instrumentSettings?.distortionDrive ?? 1.5; // 🆕 Считываем ручку DRIVE (дефолт 1.5)
-
-    const cutoffHz = instrumentSettings?.filterCutoff ?? 10000;
-    const filterQ = instrumentSettings?.filterQ ?? 1;
+    // Чтение базовых параметров осциллятора
+    const oscillatorType = instrumentSettings?.oscillatorType || 'square';
     const filterEnvOctaves = instrumentSettings?.filterEnvOctaves ?? 0;
 
-    // 2. ГЕНЕРАТОР БАЗОВОЙ ВОЛНЫ
-    const pointsCount = 200;
-    const oscillatorType = instrumentSettings?.oscillatorType || 'square';
-    let wavePoints = [];
+    // Шаг 1: Генерируем чистую исходную волну осциллятора
+    let wavePoints = generateBaseOscillatorPoints(
+      oscillatorType,
+      filterEnvOctaves,
+      200, // pointsCount
+      padding,
+      renderWidth,
+    );
 
-    const envPhaseMod = 1 + filterEnvOctaves * 0.5;
+    // Шаг 2: ПОЛНОСТЬЮ ДИНАМИЧЕСКИЙ КОНВЕЙЕР ДЕФОРМАЦИИ (Pipeline)
+    // Метод .reduce() последовательно прогоняет точки по цепочке DRUM_EFFECTS_CHAIN из глобального паспорта
+    wavePoints = DRUM_EFFECTS_CHAIN.reduce((currentPoints, effectKey) => {
+      const transformer = EFFECT_TRANSFORMERS[effectKey];
+      return transformer
+        ? transformer(currentPoints, instrumentSettings)
+        : currentPoints;
+    }, wavePoints);
 
-    for (let i = 0; i < pointsCount; i++) {
-      const x = padding + (i / pointsCount) * renderWidth;
-      const progress = (i / pointsCount) * envPhaseMod;
-      let y = 0;
-
-      if (oscillatorType === 'sine' || oscillatorType === 'MembraneSynth') {
-        y = Math.sin(progress * Math.PI * 4);
-      } else if (oscillatorType === 'square') {
-        y = Math.sin(progress * Math.PI * 4) >= 0 ? 1 : -1;
-      } else if (oscillatorType === 'sawtooth') {
-        y = 1 - ((progress * 4) % 2);
-      } else if (oscillatorType === 'triangle') {
-        y = Math.abs(1 - ((progress * 4) % 2)) * 2 - 1;
-      } else if (
-        oscillatorType === 'NoiseSynth' ||
-        oscillatorType === 'MetalSynth'
-      ) {
-        y = Math.random() * 2 - 1;
-      }
-
-      wavePoints.push({ x, y });
-    }
-
-    // 3. СКВОЗНОЙ КОНВЕЙЕР ДЕФОРМАЦИИ
-
-    // --- Шаг А: Биткрашер (Квантование на основе ручки BITS) ---
-    if (crusherWet > 0) {
-      // 🆕 Вместо слепой математики завязываемся на реальное положение ручки CRUSHER BITS
-      // Чем меньше бит выставлено на панели — тем меньше ступенек на графике (минимум 2)
-      const steps = Math.max(2, Math.round(Math.pow(2, crusherBits)));
-      wavePoints = wavePoints.map((p) => {
-        const steppedY = Math.round(p.y * steps) / steps;
-        return { x: p.x, y: p.y * (1 - crusherWet) + steppedY * crusherWet };
-      });
-    }
-
-    // --- Шаг Б: Дисторшн (Hard Clipping на основе ручки DRIVE) ---
-    if (distortionWet > 0) {
-      // 🆕 Уровень среза теперь динамически зависит от DISTORTION DRIVE
-      // Чем выше драйв — тем сильнее распирает сигнал и сильнее срезаются пики
-      const limit = Math.max(0.1, 1 / (1 + distortionDrive * 2));
-      wavePoints = wavePoints.map((p) => {
-        // Усиливаем амплитуду волны драйвом и жестко зажимаем в рамки лимита
-        const boostedY = p.y * (1 + distortionDrive * 3);
-        const clippedY = Math.min(limit, Math.max(-limit, boostedY));
-
-        // Масштабируем обратно к размерам холста и подмешиваем по Wet
-        const finalY = clippedY * (1 / limit);
-        return {
-          x: p.x,
-          y: p.y * (1 - distortionWet) + finalY * distortionWet,
-        };
-      });
-    }
-
-    // --- Шаг В: Фильтр ---
-    if (cutoffHz < 9500 || filterQ > 1) {
-      const smoothness = Math.max(1, Math.round((10000 - cutoffHz) / 400));
-      const qBoost = (filterQ - 1) * 0.15;
-
-      let smoothedPoints = [];
-      for (let i = 0; i < wavePoints.length; i++) {
-        let sumY = 0;
-        let count = 0;
-        for (let j = -smoothness; j <= smoothness; j++) {
-          if (wavePoints[i + j]) {
-            sumY += wavePoints[i + j].y;
-            count++;
-          }
-        }
-        let targetY = sumY / count;
-        if (filterQ > 1) {
-          const diff = wavePoints[i].y - targetY;
-          targetY += diff * qBoost;
-        }
-        smoothedPoints.push({ x: wavePoints[i].x, y: targetY });
-      }
-      wavePoints = smoothedPoints;
-    }
-
-    // 4. ОТРИСОВКА ОДНОЙ СТАБИЛЬНОЙ ЗЕЛИНОЙ ВОЛНЫ
+    // Шаг 3: ОТРИСОВКА ФИНАЛЬНОЙ СТАБИЛЬНОЙ ЗЕЛЕНОЙ ВОЛНЫ НА ХОЛСТЕ
     ctx.strokeStyle = '#00ffaa';
     ctx.lineWidth = 2.5;
     ctx.shadowBlur = 5;
@@ -145,6 +187,7 @@ export const WaveformMirror = ({
     });
     ctx.stroke();
 
+    // Очищаем размытие тени для оптимизации производительности
     ctx.shadowBlur = 0;
   }, [synthName, instrumentSettings]);
 
