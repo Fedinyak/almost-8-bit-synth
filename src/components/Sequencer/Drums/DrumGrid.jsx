@@ -240,7 +240,6 @@ const DrumGrid = () => {
               </div>
             </div>
 
-            {/* 🆕 ВРЕЗАЕМ ГОЛУЮ ПАНЕЛЬ LFO В САМЫЙ НИЗ АКТИВНОГО БАРАБАННОГО КАНАЛА */}
             <LfoModulationPanel synthName={activeDrumName} />
           </div>
         )}
