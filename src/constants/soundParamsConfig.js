@@ -31,7 +31,7 @@ export const SOUND_PARAM_GROUPS = [
 ];
 
 // ============================================================================
-// 2. ЖЕЛЕЗНЫЕ ДЕВАЙСЫ ДЛЯ АУДИО-ДВИЖКА (Сюда добавили Сатуратор и Хорус)
+// 2. ЖЕЛЕЗНЫЕ ДЕВАЙСЫ ДЛЯ АУДИО-ДВИЖКА (Убран экспериментальный testLfo)
 // ============================================================================
 export const EFFECT_DEVICES = {
   saturator: {
@@ -41,7 +41,7 @@ export const EFFECT_DEVICES = {
     label: 'SATURATOR',
     groupKey: 'saturator',
     activeKey: 'saturatorActive',
-  }, // 🆕 Сатуратор для жира
+  }, // СЛЕСАРНЫЙ САУНД-ЖИР
   crusher: {
     nodeKey: 'fxBitcrusher',
     ClassRef: Tone.BitCrusher,
@@ -49,13 +49,6 @@ export const EFFECT_DEVICES = {
     label: 'BITCRUSHER',
     groupKey: 'crusher',
     activeKey: 'bitcrusherActive',
-  },
-  testLfo: {
-    nodeKey: 'fxLfo',
-    ClassRef: Tone.LFO,
-    defaultParams: { type: 'sine', frequency: 5.0, min: 200, max: 8000 },
-    label: 'TEST LFO',
-    groupKey: 'filter', // Привязываем к группе фильтра, чтобы не плодить вкладки
   },
   distortion: {
     nodeKey: 'fxDistortion',
@@ -86,7 +79,7 @@ export const EFFECT_DEVICES = {
     label: 'CHORUS / FLANGER',
     groupKey: 'chorus',
     activeKey: 'chorusActive',
-  }, // 🆕 Космический хорус
+  }, // СТЕРЕО-ХОРУС ДЛЯ ОБЪЕМА
   delay: {
     nodeKey: 'fxDelay',
     ClassRef: Tone.FeedbackDelay,
@@ -112,18 +105,18 @@ export const DRUM_EFFECTS_CHAIN = [
   'distortion',
   'filter',
   'filterHigh',
-  'chorus',
-  'delay',
-  'pingpong',
-  'testLfo',
+  // 'chorus',
+  // 'delay',
+  // 'pingpong',
 ];
+
 export const UI_EFFECTS_LIST = [
   'saturator',
   'crusher',
   'distortion',
-  'chorus',
-  'delay',
-  'pingpong',
+  // 'chorus',
+  // 'delay',
+  // 'pingpong',
 ];
 
 // 🔥 АВТО-СБОРЩИК ДЕФОЛТОВ: Теперь он автоматически выставит saturatorActive: false и chorusActive: false на лету!
