@@ -119,7 +119,7 @@ export const wrapInstrumentWithEffects = (
 ) => {
   const fxRegistry = {};
 
-  // Очищаем сквозную цепочку аудиоэффектов от тестовых модуляторов
+  // Фильтруем цепочку: полностью исключаем любые упоминания тест-LFO из сквозного аудио-тракта
   const audioEffectsChain = effectsChain.filter((key) => key !== 'testLfo');
 
   const createdEffects = audioEffectsChain
@@ -140,9 +140,11 @@ export const wrapInstrumentWithEffects = (
     })
     .filter(Boolean);
 
+  // Соединяем приборы в сквозную цепочку эффектов
   connectAudioChain([rawSynth, ...createdEffects]);
 
-  // Интеграция единого независимого Master LFO для матрицы модуляции инструмента
+  // ЖЕЛЕЗНОЕ ПРАВИЛО: Создаем один независимый Master LFO для матрицы модуляции
+  // Он собирается АВТОМАТИЧЕСКИ для каждого синта и каждого барабана драм-машины
   const masterLfoNode = new Tone.LFO({
     type: 'sine',
     frequency: 5.0,
@@ -150,7 +152,7 @@ export const wrapInstrumentWithEffects = (
     max: 1,
   });
 
-  // Настраиваем измеритель на перехват чистых числовых значений вольтажа волны
+  // Измеритель фазы в режиме считывания вольтажа числом
   const masterLfoMeter = new Tone.Meter({ type: 'value' });
   masterLfoNode.connect(masterLfoMeter);
 

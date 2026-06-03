@@ -2,15 +2,17 @@ import { createSlice } from '@reduxjs/toolkit';
 import { DRUM_PRESETS, SYNTH_PRESETS } from '../constants/soundParamsConfig';
 
 const preprocessedSynths = {};
+
+// Автоматически накатываем структуру LFO на ВСЕ инструменты драм-машины и синтов
 Object.entries({ ...DRUM_PRESETS, ...SYNTH_PRESETS }).forEach(
   ([name, config]) => {
     preprocessedSynths[name] = {
       ...config,
       lfoActive: false,
       lfoRate: 5.0,
-      lfoDepth: 0.5, // Новое поле глубины модуляции
-      lfoWaveform: 'sine', // Новое поле формы волны
-      lfoTarget: 'filterLowpassCutoff',
+      lfoDepth: 0.5,
+      lfoWaveform: 'sine',
+      lfoTarget: 'filterLowpassCutoff', // Дефолтная цель. Для барабанов без фильтра LFO просто будет спать, пока юзер не сменит цель на Volume или Wet
     };
   },
 );

@@ -42,6 +42,9 @@ export const useAudioEngineSync = (
   const synthAnalysersRef = useRef({});
   const synthChannelsRef = useRef({});
 
+  // Хранилище для сглаживания прошлых значений параметров, чтобы убрать треск (Lag Filter)
+  const smoothedValuesRef = useRef({});
+
   useEffect(() => {
     initializeSynths(SYNTH_LIST, synthEnginesRef.current);
     initializeDrums(drumsEngineRef);
@@ -56,21 +59,20 @@ export const useAudioEngineSync = (
     );
   }, [drumsEngineRef, synthEnginesRef]);
 
-  // Высокоточный JS-конвейер матрицы модуляции LFO
+  // Конвейер матрицы модуляции LFO со встроенным подавлением щелчков и треска
   useEffect(() => {
     let animationFrameId;
 
     const runModulationPipeline = () => {
-      // 1. Модуляция для линии синтезаторов
+      // 1. Матрица модуляции для СИНТЕЗАТОРОВ
       SYNTH_LIST.forEach((name) => {
         const synthInstance = synthEnginesRef.current[name];
         const settings = soundSettings[name];
         if (!synthInstance || !settings) return;
 
         if (synthInstance.masterLfo) {
-          if (settings.lfoRate !== undefined) {
+          if (settings.lfoRate !== undefined)
             synthInstance.masterLfo.frequency.value = settings.lfoRate;
-          }
           if (
             settings.lfoWaveform !== undefined &&
             synthInstance.masterLfo.type !== settings.lfoWaveform
@@ -97,34 +99,40 @@ export const useAudioEngineSync = (
 
           const baseValue = settings[targetParam] ?? paramConfig.default ?? 0;
 
-          // Вычисляем модулированное значение
-          let modulatedValue =
+          let targetModulated =
             baseValue + lfoPhase * (fullRange * 0.5 * currentDepth);
-          modulatedValue = Math.max(minVal, Math.min(maxVal, modulatedValue));
+          targetModulated = Math.max(minVal, Math.min(maxVal, targetModulated));
 
-          // КРИТИЧЕСКИЙ ФИКС ДЛЯ ТЕКСТОВЫХ ПАРАМЕТРОВ:
-          // Если параметр является текстовым (индексом словаря), принудительно округляем до целого числа
           if (paramConfig.isTextParam) {
-            modulatedValue = Math.round(modulatedValue);
+            targetModulated = Math.round(targetModulated);
           }
 
-          runtimeSettings[targetParam] = modulatedValue;
+          // ФИКС ТРЕСКА: Программный инерционный фильтр (Линейная интерполяция)
+          const cacheKey = `${name}_${targetParam}`;
+          if (smoothedValuesRef.current[cacheKey] === undefined) {
+            smoothedValuesRef.current[cacheKey] = targetModulated;
+          }
+          // Плавно подползаем к новому значению, стирая острые цифровые углы
+          smoothedValuesRef.current[cacheKey] +=
+            (targetModulated - smoothedValuesRef.current[cacheKey]) * 0.15;
+
+          runtimeSettings[targetParam] = smoothedValuesRef.current[cacheKey];
         }
 
         applySynthEnvelope(synthInstance, runtimeSettings);
         applyDynamicBypass(name, synthInstance, runtimeSettings);
       });
 
-      // 2. Модуляция для драм-рэка
+      // 2. Матрица модуляции для БАРАБАНОВ ДРАМ-МАШИНЫ
       DRUM_KIT_LIST.forEach((name) => {
         const drumInstance = drumsEngineRef.current?.[name];
         const settings = soundSettings[name];
         if (!drumInstance || !settings) return;
 
+        // Физически настраиваем независимое LFO этого конкретного барабана
         if (drumInstance.masterLfo) {
-          if (settings.lfoRate !== undefined) {
+          if (settings.lfoRate !== undefined)
             drumInstance.masterLfo.frequency.value = settings.lfoRate;
-          }
           if (
             settings.lfoWaveform !== undefined &&
             drumInstance.masterLfo.type !== settings.lfoWaveform
@@ -151,15 +159,23 @@ export const useAudioEngineSync = (
 
           const baseValue = settings[targetParam] ?? paramConfig.default ?? 0;
 
-          let modulatedValue =
+          let targetModulated =
             baseValue + lfoPhase * (fullRange * 0.5 * currentDepth);
-          modulatedValue = Math.max(minVal, Math.min(maxVal, modulatedValue));
+          targetModulated = Math.max(minVal, Math.min(maxVal, targetModulated));
 
           if (paramConfig.isTextParam) {
-            modulatedValue = Math.round(modulatedValue);
+            targetModulated = Math.round(targetModulated);
           }
 
-          runtimeSettings[targetParam] = modulatedValue;
+          // Применяем инерционное сглаживание и для параметров барабанов
+          const cacheKey = `${name}_${targetParam}`;
+          if (smoothedValuesRef.current[cacheKey] === undefined) {
+            smoothedValuesRef.current[cacheKey] = targetModulated;
+          }
+          smoothedValuesRef.current[cacheKey] +=
+            (targetModulated - smoothedValuesRef.current[cacheKey]) * 0.15;
+
+          runtimeSettings[targetParam] = smoothedValuesRef.current[cacheKey];
         }
 
         applySynthEnvelope(drumInstance, runtimeSettings);

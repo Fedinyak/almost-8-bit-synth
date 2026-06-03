@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import StepIndicator from '../Controls/StepIndicator';
 import DrumCell from './DrumCell';
 import DrumMonitor from '../../visualizers/DrumMonitor';
-import { updateSynthParam } from '../../../slices/soundSettingsSlice'; // Импортируем экшен для кнопок ON/OFF
+import { updateSynthParam } from '../../../slices/soundSettingsSlice';
 import {
   SOUND_PARAM_GROUPS,
   DRUM_TYPE_MAP,
@@ -13,6 +13,7 @@ import {
 import SoundParamGroup from '../Controls/SoundParamGroup';
 import { setActiveSoundControlDrumTabIndex } from '../../../slices/playerSlice';
 import { WaveformMirror } from '../Synths/WaveformMirror';
+import { LfoModulationPanel } from '../Controls/LfoModulationPanel';
 
 const DrumGrid = () => {
   const dispatch = useDispatch();
@@ -114,7 +115,6 @@ const DrumGrid = () => {
             <div
               style={{
                 display: 'flex',
-                // justifyContent: 'space-between',
                 alignItems: 'center',
                 marginBottom: '12px',
               }}
@@ -149,12 +149,10 @@ const DrumGrid = () => {
               </div>
             ))}
 
-            {/* Модульный чистый рэк эффектов для барабанов с кнопками ON / OFF */}
             <div style={{ marginTop: '16px' }}>
               <h6>EFFECTS RACK:</h6>
 
               <div style={{ display: 'flex', gap: '16px' }}>
-                {/* Список эффектов с переключателями слева */}
                 <div
                   style={{
                     display: 'flex',
@@ -227,7 +225,6 @@ const DrumGrid = () => {
                   })}
                 </div>
 
-                {/* Слайдеры выбранного эффекта справа */}
                 <div
                   className="drum-param-group-container"
                   data-group="effects"
@@ -242,6 +239,9 @@ const DrumGrid = () => {
                 </div>
               </div>
             </div>
+
+            {/* 🆕 ВРЕЗАЕМ ГОЛУЮ ПАНЕЛЬ LFO В САМЫЙ НИЗ АКТИВНОГО БАРАБАННОГО КАНАЛА */}
+            <LfoModulationPanel synthName={activeDrumName} />
           </div>
         )}
       </div>
