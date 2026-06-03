@@ -2,6 +2,7 @@ import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { updateSynthParam } from '../../../slices/soundSettingsSlice';
 import { SOUND_PARAMS } from '../../../constants/soundParamsConfig';
+import { LfoOscilloscope } from './LfoOscilloscope';
 
 export const LfoModulationPanel = ({ synthName }) => {
   const dispatch = useDispatch();
@@ -40,7 +41,16 @@ export const LfoModulationPanel = ({ synthName }) => {
 
   return (
     <div className="lfo-modulator-panel">
-      <div>LFO:</div>
+      <div>
+        <div>LFO VISUALIZER:</div>
+        {/* Статичный холст 200x100 */}
+        <LfoOscilloscope
+          isActive={isActive}
+          depth={currentDepth}
+          waveform={currentWaveform}
+          rate={currentRate}
+        />
+      </div>
 
       <div>
         <button
