@@ -160,7 +160,6 @@ export const applySynthEnvelope = (synthInstance, settings) => {
   updateInstrumentVolume(nativeInstrument, settings.volume);
   updateInstrumentEnvelope(nativeInstrument, settings);
 };
-
 export const updateEffectParam = (fxNode, targetParam, value) => {
   if (!fxNode || !targetParam) return;
 
@@ -170,14 +169,11 @@ export const updateEffectParam = (fxNode, targetParam, value) => {
     return;
   }
 
-  // 🧱 ЧИСТЫЙ АВТО-СТАРТ БЕЗ ХАРДКОДА И ИМЁН:
-  // Будим любой прибор Tone.js со встроенным LFO (Chorus, Phaser, AutoPanner), если у него есть метод .start()
+  // ЧИСТЫЙ АВТО-СТАРТ БЕЗ ХАРДКОДА И ИМЁН
   if (typeof fxNode.start === 'function' && fxNode.state !== 'started') {
     try {
       fxNode.start();
-    } catch (e) {
-      // Игнорируем ворнинг, если контекст Web Audio еще не разблокирован
-    }
+    } catch (e) {}
   }
 
   // Ищем текущий параметр в паспорте SOUND_PARAMS по совпадению nodeKey и targetParam
@@ -196,7 +192,6 @@ export const updateEffectParam = (fxNode, targetParam, value) => {
     if (dict && dict.audioValues[value] !== undefined) {
       finalValue = dict.audioValues[value];
 
-      // Передаем строку через .set() or прямым присвоением свойства
       if (typeof fxNode.set === 'function') {
         fxNode.set({ [targetParam]: finalValue });
       } else {
@@ -209,13 +204,26 @@ export const updateEffectParam = (fxNode, targetParam, value) => {
   const paramNode = fxNode[targetParam];
   if (paramNode === undefined) return;
 
-  // 2. Универсальное сглаживание для всех нативных AudioParam (frequency, Q, feedback, delayTime и т.д.)
+  // КРИТИЧЕСКИЙ ФИКС: Защита от RangeError при суженном диапазоне [0, 0] в байпасе
   if (paramNode && typeof paramNode.rampTo === 'function') {
-    paramNode.rampTo(finalValue, 0.05);
+    // Если нода аппаратно усыплена или заблокирована, пишем напрямую в свойство в обход интерполятора rampTo
+    if (paramNode.maxValue === 0 || fxNode.bypassed) {
+      try {
+        paramNode.value = finalValue;
+      } catch (e) {}
+      return;
+    }
+
+    try {
+      paramNode.rampTo(finalValue, 0.05);
+    } catch (e) {
+      try {
+        paramNode.value = finalValue;
+      } catch (innerError) {}
+    }
     return;
   }
 
-  // 3. Прямая перезапись для обычных JS-свойств и примитивов (bits, distortion и т.д.)
   fxNode[targetParam] = finalValue;
 };
 

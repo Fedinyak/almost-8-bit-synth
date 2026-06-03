@@ -50,6 +50,13 @@ export const EFFECT_DEVICES = {
     groupKey: 'crusher',
     activeKey: 'bitcrusherActive',
   },
+  testLfo: {
+    nodeKey: 'fxLfo',
+    ClassRef: Tone.LFO,
+    defaultParams: { type: 'sine', frequency: 5.0, min: 200, max: 8000 },
+    label: 'TEST LFO',
+    groupKey: 'filter', // Привязываем к группе фильтра, чтобы не плодить вкладки
+  },
   distortion: {
     nodeKey: 'fxDistortion',
     ClassRef: Tone.Distortion,
@@ -108,6 +115,7 @@ export const DRUM_EFFECTS_CHAIN = [
   'chorus',
   'delay',
   'pingpong',
+  'testLfo',
 ];
 export const UI_EFFECTS_LIST = [
   'saturator',

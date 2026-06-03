@@ -119,7 +119,10 @@ export const wrapInstrumentWithEffects = (
 ) => {
   const fxRegistry = {};
 
-  const createdEffects = effectsChain
+  // Очищаем сквозную цепочку аудиоэффектов от тестовых модуляторов
+  const audioEffectsChain = effectsChain.filter((key) => key !== 'testLfo');
+
+  const createdEffects = audioEffectsChain
     .map((deviceKey) => {
       const device = effectDevices[deviceKey];
       if (!device) return null;
@@ -139,11 +142,31 @@ export const wrapInstrumentWithEffects = (
 
   connectAudioChain([rawSynth, ...createdEffects]);
 
+  // Интеграция единого независимого Master LFO для матрицы модуляции инструмента
+  const masterLfoNode = new Tone.LFO({
+    type: 'sine',
+    frequency: 5.0,
+    min: -1,
+    max: 1,
+  });
+
+  // Настраиваем измеритель на перехват чистых числовых значений вольтажа волны
+  const masterLfoMeter = new Tone.Meter({ type: 'value' });
+  masterLfoNode.connect(masterLfoMeter);
+
+  try {
+    masterLfoNode.start();
+  } catch (e) {}
+
   return {
     instrument: rawSynth,
     ...fxRegistry,
+    masterLfo: masterLfoNode,
+    masterLfoMeter: masterLfoMeter,
     output: createdEffects[createdEffects.length - 1] || rawSynth,
     dispose() {
+      masterLfoNode.dispose();
+      masterLfoMeter.dispose();
       createdEffects.forEach((node) => node.dispose());
       rawSynth.dispose();
     },

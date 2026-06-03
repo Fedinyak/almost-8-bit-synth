@@ -8,6 +8,7 @@ import {
   EFFECT_DEVICES,
 } from '../../../constants/soundParamsConfig';
 import { WaveformMirror } from '../Synths/WaveformMirror';
+import LfoModulationPanel from './LfoModulationPanel';
 
 export const SynthSoundPanel = ({ synthName }) => {
   const dispatch = useDispatch();
@@ -143,6 +144,7 @@ export const SynthSoundPanel = ({ synthName }) => {
               instrumentSettings={synthSettings}
             />
           </div>
+          <LfoModulationPanel synthName={synthName} />
         </div>
       </div>
     </div>
