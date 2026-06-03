@@ -1,12 +1,12 @@
 @font-face {
   font-family: Martian Mono;
-  src: url("./fonts/MartianMono-StdRg.woff2") format("woff2");
+  src: url('./fonts/MartianMono-StdRg.woff2') format('woff2');
   font-weight: 400;
 }
 
 @font-face {
   font-family: Martian Mono;
-  src: url("./fonts/MartianMono-sWdxBd.woff2") format("woff2");
+  src: url('./fonts/MartianMono-sWdxBd.woff2') format('woff2');
   font-weight: 800;
 }
 
@@ -22,7 +22,7 @@ html {
 :root {
   font-family:
     Martian Mono,
-    "Courier New",
+    'Courier New',
     Courier,
     monospace;
   line-height: 1.5;
@@ -30,6 +30,7 @@ html {
 
   min-height: 100%;
   -webkit-text-size-adjust: 100%;
+
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -61,6 +62,11 @@ html {
   --aluminum: oklch(75% 0.02 250);
   --purple-stain: oklch(65% 0.25 320);
   --violet-stain: oklch(55% 0.22 285);
+
+  /* Delete after test */
+  -webkit-appearance: none;
+  margin: 0;
+  padding: 0;
 }
 
 .visually-hidden {
