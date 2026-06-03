@@ -3,16 +3,16 @@ import { DRUM_PRESETS, SYNTH_PRESETS } from '../constants/soundParamsConfig';
 
 const preprocessedSynths = {};
 
-// Автоматически накатываем структуру LFO на ВСЕ инструменты драм-машины и синтов
+// Накатываем структуру LFO с заряженной по умолчанию слышимой глубиной модуляции
 Object.entries({ ...DRUM_PRESETS, ...SYNTH_PRESETS }).forEach(
   ([name, config]) => {
     preprocessedSynths[name] = {
       ...config,
       lfoActive: false,
       lfoRate: 5.0,
-      lfoDepth: 0.5,
+      lfoDepth: 0.5, // По умолчанию выставлено +50%, чтобы кач был сразу слышен при нажатии ON
       lfoWaveform: 'sine',
-      lfoTarget: 'filterLowpassCutoff', // Дефолтная цель. Для барабанов без фильтра LFO просто будет спать, пока юзер не сменит цель на Volume или Wet
+      lfoTarget: 'filterLowpassCutoff',
     };
   },
 );

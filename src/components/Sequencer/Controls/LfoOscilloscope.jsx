@@ -30,7 +30,6 @@ export const LfoOscilloscope = ({ depth, waveform, isActive, rate }) => {
     const currentAmplitude = depth * maxAmplitude;
 
     // Коэффициент масштабирования частоты, чтобы забор из волн на 20 Гц не сливался в кашу
-    // На 5 Гц на экране будет примерно 2 полных цикла волны
     const frequencyScale = 0.4;
     const totalCycles = rate * frequencyScale;
 
@@ -50,22 +49,31 @@ export const LfoOscilloscope = ({ depth, waveform, isActive, rate }) => {
 
       switch (waveform) {
         case 'sine':
+          // Классический синус: стартует из нуля вверх, затем уходит в минус
           yOffset = Math.sin(angle);
           break;
 
         case 'square':
+          // Классический квадрат: первая половина периода вверху (+1), вторая — внизу (-1)
           yOffset = normalizedAngle < Math.PI ? 1 : -1;
           break;
 
         case 'sawtooth':
-          yOffset = 1 - normalizedAngle / Math.PI;
+          // КЛАССИЧЕСКАЯ ВОСХОДЯЩАЯ ПИЛА (SAWTOOTH): Плавный взлет от -1 до +1
+          // При прохождении фазы она честно зеркалится по вертикали
+          yOffset = normalizedAngle / Math.PI - 1;
           break;
 
         case 'triangle':
-          yOffset =
-            normalizedAngle < Math.PI
-              ? 1 - (2 * normalizedAngle) / Math.PI
-              : -3 + (2 * normalizedAngle) / Math.PI;
+          // КЛАССИЧЕСКИЙ ТРЕУГОЛЬНИК (TRIANGLE): Стартует из нуля, плавно идет вверх до +1 к четверти периода,
+          // падает до -1 к трем четвертям периода и возвращается в ноль. Полная симметрия фазы.
+          if (normalizedAngle < Math.PI * 0.5) {
+            yOffset = normalizedAngle / (Math.PI * 0.5);
+          } else if (normalizedAngle < Math.PI * 1.5) {
+            yOffset = 2 - normalizedAngle / (Math.PI * 0.5);
+          } else {
+            yOffset = -4 + normalizedAngle / (Math.PI * 0.5);
+          }
           break;
 
         default:
@@ -77,15 +85,22 @@ export const LfoOscilloscope = ({ depth, waveform, isActive, rate }) => {
       if (x === 0) {
         ctx.moveTo(x, y);
       } else {
-        // Отрисовка вертикальных идеальных срезов для КВАДРАТНОЙ волны на стыках фаз
-        if (waveform === 'square') {
-          const currentSign = yOffset >= 0;
+        // Отрисовка вертикальных идеальных срезов для КВАДРАТНОЙ и ПИЛООБРАЗНОЙ волны на стыках фаз
+        if (waveform === 'square' || waveform === 'sawtooth') {
           const prevAngle = ((x - 1) / width) * 2 * Math.PI * totalCycles;
           const prevNormalizedAngle = prevAngle % (2 * Math.PI);
-          const prevSign = prevNormalizedAngle % (2 * Math.PI) < Math.PI;
 
-          if (currentSign !== prevSign) {
-            ctx.lineTo(x, lastY);
+          if (waveform === 'square') {
+            const currentSign = yOffset >= 0;
+            const prevSign = prevNormalizedAngle < Math.PI;
+            if (currentSign !== prevSign) {
+              ctx.lineTo(x, lastY);
+            }
+          } else if (waveform === 'sawtooth') {
+            // Вертикальный сброс пилы в конце каждого полного периода
+            if (normalizedAngle < prevNormalizedAngle) {
+              ctx.lineTo(x, lastY);
+            }
           }
         }
         ctx.lineTo(x, y);
@@ -95,7 +110,7 @@ export const LfoOscilloscope = ({ depth, waveform, isActive, rate }) => {
     }
 
     ctx.stroke();
-  }, [depth, waveform, isActive, rate]); // Перерисовывается мгновенно, как только двинется ползунок RATE
+  }, [depth, waveform, isActive, rate]);
 
   return (
     <canvas

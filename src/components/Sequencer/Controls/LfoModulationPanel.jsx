@@ -15,7 +15,7 @@ export const LfoModulationPanel = ({ synthName }) => {
 
   const isActive = instrumentSettings.lfoActive ?? false;
   const currentRate = instrumentSettings.lfoRate ?? 5.0;
-  const currentDepth = instrumentSettings.lfoDepth ?? 0.5;
+  const currentDepth = instrumentSettings.lfoDepth ?? 0.0;
   const currentWaveform = instrumentSettings.lfoWaveform ?? 'sine';
   const currentTarget = instrumentSettings.lfoTarget ?? 'filterLowpassCutoff';
 
@@ -43,7 +43,6 @@ export const LfoModulationPanel = ({ synthName }) => {
     <div className="lfo-modulator-panel">
       <div>
         <div>LFO VISUALIZER:</div>
-        {/* Статичный холст 200x100 */}
         <LfoOscilloscope
           isActive={isActive}
           depth={currentDepth}
@@ -97,9 +96,10 @@ export const LfoModulationPanel = ({ synthName }) => {
 
       <div>
         <label>DEPTH:</label>
+        {/* БИПОЛЯРНЫЙ СЛАЙДЕР: от -1.0 до +1.0, дефолт в середине (0.0) */}
         <input
           type="range"
-          min="0.0"
+          min="-1.0"
           max="1.0"
           step="0.05"
           value={currentDepth}
