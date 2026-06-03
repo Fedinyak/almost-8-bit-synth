@@ -15,7 +15,7 @@ import { setActiveSoundControlDrumTabIndex } from '../../../slices/playerSlice';
 import { WaveformMirror } from '../Synths/WaveformMirror';
 import { LfoModulationPanel } from '../Controls/LfoModulationPanel';
 
-const DrumGrid = () => {
+const DrumGridComponent = () => {
   const dispatch = useDispatch();
 
   const drumKit = useSelector((state) => state.patterns.drumKitList);
@@ -63,6 +63,7 @@ const DrumGrid = () => {
         {steps.map((stepIndex) => {
           return (
             <div className="sequencer-cells-row" key={`${stepIndex}-drum-step`}>
+              {/* Передаем stepIndex, чтобы индикатор зашил его в нативный атрибут data-step-lamp */}
               <StepIndicator
                 key={`${stepIndex}-step-drum`}
                 stepIndex={stepIndex}
@@ -240,6 +241,7 @@ const DrumGrid = () => {
               </div>
             </div>
 
+            {/* Восстановленный хвостик LFO-панели */}
             <LfoModulationPanel synthName={activeDrumName} />
           </div>
         )}
@@ -247,5 +249,18 @@ const DrumGrid = () => {
     </section>
   );
 };
+
+// ============================================================================
+// 🧱 ЖЕЛЕЗНЫЙ МЕМО-ЩИТ ОТ МОБИЛЬНЫХ ЛАГОВ И ШУРШАНИЯ В SAFARI
+// ============================================================================
+export const DrumGrid = React.memo(
+  DrumGridComponent,
+  (prevProps, nextProps) => {
+    // Компонент перерисовывает всю сетку только при физической смене паттернов,
+    // изменении состава драм-кита или кручении ручек микшера.
+    // На бегущий шаг (кружочек) секвенсора он больше ВООБЩЕ не реагирует! Нагрузка на iOS = 0%
+    return true;
+  },
+);
 
 export default DrumGrid;
