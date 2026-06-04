@@ -39,6 +39,10 @@ export const useAudioEngineSync = (
   const soundSettings = useSelector(
     (state) => state.soundSettings?.synths || {},
   );
+  // ДОБАВЛЕН СЕЛЕКТОР ТЕКУЩЕГО СОСТОЯНИЯ ВОСПРОИЗВЕДЕНИЯ СЕКВЕНСОРА
+  const sequencerPlayState = useSelector(
+    (state) => state.player.sequencerPlayState,
+  );
 
   const synthAnalysersRef = useRef({});
   const synthChannelsRef = useRef({});
@@ -73,6 +77,13 @@ export const useAudioEngineSync = (
   // Конвейер матрицы модуляции LFO со встроенным подавлением щелчков и треска
   useEffect(() => {
     let animationFrameId;
+
+    // АППАРАТНЫЙ ЗАСЛОН: Если плеер стоит на паузе или стопе, полностью блокируем холостой ход JavaScript
+    if (sequencerPlayState !== 'start') {
+      return () => {
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      };
+    }
 
     const runModulationPipeline = () => {
       // 1. Матрица модуляции для СИНТЕЗАТОРОВ
@@ -201,7 +212,7 @@ export const useAudioEngineSync = (
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [soundSettings, synthEnginesRef, drumsEngineRef]);
+  }, [soundSettings, synthEnginesRef, drumsEngineRef, sequencerPlayState]); // ДОБАВЛЕН ФЛАГ В МАССИВ ЗАВИСИМОСТЕЙ
 
   useEffect(() => {
     SYNTH_LIST.forEach((name) => {
