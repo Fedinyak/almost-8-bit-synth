@@ -1,7 +1,7 @@
+import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   setBpm,
-  // setIsLooping,
   setIsLoopingFalse,
   setIsLoopingTrue,
   setSequencerPlayState,
@@ -23,16 +23,18 @@ const SequencerControlPanel = () => {
       <button onClick={() => dispatch(setSequencerPlayState('pause'))}>
         pause
       </button>
-      {
-        <>
-          <button onClick={() => dispatch(setIsLoopingFalse())}>
-            Loop false {isLooping ? 'true' : 'false'}
-          </button>
-          <button onClick={() => dispatch(setIsLoopingTrue())}>
-            Loop true {isLooping ? 'true' : 'false'}
-          </button>
-        </>
-      }
+
+      {/* СТРОГОЕ ДЕКЛАРАТИВНОЕ РАЗДЕЛЕНИЕ КНОПОК НА ОСНОВЕ REDUX СТЕЙТА */}
+      {!isLooping ? (
+        <button onClick={() => dispatch(setIsLoopingTrue())}>
+          Start Loop (status: false)
+        </button>
+      ) : (
+        <button onClick={() => dispatch(setIsLoopingFalse())}>
+          Stop Loop (status: true)
+        </button>
+      )}
+
       <button onClick={() => dispatch(setBpm(100))}>100</button>
       <button onClick={() => dispatch(setBpm(200))}>200</button>
       {/* <BpmVisualizer /> */}
