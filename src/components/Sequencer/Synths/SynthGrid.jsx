@@ -30,7 +30,7 @@ const SynthGrid = ({ activeVisualPattern, synthName }) => {
       <React.Fragment key={synthName}>
         <div>{synthName} GRID:</div>
 
-        <WaveMonitor synthName={synthName} />
+        {/* <WaveMonitor synthName={synthName} /> */}
 
         <div className="sequencer-cells">
           <SynthRow

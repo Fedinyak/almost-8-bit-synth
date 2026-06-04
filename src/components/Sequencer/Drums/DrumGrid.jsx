@@ -57,7 +57,7 @@ const DrumGridComponent = () => {
   return (
     <section className="sequencer">
       <h3>isFollowMode {`${isFollowMode}`}</h3>
-      <DrumMonitor />
+      {/* <DrumMonitor /> */}
 
       <div className="sequencer-cells">
         {steps.map((stepIndex) => {

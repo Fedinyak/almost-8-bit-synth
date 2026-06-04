@@ -110,6 +110,10 @@ export const useSequencerScheduler = () => {
     (state) => state.player.currentPlayPatternIndex,
   );
   const patternCount = useSelector((state) => state.player.patternCount);
+  // ДОБАВЛЕН СЕЛЕКТОР ДЛЯ ОТСЛЕЖИВАНИЯ ТЕКУЩЕГО СОСТОЯНИЯ ПЛЕЕРА
+  const sequencerPlayState = useSelector(
+    (state) => state.player.sequencerPlayState,
+  );
 
   const pendingPatternRef = useRef(null);
   const isPatternLoopRef = useRef(null);
@@ -144,7 +148,10 @@ export const useSequencerScheduler = () => {
     patternCountRef.current = patternCount;
   }, [patternCount]);
 
+  // Конвейер планировщика: запускается только в режиме воспроизведения start
   useEffect(() => {
+    if (sequencerPlayState !== 'start') return;
+
     const drawingProcess = startDrawingLoop(
       (time) =>
         handleStepSync(
@@ -160,5 +167,5 @@ export const useSequencerScheduler = () => {
     );
 
     return () => stopDrawingLoop(drawingProcess);
-  }, [dispatch]);
+  }, [dispatch, sequencerPlayState]); // СЛУШАЕМ СТАТУС ПЛЕЕРА ДЛЯ СБРОСА ТАЙМЕРА БРАУЗЕРА
 };
