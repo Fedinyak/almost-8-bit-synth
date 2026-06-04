@@ -8,6 +8,7 @@ Object.entries({ ...DRUM_PRESETS, ...SYNTH_PRESETS }).forEach(
   ([name, config]) => {
     preprocessedSynths[name] = {
       ...config,
+      pan: 0.0,
       lfoActive: false,
       lfoRate: 5.0,
       lfoDepth: 0.5, // По умолчанию выставлено +50%, чтобы кач был сразу слышен при нажатии ON

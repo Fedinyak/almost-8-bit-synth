@@ -136,6 +136,11 @@ export const applySynthEnvelope = (synthInstance, settings) => {
   const nativeInstrument = synthInstance?.instrument;
   if (!nativeInstrument || !settings) return;
 
+  // Крутим встроенную панораму инструмента, не ломая внешние провода и микшер
+  if (settings.pan !== undefined && synthInstance.panner?.pan) {
+    synthInstance.panner.pan.value = settings.pan;
+  }
+
   // Если это БАРАБАН — у него есть ВНЕШНИЙ фильтр fxFilter в контейнере эффектов!
   if (synthInstance.fxFilter) {
     if (

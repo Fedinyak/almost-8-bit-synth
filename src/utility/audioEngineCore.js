@@ -96,6 +96,8 @@ export const createSleeperNode = (EffectClass, constructorParams) => {
   return node;
 };
 
+// ХАРДВЕРНОЕ ПРАВИЛО: Соединяем ноды последовательно и вешаем .toDestination()
+// на самый последний элемент, чтобы звук долетал до колонок без конфликтов микшера
 export const connectAudioChain = (nodes) => {
   if (!Array.isArray(nodes) || nodes.length < 2) return;
 
@@ -119,7 +121,6 @@ export const wrapInstrumentWithEffects = (
 ) => {
   const fxRegistry = {};
 
-  // Фильтруем цепочку: полностью исключаем любые упоминания тест-LFO из сквозного аудио-тракта
   const audioEffectsChain = effectsChain.filter((key) => key !== 'testLfo');
 
   const createdEffects = audioEffectsChain
@@ -140,11 +141,15 @@ export const wrapInstrumentWithEffects = (
     })
     .filter(Boolean);
 
-  // Соединяем приборы в сквозную цепочку эффектов
-  connectAudioChain([rawSynth, ...createdEffects]);
+  // 🆕 ДОБАВЛЯЕМ АППАРАТНЫЙ УЗЕЛ СТЕРЕО-ПАННЕРА (Для ручной ручки PAN)
+  // Он весит 0% ЦП, так как не имеет буферов задержки
+  const hardwareStaticPanner = new Tone.Panner(0);
 
-  // ЖЕЛЕЗНОЕ ПРАВИЛО: Создаем один независимый Master LFO для матрицы модуляции
-  // Он собирается АВТОМАТИЧЕСКИ для каждого синта и каждого барабана драм-машины
+  // 🧱 СТРОИМ ЕБУЧУЮ ЦЕПОЧКУ: Сырой синт -> Все созданные эффекты рэка -> Статический Паннер
+  // Паннер стоит в самом конце, и именно на него connectAudioChain повесит .toDestination()
+  const fullGraphChain = [rawSynth, ...createdEffects, hardwareStaticPanner];
+  connectAudioChain(fullGraphChain);
+
   const masterLfoNode = new Tone.LFO({
     type: 'sine',
     frequency: 5.0,
@@ -152,7 +157,6 @@ export const wrapInstrumentWithEffects = (
     max: 1,
   });
 
-  // Измеритель фазы в режиме считывания вольтажа числом
   const masterLfoMeter = new Tone.Meter({ type: 'value' });
   masterLfoNode.connect(masterLfoMeter);
 
@@ -163,12 +167,14 @@ export const wrapInstrumentWithEffects = (
   return {
     instrument: rawSynth,
     ...fxRegistry,
+    panner: hardwareStaticPanner, // 🆕 Регистрируем ссылку на паннер, чтобы ручка PAN в UI могла его крутить!
     masterLfo: masterLfoNode,
     masterLfoMeter: masterLfoMeter,
-    output: createdEffects[createdEffects.length - 1] || rawSynth,
+    output: hardwareStaticPanner, // Выходом контейнера теперь честно становится финальный паннер
     dispose() {
       masterLfoNode.dispose();
       masterLfoMeter.dispose();
+      hardwareStaticPanner.dispose(); // 🆕 Чистим паннер при удалении сцены
       createdEffects.forEach((node) => node.dispose());
       rawSynth.dispose();
     },
