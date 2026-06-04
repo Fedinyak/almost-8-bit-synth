@@ -28,11 +28,23 @@ export const setEngineBpm = (bpmValue) => {
 
 export const setPlayState = (state) => {
   if (state === 'start') {
+    // Аппаратно будим аудио-поток Хрома перед запуском часов
+    if (Tone.context && typeof Tone.context.resume === 'function') {
+      Tone.context.resume().catch(() => {});
+    }
     Tone.Transport.start();
   } else if (state === 'pause') {
     Tone.Transport.pause();
+    // Отправляем аудио-чип в глубокий сон, высвобождая ресурсы процессора
+    if (Tone.context && typeof Tone.context.suspend === 'function') {
+      Tone.context.suspend().catch(() => {});
+    }
   } else {
     Tone.Transport.stop();
+    // Полностью усыпляем аудио-чип при сбросе трека
+    if (Tone.context && typeof Tone.context.suspend === 'function') {
+      Tone.context.suspend().catch(() => {});
+    }
   }
 };
 
