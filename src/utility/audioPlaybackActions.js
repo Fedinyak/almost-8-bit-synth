@@ -138,3 +138,23 @@ export const syncDrumPatternsToTrack = (track, drumsData, drumNoteMap) => {
 
   setTrackLoopDuration(track, drumsData.patterns.length);
 };
+
+export const connectSynthToMixer = (synthInstance, channel, analyser) => {
+  if (!synthInstance?.output) return;
+
+  // 1. Безопасно сбрасываем старые провода
+  if (typeof synthInstance.output.disconnect === 'function') {
+    try {
+      synthInstance.output.disconnect();
+    } catch (e) {}
+  }
+
+  // 2. Втыкаем выход прибора в канал микшера
+  synthInstance.output.connect(channel);
+
+  // 3. Подключаем к каналу анализатор спектра
+  channel.connect(analyser);
+
+  // 4. Отправляем финальный звук канала на колонки
+  channel.toDestination();
+};

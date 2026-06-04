@@ -17,21 +17,12 @@ import {
   AUDIO_DEFAULT_RELEASE,
 } from '../constants/audioEngineConfig';
 import { buildAndConnectInstrumentChannel } from './audioLifecycleActions';
+import { connectSynthToMixer } from './audioPlaybackActions';
 
 export const createAudioChannel = () => new Tone.Volume();
 
 export const createAudioAnalyser = () =>
   new Tone.Analyser({ type: ANALYSER_TYPE, size: ANALYSER_SIZE });
-
-export const connectSynthToMixer = (synthInstance, channel, analyser) => {
-  if (!synthInstance?.output) return;
-
-  synthInstance.output.disconnect();
-  synthInstance.output.connect(channel);
-
-  channel.connect(analyser);
-  channel.toDestination();
-};
 
 export const initializeAudioRouting = (
   synthList,
