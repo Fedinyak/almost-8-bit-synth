@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 // import { decrement, increment } from "../../slices/counterSlice";
 import {
@@ -10,6 +10,7 @@ import {
 import getNote from '../../utility/getNote';
 import KeyboardKey from './KeyboardKey';
 import noteAndKeyMap from '../../constants/noteAndKeyMap.js';
+import { synthEnginesRegistry } from '../../utility/visualizerState';
 
 const OctaveSelector = () => {
   const dispatch = useDispatch();
@@ -21,7 +22,7 @@ const OctaveSelector = () => {
   );
 };
 
-const Keyboard = () => {
+const Keyboard = ({ activeInstrument }) => {
   // const count = useSelector(state => state.counter.value);
   // const keyboardLetter = useSelector(state => state.note.keyboardLetter);
 
@@ -33,29 +34,53 @@ const Keyboard = () => {
   const octaveMap = noteAndKeyMap.noteOctaveIndexMap;
   // const octaveMap = useSelector(state => state.note.noteOctaveIndexMap);
 
+  const tabs = useSelector((state) => state.player.tabs);
+  const activeTabIndex = useSelector((state) => state.player.activeTabIndex);
+
+  const resolvedInstrumentName = activeInstrument || tabs[activeTabIndex];
+
+  // СБЕРЕГАТЕЛЬНЫЙ РЕФ-ШЛЮЗ: Хранит имя свежего активного синта, защищая обработчик событий от устаревания данных
+  const activeInstrumentRef = useRef(resolvedInstrumentName);
+  const octaveRef = useRef(octave);
+
   const dispatch = useDispatch();
+
+  // Синхронизируем рефы при каждом изменении стейта
+  useEffect(() => {
+    activeInstrumentRef.current = resolvedInstrumentName;
+  }, [resolvedInstrumentName]);
+
+  useEffect(() => {
+    octaveRef.current = octave;
+  }, [octave]);
 
   const handleKeyboardKeyDown = (event) => {
     if (keyboardLetter.join().includes(event.key)) {
-      console.log(event.key, octave, 'event.key, octave');
-      const note = getNote(event.key, octave, noteMap, octaveMap);
+      console.log(event.key, octaveRef.current, 'event.key, octave');
+      const note = getNote(event.key, octaveRef.current, noteMap, octaveMap);
+
+      // ДИСПАТЧИМ ДЛЯ UI: Обновляем стейт чисто для визуальной подсветки клавиш на экране
       dispatch(setActiveNote(note));
+
+      // ИГРАЕМ В ЖЕЛЕЗЕ МГНОВЕННО: Извлекаем звук строго из того синта, который открыт в эту миллисекунду
+      const currentInstrument = activeInstrumentRef.current;
+      if (currentInstrument && currentInstrument !== 'drums') {
+        const synthInstance = synthEnginesRegistry.current?.[currentInstrument];
+        if (synthInstance?.instrument) {
+          try {
+            synthInstance.instrument.triggerAttackRelease(note, '8n');
+          } catch (e) {}
+        }
+      }
     }
   };
 
   useEffect(() => {
-    // Add the event listener when the component mounts
     document.addEventListener('keydown', handleKeyboardKeyDown);
-
-    // Provide a cleanup function to remove the event listener when the component unmounts
     return () => {
       document.removeEventListener('keydown', handleKeyboardKeyDown);
     };
-  }, []); // Empty dependency array ensures it runs once on mount and once on unmount
-
-  // useEffect(() => {
-  //   playSound(activeNote);
-  // }, [activeNote]);
+  }, []); // Пустой массив гарантирует стабильный единый слушатель без утечек памяти
 
   return (
     <section>
