@@ -16,6 +16,7 @@ import {
   AUDIO_DEFAULT_SUSTAIN,
   AUDIO_DEFAULT_RELEASE,
 } from '../constants/audioEngineConfig';
+import { buildAndConnectInstrumentChannel } from './audioLifecycleActions';
 
 export const createAudioChannel = () => new Tone.Volume();
 
@@ -42,14 +43,16 @@ export const initializeAudioRouting = (
     const synthInstance = enginesRef.current[name];
     if (!synthInstance || analysersRef.current[name]) return;
 
-    const channel = createAudioChannel();
-    const analyser = createAudioAnalyser();
-
-    connectSynthToMixer(synthInstance, channel, analyser);
-
-    channelsRef.current[name] = channel;
-    analysersRef.current[name] = analyser;
-    synthAnalysers[name] = analyser;
+    buildAndConnectInstrumentChannel(
+      synthInstance,
+      name,
+      channelsRef.current,
+      analysersRef.current,
+      synthAnalysers,
+      createAudioChannel,
+      createAudioAnalyser,
+      connectSynthToMixer,
+    );
   });
 };
 

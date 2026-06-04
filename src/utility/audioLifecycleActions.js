@@ -90,3 +90,23 @@ export const stopAllAudio = (refs) => {
 
   resetDrumLevels();
 };
+
+export const buildAndConnectInstrumentChannel = (
+  synthInstance,
+  instrumentName,
+  channelsRegistry,
+  analysersRegistry,
+  globalVisualizerState,
+  createChannel,
+  createAnalyser,
+  connectToMixer,
+) => {
+  const channel = createChannel();
+  const analyser = createAnalyser();
+
+  connectToMixer(synthInstance, channel, analyser);
+
+  channelsRegistry[instrumentName] = channel;
+  analysersRegistry[instrumentName] = analyser;
+  globalVisualizerState[instrumentName] = analyser;
+};
