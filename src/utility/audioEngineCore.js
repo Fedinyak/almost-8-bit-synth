@@ -28,6 +28,9 @@ export const setEngineBpm = (bpmValue) => {
 
 export const setPlayState = (state) => {
   if (state === 'start') {
+    // Снимаем тотальный мут с аудио-движка браузера
+    Tone.Destination.mute = false;
+
     // Аппаратно будим аудио-поток Хрома перед запуском часов
     if (Tone.context && typeof Tone.context.resume === 'function') {
       Tone.context.resume().catch(() => {});
@@ -35,12 +38,20 @@ export const setPlayState = (state) => {
     Tone.Transport.start();
   } else if (state === 'pause') {
     Tone.Transport.pause();
+
+    // Аппаратно затыкаем все ворклеты и приборы, заставляя C++ потоки Хрома полностью замолчать
+    Tone.Destination.mute = true;
+
     // Отправляем аудио-чип в глубокий сон, высвобождая ресурсы процессора
     if (Tone.context && typeof Tone.context.suspend === 'function') {
       Tone.context.suspend().catch(() => {});
     }
   } else {
     Tone.Transport.stop();
+
+    // Аппаратно затыкаем все ворклеты и приборы, заставляя C++ потоки Хрома полностью замолчать
+    Tone.Destination.mute = true;
+
     // Полностью усыпляем аудио-чип при сбросе трека
     if (Tone.context && typeof Tone.context.suspend === 'function') {
       Tone.context.suspend().catch(() => {});
