@@ -156,9 +156,9 @@ export const applySynthEnvelope = (synthInstance, settings) => {
     }
   }
 
-  updateInstrumentVolume(nativeInstrument, settings.volume);
   updateInstrumentEnvelope(nativeInstrument, settings);
 };
+
 export const updateEffectParam = (fxNode, targetParam, value) => {
   if (!fxNode || !targetParam) return;
 

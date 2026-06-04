@@ -22,6 +22,7 @@ import {
   initializeAudioRouting,
   applySynthEnvelope,
   applyDynamicBypass,
+  updateInstrumentVolume,
 } from '../utility/audioModulationActions';
 import { synthEnginesRegistry } from '../utility/visualizerState';
 
@@ -58,6 +59,16 @@ export const useAudioEngineSync = (
       synthAnalysersRef,
     );
   }, [drumsEngineRef, synthEnginesRef]);
+
+  useEffect(() => {
+    SYNTH_LIST.forEach((name) => {
+      const synthInstance = synthEnginesRef.current[name];
+      const settings = soundSettings[name];
+      if (synthInstance?.instrument && settings?.volume !== undefined) {
+        updateInstrumentVolume(synthInstance.instrument, settings.volume);
+      }
+    });
+  }, [soundSettings, synthEnginesRef]);
 
   // Конвейер матрицы модуляции LFO со встроенным подавлением щелчков и треска
   useEffect(() => {
