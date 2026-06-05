@@ -16,11 +16,15 @@ import { backupAndDropPatternData } from '../slices/patternsSlice';
 import {
   setPendingPattern,
   setIsLoopingFalse,
+  setIsLoopingTrue,
   setCurrentPlayPatternIndex,
   setCurrentStep,
   setSequencerPlayState,
   decrementPatternCountSync,
   scheduleDeleteLastPattern,
+  setSelectedPatternIndex,
+  setFollowModeFalse,
+  setFollowModeTrue,
 } from '../slices/playerSlice';
 
 export const playSynthNote = (synth, time, noteData) => {
@@ -221,5 +225,28 @@ export const executeRemoveLastPatternRequest = () => (dispatch, getState) => {
       dispatch(backupAndDropPatternData(lastPatternIndex));
       dispatch(decrementPatternCountSync());
     }
+  }
+};
+
+// UNIFIED EVENT DISPATCHER: Centralized CQRS pipeline routing user-driven UI actions directly into the audio ecosystem
+export const dispatchPatternAction = (type, index) => (dispatch) => {
+  switch (type) {
+    case 'PLAY':
+      dispatch(executePatternPlaybackTrigger(index));
+      break;
+    case 'LOOP':
+      dispatch(setPendingPattern(index));
+      dispatch(setIsLoopingTrue());
+      break;
+    case 'SELECT':
+      dispatch(setSelectedPatternIndex(index));
+      dispatch(setFollowModeFalse());
+      break;
+    case 'TOGGLE_FOLLOW':
+      dispatch(setFollowModeTrue());
+      dispatch(setSelectedPatternIndex(false));
+      break;
+    default:
+      break;
   }
 };

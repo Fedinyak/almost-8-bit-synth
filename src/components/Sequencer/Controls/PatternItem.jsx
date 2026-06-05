@@ -6,10 +6,7 @@ export const PatternItem = ({
   visualFlags,
   isSelected,
   isFollowMode,
-  onPlayClick,
-  onLoopClick,
-  onSelectClick,
-  onFollowClick,
+  onAction,
 }) => {
   const { isPlayWaiting, isLoopWaiting, isLoopActive, isActivePlayback } =
     visualFlags;
@@ -17,7 +14,7 @@ export const PatternItem = ({
   return (
     <li style={{ display: 'flex', flexDirection: 'column' }}>
       <button
-        onClick={() => onPlayClick(index)}
+        onClick={() => onAction('PLAY', index)}
         className={classNames('play-pattern-btn', {
           'is-waiting': isPlayWaiting,
         })}
@@ -26,7 +23,7 @@ export const PatternItem = ({
       </button>
 
       <button
-        onClick={() => onLoopClick(index)}
+        onClick={() => onAction('LOOP', index)}
         className={classNames('loop-pattern-btn', {
           'is-loop-waiting': isLoopWaiting,
           'is-loop-active': isLoopActive,
@@ -40,7 +37,7 @@ export const PatternItem = ({
           isSelected ? 'patten-list-btn-select' : '',
           isActivePlayback ? 'sequencer-cell-active' : '',
         ].join(' ')}
-        onClick={() => onSelectClick(index)}
+        onClick={() => onAction('SELECT', index)}
       >
         {index + 1}
       </button>
@@ -51,7 +48,7 @@ export const PatternItem = ({
             ? 'follow-mode-btn-active'
             : 'follow-mode-btn'
         }
-        onClick={onFollowClick}
+        onClick={() => onAction('TOGGLE_FOLLOW', index)}
       >
         fllw
       </button>
