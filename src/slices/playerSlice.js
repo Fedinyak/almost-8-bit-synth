@@ -20,6 +20,9 @@ const initialState = {
   tabs: ['drums', ...SYNTH_LIST],
   activeTabIndex: 0,
   activeSoundControlDrumTabIndex: 0,
+  // Hardware orchestration control flags
+  shouldRewindEngineOnPause: false,
+  shouldDropPatternDataInstantly: false, // Flag signal to authorize safe data drop mutations
 };
 
 const safelyAdjustPlayBounds = (state) => {
@@ -105,6 +108,53 @@ export const playerSlice = createSlice({
     setActiveSoundControlDrumTabIndex: (state, action) => {
       state.activeSoundControlDrumTabIndex = action.payload;
     },
+    // CENTRALIZED STATE REDUCER: Processes truncation limits and sync flags deterministically
+    requestRemoveLastPattern: (state) => {
+      if (state.patternCount <= SEQUENCER_CONFIG.MIN_PATTERN_COUNT) return;
+      const lastPatternIndex = state.patternCount - 1;
+
+      // Stop Mode: Authorize immediate data drop and reduce layout bounds instantly
+      if (state.sequencerPlayState === 'stop') {
+        state.patternCount -= 1;
+        safelyAdjustPlayBounds(state);
+        state.shouldDropPatternDataInstantly = true;
+        return;
+      }
+
+      // Global Loop Mode: Always defer truncation to the scheduled measure edge quantization handler
+      if (state.isLooping) {
+        state.pendingDeleteLast = true;
+        return;
+      }
+
+      // Pause Mode: Reset timeline coordinates if idling exactly on the deleted partition boundary edge
+      if (state.sequencerPlayState === 'pause') {
+        if (state.currentPlayPatternIndex === lastPatternIndex) {
+          state.currentPlayPatternIndex =
+            SEQUENCER_CONFIG.INITIAL_PATTERN_INDEX;
+          state.shouldRewindEngineOnPause = true;
+        }
+        state.patternCount -= 1;
+        safelyAdjustPlayBounds(state);
+        state.shouldDropPatternDataInstantly = true;
+        return;
+      }
+
+      // Start Play Mode: Truncate instantly only if the playback engine cursor is riding another measure track partition
+      if (state.sequencerPlayState === 'start') {
+        if (state.currentPlayPatternIndex === lastPatternIndex) {
+          state.pendingDeleteLast = true;
+        } else {
+          state.patternCount -= 1;
+          safelyAdjustPlayBounds(state);
+          state.shouldDropPatternDataInstantly = true;
+        }
+      }
+    },
+    clearEngineControlSignals: (state) => {
+      state.shouldRewindEngineOnPause = false;
+      state.shouldDropPatternDataInstantly = false;
+    },
   },
 });
 
@@ -128,6 +178,8 @@ export const {
   clearPendingDeleteLastPattern,
   setActiveTabByIndex,
   setActiveSoundControlDrumTabIndex,
+  requestRemoveLastPattern, // EXPORTED
+  clearEngineControlSignals, // EXPORTED
 } = playerSlice.actions;
 
 export default playerSlice.reducer;

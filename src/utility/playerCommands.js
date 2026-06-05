@@ -9,11 +9,11 @@ import {
   setCurrentPlayPatternIndex,
   setCurrentStep,
   setSequencerPlayState,
-  decrementPatternCountSync,
-  scheduleDeleteLastPattern,
   setSelectedPatternIndex,
   setFollowModeFalse,
   setFollowModeTrue,
+  requestRemoveLastPattern, // IMPORTED
+  clearEngineControlSignals, // IMPORTED
 } from '../slices/playerSlice';
 
 export const executePatternPlaybackTrigger =
@@ -34,47 +34,34 @@ export const executePatternPlaybackTrigger =
     }
   };
 
+// CLEAN PIEPLINE LAYER: Fully state-driven deterministic execution flow with hardware protection fences
 export const executeRemoveLastPatternRequest = () => (dispatch, getState) => {
   const { player } = getState();
-  const {
-    patternCount,
-    sequencerPlayState,
-    isLooping,
-    currentPlayPatternIndex,
-  } = player;
 
-  // Prevent track sequence array from dropping below minimum structural size limit
-  if (patternCount <= SEQUENCER_CONFIG.MIN_PATTERN_COUNT) return;
-  const lastPatternIndex = patternCount - 1;
+  if (player.patternCount <= SEQUENCER_CONFIG.MIN_PATTERN_COUNT) return;
+  const lastPatternIndex = player.patternCount - 1;
 
-  if (sequencerPlayState === 'stop') {
+  // 1. Invoke centralized reducer logic to evaluate boundaries and arm signal flags safely
+  dispatch(requestRemoveLastPattern());
+
+  const updatedPlayer = getState().player;
+
+  // 2. Safely drop pattern sequence data slice only when authorized by the state engine validation checkpoint
+  if (updatedPlayer.shouldDropPatternDataInstantly) {
     dispatch(backupAndDropPatternData(lastPatternIndex));
-    dispatch(decrementPatternCountSync());
-    return;
   }
-  if (isLooping) {
-    dispatch(scheduleDeleteLastPattern());
-    return;
+
+  // 3. Intercept physics engine signals to rewind transport positions when required
+  if (updatedPlayer.shouldRewindEngineOnPause) {
+    setEnginePosition(SEQUENCER_CONFIG.TRACK_START_POSITION);
   }
-  if (sequencerPlayState === 'pause') {
-    // If pausing exactly on the targeted deleted item layout edge, safely rewind engine physical timeline state back to zero coordinates
-    if (currentPlayPatternIndex === lastPatternIndex) {
-      setEnginePosition(SEQUENCER_CONFIG.TRACK_START_POSITION);
-      dispatch(
-        setCurrentPlayPatternIndex(SEQUENCER_CONFIG.INITIAL_PATTERN_INDEX),
-      );
-    }
-    dispatch(backupAndDropPatternData(lastPatternIndex));
-    dispatch(decrementPatternCountSync());
-    return;
-  }
-  if (sequencerPlayState === 'start') {
-    if (currentPlayPatternIndex === lastPatternIndex) {
-      dispatch(scheduleDeleteLastPattern());
-    } else {
-      dispatch(backupAndDropPatternData(lastPatternIndex));
-      dispatch(decrementPatternCountSync());
-    }
+
+  // 4. Flush control state signals to prevent recurring execution loops
+  if (
+    updatedPlayer.shouldDropPatternDataInstantly ||
+    updatedPlayer.shouldRewindEngineOnPause
+  ) {
+    dispatch(clearEngineControlSignals());
   }
 };
 
