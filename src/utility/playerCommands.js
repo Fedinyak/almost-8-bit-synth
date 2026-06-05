@@ -1,5 +1,6 @@
 import { setEnginePosition } from './audioEngineCore';
 import { STEPS_IN_MEASURE } from '../constants/constants';
+import { SEQUENCER_CONFIG } from '../constants/sequencerConfig';
 import { backupAndDropPatternData } from '../slices/patternsSlice';
 import {
   setPendingPattern,
@@ -42,7 +43,8 @@ export const executeRemoveLastPatternRequest = () => (dispatch, getState) => {
     currentPlayPatternIndex,
   } = player;
 
-  if (patternCount <= 1) return;
+  // Prevent track sequence array from dropping below minimum structural size limit
+  if (patternCount <= SEQUENCER_CONFIG.MIN_PATTERN_COUNT) return;
   const lastPatternIndex = patternCount - 1;
 
   if (sequencerPlayState === 'stop') {
@@ -55,9 +57,12 @@ export const executeRemoveLastPatternRequest = () => (dispatch, getState) => {
     return;
   }
   if (sequencerPlayState === 'pause') {
+    // If pausing exactly on the targeted deleted item layout edge, safely rewind engine physical timeline state back to zero coordinates
     if (currentPlayPatternIndex === lastPatternIndex) {
-      setEnginePosition(0);
-      dispatch(setCurrentPlayPatternIndex(0));
+      setEnginePosition(SEQUENCER_CONFIG.TRACK_START_POSITION);
+      dispatch(
+        setCurrentPlayPatternIndex(SEQUENCER_CONFIG.INITIAL_PATTERN_INDEX),
+      );
     }
     dispatch(backupAndDropPatternData(lastPatternIndex));
     dispatch(decrementPatternCountSync());
