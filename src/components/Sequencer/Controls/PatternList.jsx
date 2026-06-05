@@ -1,21 +1,85 @@
 // components/PatternList/PatternList.js
 import { useDispatch, useSelector } from 'react-redux';
 import {
+  setCurrentPlayPatternIndex,
   setFollowModeFalse,
   setFollowModeTrue,
+  setIsLoopingFalse,
   setIsLoopingTrue,
   setPendingPattern,
   setSelectedPatternIndex,
+  setSequencerPlayState,
   incrementPatternCount,
+  decrementPatternCountSync,
+  scheduleDeleteLastPattern,
+  setCurrentStep,
 } from '../../../slices/playerSlice';
-import { addPatternData } from '../../../slices/patternsSlice';
 import {
-  executePatternPlaybackTrigger,
-  executeRemoveLastPatternRequest,
-} from '../../../slices/playerOperations'; // IMPORT: Streamlined operations bundle hookup
+  addPatternData,
+  backupAndDropPatternData,
+} from '../../../slices/patternsSlice';
+import { setEnginePosition } from '../../../utility/audioEngineCore';
+import { STEPS_IN_MEASURE } from '../../../constants/constants';
 import { getPatternVisualFlags } from '../../../utility/patternStatusSelectors';
 import { PatternItem } from './PatternItem';
 import './patternList.css'; // All @keyframes and layout classes go here
+
+// SELF-DOCUMENTING SERVICE FUNCTIONS: Business logic isolated outside the UI component render loop
+const processPatternPlaybackTrigger = ({
+  index,
+  sequencerPlayState,
+  dispatch,
+}) => {
+  if (sequencerPlayState === 'start') {
+    dispatch(setPendingPattern(index));
+    dispatch(setIsLoopingFalse());
+  }
+  if (sequencerPlayState === 'stop') {
+    setEnginePosition(index);
+    dispatch(setCurrentPlayPatternIndex(index));
+    dispatch(setCurrentStep(index * STEPS_IN_MEASURE));
+    dispatch(setIsLoopingFalse());
+    dispatch(setSequencerPlayState('start'));
+  }
+};
+
+const processRemoveLastPatternRequest = ({
+  patternCount,
+  sequencerPlayState,
+  isLooping,
+  currentPlayPatternIndex,
+  dispatch,
+}) => {
+  if (patternCount <= 1) return;
+  const lastPatternIndex = patternCount - 1;
+
+  if (sequencerPlayState === 'stop') {
+    dispatch(backupAndDropPatternData(lastPatternIndex));
+    dispatch(decrementPatternCountSync());
+    return;
+  }
+  if (isLooping) {
+    dispatch(scheduleDeleteLastPattern());
+    return;
+  }
+  if (sequencerPlayState === 'pause') {
+    if (currentPlayPatternIndex === lastPatternIndex) {
+      setEnginePosition(0);
+      dispatch(setCurrentPlayPatternIndex(0));
+    }
+    dispatch(backupAndDropPatternData(lastPatternIndex));
+    dispatch(decrementPatternCountSync());
+    return;
+  }
+  if (sequencerPlayState === 'start') {
+    if (currentPlayPatternIndex === lastPatternIndex) {
+      dispatch(scheduleDeleteLastPattern());
+    } else {
+      dispatch(backupAndDropPatternData(lastPatternIndex));
+      dispatch(decrementPatternCountSync());
+    }
+  }
+};
 
 const PatternList = () => {
   const dispatch = useDispatch();
@@ -38,16 +102,6 @@ const PatternList = () => {
     dispatch(incrementPatternCount());
   };
 
-  const handleRemoveLastPattern = () => {
-    // Pipeline trigger is now entirely offloaded to the decoupled operation thunk
-    dispatch(executeRemoveLastPatternRequest());
-  };
-
-  const handlePlayPatternIndex = (index) => {
-    // Pipeline trigger is now entirely offloaded to the decoupled operation thunk
-    dispatch(executePatternPlaybackTrigger(index));
-  };
-
   return (
     <div className="pattern-list-container">
       <div
@@ -58,7 +112,15 @@ const PatternList = () => {
           + Add pattern
         </button>
         <button
-          onClick={handleRemoveLastPattern}
+          onClick={() =>
+            processRemoveLastPatternRequest({
+              patternCount,
+              sequencerPlayState,
+              isLooping,
+              currentPlayPatternIndex,
+              dispatch,
+            })
+          }
           className="remove-pattern-global-btn"
         >
           - Delete pattern
@@ -82,7 +144,13 @@ const PatternList = () => {
               visualFlags={visualFlags}
               isSelected={selectedPatternIndex === index}
               isFollowMode={isFollowMode}
-              onPlayClick={handlePlayPatternIndex}
+              onPlayClick={(idx) =>
+                processPatternPlaybackTrigger({
+                  index: idx,
+                  sequencerPlayState,
+                  dispatch,
+                })
+              }
               onLoopClick={(idx) => {
                 dispatch(setPendingPattern(idx));
                 dispatch(setIsLoopingTrue());

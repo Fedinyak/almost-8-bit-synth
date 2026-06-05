@@ -4,12 +4,24 @@ import {
   setTrackLoopDuration,
   writeNoteToTrack,
   triggerDrumVisualLevel,
+  setEnginePosition,
 } from './audioEngineCore';
 import {
   calculateAbsoluteTime,
   compensateLatency,
   microTimingOffset,
 } from './audioMathUtils';
+import { STEPS_IN_MEASURE } from '../constants/constants';
+import { backupAndDropPatternData } from '../slices/patternsSlice';
+import {
+  setPendingPattern,
+  setIsLoopingFalse,
+  setCurrentPlayPatternIndex,
+  setCurrentStep,
+  setSequencerPlayState,
+  decrementPatternCountSync,
+  scheduleDeleteLastPattern,
+} from '../slices/playerSlice';
 
 export const playSynthNote = (synth, time, noteData) => {
   if (synth && synth.instrument) {
@@ -142,19 +154,72 @@ export const syncDrumPatternsToTrack = (track, drumsData, drumNoteMap) => {
 export const connectSynthToMixer = (synthInstance, channel, analyser) => {
   if (!synthInstance?.output) return;
 
-  // 1. Безопасно сбрасываем старые провода
   if (typeof synthInstance.output.disconnect === 'function') {
     try {
       synthInstance.output.disconnect();
     } catch (e) {}
   }
 
-  // 2. Втыкаем выход прибора в канал микшера
   synthInstance.output.connect(channel);
-
-  // 3. Подключаем к каналу анализатор спектра
   channel.connect(analyser);
-
-  // 4. Отправляем финальный звук канала на колонки
   channel.toDestination();
+};
+
+// ORCHESTRATION LAYER: Decoupled thunk operations to align UI state with core audio playback engine
+export const executePatternPlaybackTrigger =
+  (index) => (dispatch, getState) => {
+    const { player } = getState();
+    const { sequencerPlayState } = player;
+
+    if (sequencerPlayState === 'start') {
+      dispatch(setPendingPattern(index));
+      dispatch(setIsLoopingFalse());
+    }
+    if (sequencerPlayState === 'stop') {
+      setEnginePosition(index);
+      dispatch(setCurrentPlayPatternIndex(index));
+      dispatch(setCurrentStep(index * STEPS_IN_MEASURE));
+      dispatch(setIsLoopingFalse());
+      dispatch(setSequencerPlayState('start'));
+    }
+  };
+
+export const executeRemoveLastPatternRequest = () => (dispatch, getState) => {
+  const { player } = getState();
+  const {
+    patternCount,
+    sequencerPlayState,
+    isLooping,
+    currentPlayPatternIndex,
+  } = player;
+
+  if (patternCount <= 1) return;
+  const lastPatternIndex = patternCount - 1;
+
+  if (sequencerPlayState === 'stop') {
+    dispatch(backupAndDropPatternData(lastPatternIndex));
+    dispatch(decrementPatternCountSync());
+    return;
+  }
+  if (isLooping) {
+    dispatch(scheduleDeleteLastPattern());
+    return;
+  }
+  if (sequencerPlayState === 'pause') {
+    if (currentPlayPatternIndex === lastPatternIndex) {
+      setEnginePosition(0);
+      dispatch(setCurrentPlayPatternIndex(0));
+    }
+    dispatch(backupAndDropPatternData(lastPatternIndex));
+    dispatch(decrementPatternCountSync());
+    return;
+  }
+  if (sequencerPlayState === 'start') {
+    if (currentPlayPatternIndex === lastPatternIndex) {
+      dispatch(scheduleDeleteLastPattern());
+    } else {
+      dispatch(backupAndDropPatternData(lastPatternIndex));
+      dispatch(decrementPatternCountSync());
+    }
+  }
 };
