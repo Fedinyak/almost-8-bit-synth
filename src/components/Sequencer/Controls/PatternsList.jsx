@@ -127,6 +127,18 @@ const PatternList = () => {
 
   return (
     <div className="pattern-list-container">
+      {/* ВШИТЫЕ СТИЛИ ДЛЯ АНИМАЦИИ МИГАНИЯ КНОПКИ В МОМЕНТ КВАНТОВАНИЯ */}
+      <style>{`
+        @keyframes patternBlink {
+          0% { opacity: 1; background-color: #ffaa00; }
+          50% { opacity: 0.4; background-color: #ff5500; }
+          100% { opacity: 1; background-color: #ffaa00; }
+        }
+        .play-pattern-btn.is-waiting {
+          animation: patternBlink 0.4s infinite ease-in-out !important;
+        }
+      `}</style>
+
       {/* КНОПКИ УПРАВЛЕНИЯ ДЛИНОЙ ТРЕКА СВЕРХУ */}
       <div
         className="pattern-controls"
@@ -145,6 +157,8 @@ const PatternList = () => {
 
       <ul className="patten-list">
         {patternCountIndex.map((index) => {
+          const isWaiting =
+            sequencerPlayState === 'start' && pendingPatternIndex === index;
           return (
             <li
               key={index}
@@ -153,7 +167,7 @@ const PatternList = () => {
               <button
                 onClick={() => handlePlayPatternIndex(index)}
                 className={classNames('play-pattern-btn', {
-                  'is-waiting': pendingPatternIndex === index,
+                  'is-waiting': isWaiting,
                 })}
               >
                 ▶
