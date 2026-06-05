@@ -10,7 +10,8 @@ import {
   setSequencerPlayState,
   incrementPatternCount, // Существующий экшен
   decrementPatternCountSync, // Новый синхронный экшен
-  scheduleDeleteLastPattern, // Новый экшен квантования
+  scheduleDeleteLastPattern, // Новый экшен квантованья
+  setCurrentStep, // IMPORT: Added action to align absolute step on initial stop-to-start trigger
 } from '../../../slices/playerSlice';
 import {
   addPatternData, // Существующий экшен добавления пустых нот
@@ -19,6 +20,7 @@ import {
 import {
   setEnginePosition, // ИМПОРТ: Функция для изменения физической позиции Tone.Transport
 } from '../../../utility/audioEngineCore';
+import { STEPS_IN_MEASURE } from '../../../constants/constants'; // IMPORT: Added steps constant for precise timeline calculation
 import classNames from 'classnames';
 
 const PatternList = () => {
@@ -107,6 +109,8 @@ const PatternList = () => {
       // Перед запуском движка физически перемещаем Tone.Transport на выбранный такт
       setEnginePosition(index);
       dispatch(setCurrentPlayPatternIndex(index));
+      // Dispatch absolute coordinate to synchronize math scheduler on the very first frame
+      dispatch(setCurrentStep(index * STEPS_IN_MEASURE));
       dispatch(setIsLoopingFalse());
       dispatch(setSequencerPlayState('start'));
     }
