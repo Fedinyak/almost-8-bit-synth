@@ -1,0 +1,47 @@
+/* Blink transition animation for the main playback button during quantization */
+@keyframes patternBlink {
+  0% {
+    opacity: 1;
+    background-color: #ffaa00;
+  }
+  50% {
+    opacity: 0.4;
+    background-color: #ff5500;
+  }
+  100% {
+    opacity: 1;
+    background-color: #ffaa00;
+  }
+}
+
+/* Blink transition animation for the loop button during quantization */
+@keyframes loopBlink {
+  0% {
+    opacity: 1;
+    background-color: #00aaff;
+  }
+  50% {
+    opacity: 0.4;
+    background-color: #0055ff;
+  }
+  100% {
+    opacity: 1;
+    background-color: #00aaff;
+  }
+}
+
+/* Active pending quantization state for playback button */
+.play-pattern-btn.is-waiting {
+  animation: patternBlink 0.4s infinite ease-in-out !important;
+}
+
+/* Active pending quantization state for loop button */
+.loop-pattern-btn.is-loop-waiting {
+  animation: loopBlink 0.4s infinite ease-in-out !important;
+}
+
+/* Solid active state for loop button when pattern measure is locked */
+.loop-pattern-btn.is-loop-active {
+  background-color: #00aaff !important;
+  color: #ffffff !important;
+}

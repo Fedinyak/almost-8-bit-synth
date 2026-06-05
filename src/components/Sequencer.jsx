@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import TimerTransport from './Sequencer/Controls/TimerTransport';
 import ControlPanel from './Sequencer/Controls/ControlPanel';
 import DrumGrid from './Sequencer/Drums/DrumGrid';
-import PatternList from './Sequencer/Controls/PatternsList';
+import PatternList from './Sequencer/Controls/PatternList';
 import SynthGrid from './Sequencer/Synths/SynthGrid';
 import WorkspaceInstrumentTabs from './Sequencer/Controls/WorkspaceInstrumentTabs'; // Новый импорт
 import { setActiveTabByIndex } from '../slices/playerSlice';
