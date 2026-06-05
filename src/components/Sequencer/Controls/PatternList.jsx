@@ -6,15 +6,11 @@ import {
   setIsLoopingTrue,
   setPendingPattern,
   setSelectedPatternIndex,
-  incrementPatternCount,
 } from '../../../slices/playerSlice';
-import { addPatternData } from '../../../slices/patternsSlice';
-import {
-  executePatternPlaybackTrigger,
-  executeRemoveLastPatternRequest,
-} from '../../../utility/audioPlaybackActions'; // IMPORT: Streamlined operations bundle hookup
+import { executePatternPlaybackTrigger } from '../../../utility/audioPlaybackActions';
 import { getPatternVisualFlags } from '../../../utility/patternStatusSelectors';
 import { PatternItem } from './PatternItem';
+import { PatternControls } from './PatternControls'; // IMPORT: Hooked up the new decoupled controls panel
 import './patternList.css'; // All @keyframes and layout classes go here
 
 const PatternList = () => {
@@ -33,71 +29,50 @@ const PatternList = () => {
 
   const patternCountIndex = Array.from({ length: patternCount }, (_, i) => i);
 
-  const handleAddPattern = () => {
-    dispatch(addPatternData());
-    dispatch(incrementPatternCount());
-  };
-
-  const handleRemoveLastPattern = () => {
-    // Pipeline trigger is now entirely offloaded to the decoupled operation thunk
-    dispatch(executeRemoveLastPatternRequest());
-  };
-
-  const handlePlayPatternIndex = (index) => {
-    // Pipeline trigger is now entirely offloaded to the decoupled operation thunk
+  const handlePlayPattern = (index) => {
     dispatch(executePatternPlaybackTrigger(index));
+  };
+
+  const handleLoopPattern = (index) => {
+    dispatch(setPendingPattern(index));
+    dispatch(setIsLoopingTrue());
+  };
+
+  const handleSelectPattern = (index) => {
+    dispatch(setSelectedPatternIndex(index));
+    dispatch(setFollowModeFalse());
+  };
+
+  const handleToggleFollowMode = () => {
+    dispatch(setFollowModeTrue());
+    dispatch(setSelectedPatternIndex(false));
   };
 
   return (
     <div className="pattern-list-container">
-      <div
-        className="pattern-controls"
-        style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}
-      >
-        <button onClick={handleAddPattern} className="add-pattern-global-btn">
-          + Add pattern
-        </button>
-        <button
-          onClick={handleRemoveLastPattern}
-          className="remove-pattern-global-btn"
-        >
-          - Delete pattern
-        </button>
-      </div>
+      {/* Structural layout block isolating core track timeline management actions */}
+      <PatternControls />
 
       <ul className="patten-list">
-        {patternCountIndex.map((index) => {
-          const visualFlags = getPatternVisualFlags({
-            index,
-            sequencerPlayState,
-            pendingPatternIndex,
-            currentPlayPatternIndex,
-            isLooping,
-          });
-
-          return (
-            <PatternItem
-              key={index}
-              index={index}
-              visualFlags={visualFlags}
-              isSelected={selectedPatternIndex === index}
-              isFollowMode={isFollowMode}
-              onPlayClick={handlePlayPatternIndex}
-              onLoopClick={(idx) => {
-                dispatch(setPendingPattern(idx));
-                dispatch(setIsLoopingTrue());
-              }}
-              onSelectClick={(idx) => {
-                dispatch(setSelectedPatternIndex(idx));
-                dispatch(setFollowModeFalse());
-              }}
-              onFollowClick={() => {
-                dispatch(setFollowModeTrue());
-                dispatch(setSelectedPatternIndex(false));
-              }}
-            />
-          );
-        })}
+        {patternCountIndex.map((index) => (
+          <PatternItem
+            key={index}
+            index={index}
+            visualFlags={getPatternVisualFlags({
+              index,
+              sequencerPlayState,
+              pendingPatternIndex,
+              currentPlayPatternIndex,
+              isLooping,
+            })}
+            isSelected={selectedPatternIndex === index}
+            isFollowMode={isFollowMode}
+            onPlayClick={handlePlayPattern}
+            onLoopClick={handleLoopPattern}
+            onSelectClick={handleSelectPattern}
+            onFollowClick={handleToggleFollowMode}
+          />
+        ))}
       </ul>
     </div>
   );
