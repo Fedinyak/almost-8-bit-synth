@@ -127,15 +127,27 @@ const PatternList = () => {
 
   return (
     <div className="pattern-list-container">
-      {/* ВШИТЫЕ СТИЛИ ДЛЯ АНИМАЦИИ МИГАНИЯ КНОПКИ В МОМЕНТ КВАНТОВАНИЯ */}
+      {/* ВШИТЫЕ СТИЛИ ДЛЯ АНИМАЦИИ МИГАНИЯ КНОПОК В МОМЕНТ КВАНТОВАНИЯ И СВЕЧЕНИЯ */}
       <style>{`
         @keyframes patternBlink {
           0% { opacity: 1; background-color: #ffaa00; }
           50% { opacity: 0.4; background-color: #ff5500; }
           100% { opacity: 1; background-color: #ffaa00; }
         }
+        @keyframes loopBlink {
+          0% { opacity: 1; background-color: #00aaff; }
+          50% { opacity: 0.4; background-color: #0055ff; }
+          100% { opacity: 1; background-color: #00aaff; }
+        }
         .play-pattern-btn.is-waiting {
           animation: patternBlink 0.4s infinite ease-in-out !important;
+        }
+        .loop-pattern-btn.is-loop-waiting {
+          animation: loopBlink 0.4s infinite ease-in-out !important;
+        }
+        .loop-pattern-btn.is-loop-active {
+          background-color: #00aaff !important;
+          color: #ffffff !important;
         }
       `}</style>
 
@@ -145,20 +157,37 @@ const PatternList = () => {
         style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}
       >
         <button onClick={handleAddPattern} className="add-pattern-global-btn">
-          ➕ Добавить паттерн
+          + Add pattern
         </button>
         <button
           onClick={handleRemoveLastPattern}
           className="remove-pattern-global-btn"
         >
-          ➖ Удалить последний
+          - Delete pattern
         </button>
       </div>
 
       <ul className="patten-list">
         {patternCountIndex.map((index) => {
+          // Blink strictly when the play index transition is pending and loop mode is inactive
           const isWaiting =
-            sequencerPlayState === 'start' && pendingPatternIndex === index;
+            sequencerPlayState === 'start' &&
+            pendingPatternIndex === index &&
+            !isLooping;
+
+          // Loop button blinks when loop action is pending for another target measure
+          const isLoopWaiting =
+            sequencerPlayState === 'start' &&
+            pendingPatternIndex === index &&
+            isLooping &&
+            currentPlayPatternIndex !== index;
+
+          // Loop button stays solid blue only when currently active measure matches the loop target and no other transitions are pending
+          const isLoopSolid =
+            isLooping &&
+            currentPlayPatternIndex === index &&
+            (pendingPatternIndex === null || pendingPatternIndex === index);
+
           return (
             <li
               key={index}
@@ -172,7 +201,13 @@ const PatternList = () => {
               >
                 ▶
               </button>
-              <button onClick={() => handleLoopPatternIndex(index)}>
+              <button
+                onClick={() => handleLoopPatternIndex(index)}
+                className={classNames('loop-pattern-btn', {
+                  'is-loop-waiting': isLoopWaiting,
+                  'is-loop-active': isLoopSolid,
+                })}
+              >
                 loop
               </button>
               <button
