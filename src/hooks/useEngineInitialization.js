@@ -1,9 +1,9 @@
 import { useRef } from 'react';
-import { useAudioEngineSync } from '../../../hooks/useAudioEngineSync';
-import { useAudioPlaybackControl } from '../../../hooks/useAudioPlaybackControl';
-import { useSequencerScheduler } from '../../../hooks/useSequencerScheduler';
+import { useAudioEngineSync } from './useAudioEngineSync';
+import { useAudioPlaybackControl } from './useAudioPlaybackControl';
+import { useSequencerScheduler } from './useSequencerScheduler';
 
-const TimerTransport = () => {
+export const useEngineInitialization = () => {
   const synthEnginesRef = useRef({});
   const synthPartRef = useRef({});
   const drumsEngineRef = useRef(null);
@@ -22,5 +22,3 @@ const TimerTransport = () => {
 
   return null;
 };
-
-export default TimerTransport;

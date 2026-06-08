@@ -1,12 +1,12 @@
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import TimerTransport from './Sequencer/Controls/TimerTransport';
 import ControlPanel from './Sequencer/Controls/ControlPanel';
 import DrumGrid from './Sequencer/Drums/DrumGrid';
 import PatternList from './Sequencer/Controls/PatternList';
 import SynthGrid from './Sequencer/Synths/SynthGrid';
 import WorkspaceInstrumentTabs from './Sequencer/Controls/WorkspaceInstrumentTabs'; // Новый импорт
 import { setActiveTabByIndex } from '../slices/playerSlice';
+import { useEngineInitialization } from '../hooks/useEngineInitialization';
 
 const Sequencer = () => {
   const dispatch = useDispatch();
@@ -30,10 +30,11 @@ const Sequencer = () => {
     ? currentPlayPatternIndex
     : selectedPatternIndex;
 
+  useEngineInitialization();
+
   return (
     <section className="sequencer">
       <h3>currentPlayPatternIndex {currentPlayPatternIndex}</h3>
-      <TimerTransport />
       <ControlPanel />
       <PatternList />
 
