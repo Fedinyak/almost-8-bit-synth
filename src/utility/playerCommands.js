@@ -12,8 +12,8 @@ import {
   setSelectedPatternIndex,
   setFollowModeFalse,
   setFollowModeTrue,
-  requestRemoveLastPattern, // IMPORTED
-  clearEngineControlSignals, // IMPORTED
+  requestRemoveLastPattern,
+  clearEngineControlSignals,
 } from '../slices/playerSlice';
 
 export const executePatternPlaybackTrigger =
@@ -25,6 +25,7 @@ export const executePatternPlaybackTrigger =
       dispatch(setPendingPattern(index));
       dispatch(setIsLoopingFalse());
     }
+
     if (sequencerPlayState === 'stop') {
       setEnginePosition(index);
       dispatch(setCurrentPlayPatternIndex(index));
@@ -34,33 +35,28 @@ export const executePatternPlaybackTrigger =
     }
   };
 
-// CLEAN PIEPLINE LAYER: Fully state-driven deterministic execution flow with hardware protection fences
 export const executeRemoveLastPatternRequest = () => (dispatch, getState) => {
-  const { player } = getState();
+  const { player: initialPlayer } = getState();
 
-  if (player.patternCount <= SEQUENCER_CONFIG.MIN_PATTERN_COUNT) return;
-  const lastPatternIndex = player.patternCount - 1;
+  if (initialPlayer.patternCount <= SEQUENCER_CONFIG.MIN_PATTERN_COUNT) return;
 
-  // 1. Invoke centralized reducer logic to evaluate boundaries and arm signal flags safely
+  const lastPatternIndex = initialPlayer.patternCount - 1;
+
   dispatch(requestRemoveLastPattern());
 
   const updatedPlayer = getState().player;
+  const hasDataToDrop = updatedPlayer.shouldDropPatternDataInstantly;
+  const needsEngineRewind = updatedPlayer.shouldRewindEngineOnPause;
 
-  // 2. Safely drop pattern sequence data slice only when authorized by the state engine validation checkpoint
-  if (updatedPlayer.shouldDropPatternDataInstantly) {
+  if (hasDataToDrop) {
     dispatch(backupAndDropPatternData(lastPatternIndex));
   }
 
-  // 3. Intercept physics engine signals to rewind transport positions when required
-  if (updatedPlayer.shouldRewindEngineOnPause) {
+  if (needsEngineRewind) {
     setEnginePosition(SEQUENCER_CONFIG.TRACK_START_POSITION);
   }
 
-  // 4. Flush control state signals to prevent recurring execution loops
-  if (
-    updatedPlayer.shouldDropPatternDataInstantly ||
-    updatedPlayer.shouldRewindEngineOnPause
-  ) {
+  if (hasDataToDrop || needsEngineRewind) {
     dispatch(clearEngineControlSignals());
   }
 };
