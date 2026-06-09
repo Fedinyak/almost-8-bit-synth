@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { setEngineBpm, setPlayState } from '../utility/audioEngineCore';
+import { setEngineBpm, setPlayState } from '../audio/core/audioEngineCore';
 
 export const useAudioPlaybackControl = () => {
   const bpm = useSelector((state) => state.player.bpm);

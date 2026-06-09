@@ -4,8 +4,8 @@ import {
   DRUM_EFFECTS_CHAIN,
   EFFECT_DEVICES,
   DRUM_TYPE_MAP,
-} from '../constants/soundParamsConfig';
-import { wrapInstrumentWithEffects } from '../utility/audioEngineCore';
+} from '../../constants/soundParamsConfig';
+import { wrapInstrumentWithEffects } from '../../audio/core/audioEngineCore';
 
 const TONE_CLASS_RESOLVER = {
   MembraneSynth: Tone.MembraneSynth,

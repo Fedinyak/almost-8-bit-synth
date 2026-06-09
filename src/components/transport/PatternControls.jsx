@@ -1,9 +1,9 @@
 // components/PatternList/PatternControls.js
 import React from 'react';
 import { useDispatch } from 'react-redux';
-import { incrementPatternCount } from '../../slices/playerSlice';
-import { addPatternData } from '../../slices/patternsSlice';
-import { executeRemoveLastPatternRequest } from '../../utility/audioPlaybackActions';
+import { incrementPatternCount } from '../../store/playerSlice';
+import { addPatternData } from '../../store/patternsSlice';
+import { executeRemoveLastPatternRequest } from '../../audio/playback/audioPlaybackActions';
 
 export const PatternControls = () => {
   const dispatch = useDispatch();

@@ -11,20 +11,20 @@ import {
   initializeDrums,
   initializeSynths,
   stopAllAudio,
-} from '../utility/audioLifecycleActions';
+} from '../audio/playback/audioLifecycleActions';
 import {
   setupDrumsPlayback,
   setupSynthPlayback,
   syncDrumPatternsToTrack,
   syncInstrumentPatternsToTrack,
-} from '../utility/audioPlaybackActions';
+} from '../audio/playback/audioPlaybackActions';
 import {
   initializeAudioRouting,
   applySynthEnvelope,
   applyDynamicBypass,
   updateInstrumentVolume,
-} from '../utility/audioModulationActions';
-import { synthEnginesRegistry } from '../utility/visualizerState';
+} from '../audio/playback/audioModulationActions';
+import { synthEnginesRegistry } from '../audio/sync/visualizerState';
 
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
 

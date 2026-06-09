@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import StepIndicator from '../StepIndicator';
 import DrumCell from './DrumCell';
 import DrumMonitor from '../../visualizers/DrumMonitor';
-import { updateSynthParam } from '../../../slices/soundSettingsSlice';
+import { updateSynthParam } from '../../../store/soundSettingsSlice';
 import {
   SOUND_PARAM_GROUPS,
   DRUM_TYPE_MAP,
@@ -11,7 +11,7 @@ import {
   EFFECT_DEVICES,
 } from '../../../constants/soundParamsConfig';
 import SoundParamGroup from '../../synthesis/SoundParamGroup';
-import { setActiveSoundControlDrumTabIndex } from '../../../slices/playerSlice';
+import { setActiveSoundControlDrumTabIndex } from '../../../store/playerSlice';
 import { WaveformMirror } from '../../visualizers/WaveformMirror';
 import { LfoModulationPanel } from '../../synthesis/LfoModulationPanel';
 

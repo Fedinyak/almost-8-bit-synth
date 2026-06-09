@@ -5,7 +5,7 @@ import {
   setIsLoopingFalse,
   setIsLoopingTrue,
   setSequencerPlayState,
-} from '../../slices/playerSlice';
+} from '../../store/playerSlice';
 
 const SequencerControlPanel = () => {
   const dispatch = useDispatch();

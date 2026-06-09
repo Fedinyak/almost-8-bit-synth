@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { synthAnalysers } from '../../utility/visualizerState'; // Импортируем наш изолированный реестр
+import { synthAnalysers } from '../../audio/sync/visualizerState'; // Импортируем наш изолированный реестр
 
 // === КОНФИГУРАЦИЯ ВИЗУАЛИЗАТОРА ===
 const CONFIG = {

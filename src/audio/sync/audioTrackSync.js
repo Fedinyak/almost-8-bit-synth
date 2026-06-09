@@ -3,8 +3,11 @@ import {
   createPlaybackTrack,
   setTrackLoopDuration,
   writeNoteToTrack,
-} from './audioEngineCore';
-import { calculateAbsoluteTime, microTimingOffset } from './audioMathUtils';
+} from '../core/audioEngineCore';
+import {
+  calculateAbsoluteTime,
+  microTimingOffset,
+} from '../../utils/audioMathUtils';
 import { processDrumPlaybackHit, playSynthNote } from './audioEngineTriggers';
 
 export const setupSynthPlayback = (synthName, enginesRef, tracksRef) => {

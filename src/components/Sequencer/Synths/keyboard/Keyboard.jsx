@@ -1,15 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-// import { decrement, increment } from "../../slices/counterSlice";
+// import { decrement, increment } from "../../store/counterSlice";
 import {
   decreaseOctave,
   increaseOctave,
   setActiveNote,
-} from '../../../../slices/noteSlice.js';
-// import playSound from "../../utility/playSound";
-import { synthEnginesRegistry } from '../../../../utility/visualizerState.js';
+} from '../../../../store/noteSlice.js';
+// import playSound from "../../utils/playSound";
+import { synthEnginesRegistry } from '../../../../audio/sync/visualizerState.js';
 import noteAndKeyMap from '../../../../constants/noteAndKeyMap.js';
-import getNote from '../../../../utility/getNote.js';
+import getNote from '../../../../utils/getNote.js';
 import Key from './Key.jsx';
 
 const OctaveSelector = () => {

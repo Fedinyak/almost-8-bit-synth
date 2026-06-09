@@ -1,5 +1,5 @@
 import React from 'react';
-import getNote from '../../../utility/getNote';
+import getNote from '../../../utils/getNote';
 import SynthCell from './SynthCell';
 import StepIndicator from '../StepIndicator';
 import noteAndKeyMap from '../../../constants/noteAndKeyMap';

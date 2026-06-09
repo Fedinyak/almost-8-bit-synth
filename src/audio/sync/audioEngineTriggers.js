@@ -1,5 +1,5 @@
-import { triggerDrumVisualLevel } from './audioEngineCore';
-import { compensateLatency } from './audioMathUtils';
+import { triggerDrumVisualLevel } from '../core/audioEngineCore';
+import { compensateLatency } from '../../utils/audioMathUtils';
 
 export const playSynthNote = (synth, time, noteData) => {
   if (synth && synth.instrument) {

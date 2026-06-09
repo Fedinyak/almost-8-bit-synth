@@ -1,6 +1,6 @@
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { updateSynthParam } from '../../slices/soundSettingsSlice';
+import { updateSynthParam } from '../../store/soundSettingsSlice';
 import { SOUND_PARAMS } from '../../constants/soundParamsConfig';
 import { LfoOscilloscope } from '../visualizers/LfoOscilloscope';
 

@@ -1,7 +1,7 @@
 import cn from 'classnames';
 import { useDispatch } from 'react-redux';
-import { setActiveNote } from '../../../../slices/noteSlice';
-import getNote from '../../../../utility/getNote';
+import { setActiveNote } from '../../../../store/noteSlice';
+import getNote from '../../../../utils/getNote';
 import noteAndKeyMap from '../../../../constants/noteAndKeyMap';
 
 const Key = ({ keyboardLetter, octave, activeNote }) => {

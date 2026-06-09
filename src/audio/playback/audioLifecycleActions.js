@@ -1,6 +1,6 @@
-import createSynth from './synthEngine';
-import createDrums from './drumEngine';
-import { resetDrumLevels, resetSynthAnalysers } from './visualizerState';
+import createSynth from '../engines/synthEngine';
+import createDrums from '../engines/drumEngine';
+import { resetDrumLevels, resetSynthAnalysers } from '../sync/visualizerState';
 
 const disposeSingleResource = (res) => {
   if (res && !res.disposed && typeof res.dispose === 'function') {

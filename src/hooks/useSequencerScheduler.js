@@ -6,8 +6,8 @@ import {
   setCurrentStep,
   decrementPatternCountSync,
   clearPendingDeleteLastPattern,
-} from '../slices/playerSlice';
-import { backupAndDropPatternData } from '../slices/patternsSlice';
+} from '../store/playerSlice';
+import { backupAndDropPatternData } from '../store/patternsSlice';
 import {
   STEPS_IN_MEASURE,
   STEP_DURATION_NOTATION,
@@ -15,7 +15,7 @@ import {
 import {
   calculateCurrentPlayPattern,
   calculateCurrentStep,
-} from '../utility/audioMathUtils';
+} from '../utils/audioMathUtils';
 import {
   disableEngineLoop,
   enableEngineLoop,
@@ -24,7 +24,7 @@ import {
   setEnginePosition,
   startDrawingLoop,
   stopDrawingLoop,
-} from '../utility/audioEngineCore';
+} from '../audio/core/audioEngineCore';
 
 const handleStepSync = (
   time,

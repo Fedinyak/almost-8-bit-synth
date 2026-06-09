@@ -4,7 +4,7 @@ import ControlPanel from './transport/ControlPanel';
 import DrumGrid from './sequencer/drums/DrumGrid';
 import SynthGrid from './sequencer/synths/SynthGrid';
 import WorkspaceInstrumentTabs from './ui/WorkspaceInstrumentTabs';
-import { setActiveTabByIndex } from '../slices/playerSlice';
+import { setActiveTabByIndex } from '../store/playerSlice';
 import { useEngineInitialization } from '../hooks/useEngineInitialization';
 import PatternList from './transport/PatternList';
 

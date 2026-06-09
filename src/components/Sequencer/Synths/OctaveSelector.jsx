@@ -1,4 +1,4 @@
-import { decreaseOctave, increaseOctave } from '../../../slices/noteSlice';
+import { decreaseOctave, increaseOctave } from '../../../store/noteSlice';
 import { useDispatch } from 'react-redux';
 
 const OctaveSelector = () => {

@@ -3,8 +3,8 @@ import {
   DRUM_EFFECTS_CHAIN,
   EFFECT_DEVICES,
   SYNTH_PRESETS,
-} from '../constants/soundParamsConfig';
-import { wrapInstrumentWithEffects } from '../utility/audioEngineCore';
+} from '../../constants/soundParamsConfig';
+import { wrapInstrumentWithEffects } from '../../audio/core/audioEngineCore';
 
 const createSynth = (synthName) => {
   const presetConfig = SYNTH_PRESETS[synthName] || {};

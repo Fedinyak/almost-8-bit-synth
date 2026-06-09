@@ -1,6 +1,6 @@
 import * as Tone from 'tone';
-import { LOOKAHEAD_OFFSET_SEC } from '../constants/constants';
-import { drumLevels } from './visualizerState';
+import { LOOKAHEAD_OFFSET_SEC } from '../../constants/constants';
+import { drumLevels } from '../sync/visualizerState';
 
 export const createPlaybackTrack = (onStepAction) => {
   const track = new Tone.Part(onStepAction, []).start(0);

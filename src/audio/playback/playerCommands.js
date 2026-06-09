@@ -1,7 +1,7 @@
-import { setEnginePosition } from './audioEngineCore';
-import { STEPS_IN_MEASURE } from '../constants/constants';
-import { SEQUENCER_CONFIG } from '../constants/sequencerConfig';
-import { backupAndDropPatternData } from '../slices/patternsSlice';
+import { setEnginePosition } from '../core/audioEngineCore';
+import { STEPS_IN_MEASURE } from '../../constants/constants';
+import { SEQUENCER_CONFIG } from '../../constants/sequencerConfig';
+import { backupAndDropPatternData } from '../../store/patternsSlice';
 import {
   setPendingPattern,
   setIsLoopingFalse,
@@ -14,7 +14,7 @@ import {
   setFollowModeTrue,
   requestRemoveLastPattern,
   clearEngineControlSignals,
-} from '../slices/playerSlice';
+} from '../../store/playerSlice';
 
 export const executePatternPlaybackTrigger =
   (index) => (dispatch, getState) => {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux'; // Добавили useDispatch
 import SoundParamGroup from './SoundParamGroup';
-import { updateSynthParam } from '../../slices/soundSettingsSlice'; // Импортируем твой экшен обновления стейта
+import { updateSynthParam } from '../../store/soundSettingsSlice'; // Импортируем твой экшен обновления стейта
 import {
   SOUND_PARAM_GROUPS,
   UI_EFFECTS_LIST,

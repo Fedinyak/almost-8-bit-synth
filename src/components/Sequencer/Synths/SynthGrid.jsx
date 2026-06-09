@@ -1,6 +1,6 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
-import getNote from '../../../utility/getNote';
+import getNote from '../../../utils/getNote';
 import noteAndKeyMap from '../../../constants/noteAndKeyMap';
 import SynthRow from './SynthRow';
 import WaveMonitor from '../../visualizers/WaveMonitor';

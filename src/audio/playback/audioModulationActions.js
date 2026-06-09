@@ -1,12 +1,12 @@
 import * as Tone from 'tone';
-import { checkBypassCondition } from './audioMathUtils';
-import { synthAnalysers } from './visualizerState';
+import { checkBypassCondition } from '../../utils/audioMathUtils';
+import { synthAnalysers } from '../sync/visualizerState';
 // ДОБАВЛЕН ИМПОРТ ТЕКСТОВЫХ СЛОВАРЕЙ ИЗ ПАСПОРТА КОНФИГА
 import {
   SOUND_PARAMS,
   EFFECT_DEVICES,
   TEXT_PARAM_DICTIONARIES,
-} from '../constants/soundParamsConfig';
+} from '../../constants/soundParamsConfig';
 import {
   ANALYSER_TYPE,
   ANALYSER_SIZE,
@@ -15,7 +15,7 @@ import {
   AUDIO_DEFAULT_DECAY,
   AUDIO_DEFAULT_SUSTAIN,
   AUDIO_DEFAULT_RELEASE,
-} from '../constants/audioEngineConfig';
+} from '../../constants/audioEngineConfig';
 import { buildAndConnectInstrumentChannel } from './audioLifecycleActions';
 import { connectSynthToMixer } from './audioPlaybackActions';
 

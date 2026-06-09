@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from 'react-redux';
-import { toggleDrumStep } from '../../../slices/patternsSlice';
+import { toggleDrumStep } from '../../../store/patternsSlice';
 import cn from 'classnames';
 
 const DrumCell = ({ drumName, stepIndex, activeVisualPattern }) => {
