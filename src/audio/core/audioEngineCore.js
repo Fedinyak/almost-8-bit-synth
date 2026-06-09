@@ -168,7 +168,7 @@ export const wrapInstrumentWithEffects = (
   // Он весит 0% ЦП, так как не имеет буферов задержки
   const hardwareStaticPanner = new Tone.Panner(0);
 
-  // 🧱 СТРОИМ ЕБУЧУЮ ЦЕПОЧКУ: Сырой синт -> Все созданные эффекты рэка -> Статический Паннер
+  // 🧱 СТРОИМ ЦЕПОЧКУ: Сырой синт -> Все созданные эффекты рэка -> Статический Паннер
   // Паннер стоит в самом конце, и именно на него connectAudioChain повесит .toDestination()
   const fullGraphChain = [rawSynth, ...createdEffects, hardwareStaticPanner];
   connectAudioChain(fullGraphChain);
@@ -190,14 +190,14 @@ export const wrapInstrumentWithEffects = (
   return {
     instrument: rawSynth,
     ...fxRegistry,
-    panner: hardwareStaticPanner, // 🆕 Регистрируем ссылку на паннер, чтобы ручка PAN в UI могла его крутить!
+    panner: hardwareStaticPanner, // Регистрируем ссылку на паннер, чтобы ручка PAN в UI могла его крутить!
     masterLfo: masterLfoNode,
     masterLfoMeter: masterLfoMeter,
     output: hardwareStaticPanner, // Выходом контейнера теперь честно становится финальный паннер
     dispose() {
       masterLfoNode.dispose();
       masterLfoMeter.dispose();
-      hardwareStaticPanner.dispose(); // 🆕 Чистим паннер при удалении сцены
+      hardwareStaticPanner.dispose(); // Чистим паннер при удалении сцены
       createdEffects.forEach((node) => node.dispose());
       rawSynth.dispose();
     },

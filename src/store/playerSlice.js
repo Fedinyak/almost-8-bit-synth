@@ -20,7 +20,6 @@ const initialState = {
   tabs: ['drums', ...SYNTH_LIST],
   activeTabIndex: 0,
   activeSoundControlDrumTabIndex: 0,
-  // Hardware orchestration control flags
   shouldRewindEngineOnPause: false,
   shouldDropPatternDataInstantly: false, // Flag signal to authorize safe data drop mutations
 };
@@ -178,8 +177,8 @@ export const {
   clearPendingDeleteLastPattern,
   setActiveTabByIndex,
   setActiveSoundControlDrumTabIndex,
-  requestRemoveLastPattern, // EXPORTED
-  clearEngineControlSignals, // EXPORTED
+  requestRemoveLastPattern,
+  clearEngineControlSignals,
 } = playerSlice.actions;
 
 export default playerSlice.reducer;

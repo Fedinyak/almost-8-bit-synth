@@ -9,7 +9,11 @@ import {
 
 const SequencerControlPanel = () => {
   const dispatch = useDispatch();
-  const isLooping = useSelector((state) => state.player.isLooping);
+  const playbackStatus = useSelector((state) => state.player.playbackStatus);
+
+  // Вычисляем состояние кнопки Loop на основе статуса конечного автомата
+  const isLoopingActiveInMachine =
+    playbackStatus === 'LOOPING_ACTIVE' || playbackStatus === 'LOOP_CHANGING';
 
   return (
     <div>
@@ -23,8 +27,8 @@ const SequencerControlPanel = () => {
         pause
       </button>
 
-      {/* СТРОГОЕ ДЕКЛАРАТИВНОЕ РАЗДЕЛЕНИЕ КНОПОК НА ОСНОВЕ REDUX СТЕЙТА */}
-      {!isLooping ? (
+      {/* СТРОГОЕ ДЕКЛАРАТИВНОЕ РАЗДЕЛЕНИЕ КНОПОК НА ОСНОВЕ СТАТУСА FSM */}
+      {!isLoopingActiveInMachine ? (
         <button onClick={() => dispatch(setIsLoopingTrue())}>
           Start Loop (status: false)
         </button>

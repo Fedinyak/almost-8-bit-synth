@@ -1,12 +1,12 @@
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import ControlPanel from './transport/ControlPanel';
 import DrumGrid from './sequencer/drums/DrumGrid';
 import SynthGrid from './sequencer/synths/SynthGrid';
 import WorkspaceInstrumentTabs from './ui/WorkspaceInstrumentTabs';
 import { setActiveTabByIndex } from '../store/playerSlice';
 import { useEngineInitialization } from '../hooks/useEngineInitialization';
 import PatternList from './transport/PatternList';
+import SequencerControlPanel from './transport/SequencerControlPanel';
 
 const Groovebox = () => {
   const dispatch = useDispatch();
@@ -35,7 +35,7 @@ const Groovebox = () => {
   return (
     <section className="sequencer">
       <h3>currentPlayPatternIndex {currentPlayPatternIndex}</h3>
-      <ControlPanel />
+      <SequencerControlPanel />
       <PatternList />
 
       <WorkspaceInstrumentTabs

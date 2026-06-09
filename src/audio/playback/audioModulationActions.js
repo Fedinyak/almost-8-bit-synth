@@ -1,7 +1,6 @@
 import * as Tone from 'tone';
 import { checkBypassCondition } from '../../utils/audioMathUtils';
 import { synthAnalysers } from '../sync/visualizerState';
-// ДОБАВЛЕН ИМПОРТ ТЕКСТОВЫХ СЛОВАРЕЙ ИЗ ПАСПОРТА КОНФИГА
 import {
   SOUND_PARAMS,
   EFFECT_DEVICES,
