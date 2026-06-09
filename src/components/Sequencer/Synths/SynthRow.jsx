@@ -1,7 +1,7 @@
 import React from 'react';
 import getNote from '../../../utility/getNote';
-import Cell from './Cell';
-import StepIndicator from '../Controls/StepIndicator';
+import SynthCell from './SynthCell';
+import StepIndicator from '../StepIndicator';
 import noteAndKeyMap from '../../../constants/noteAndKeyMap';
 
 // ОПТИМИЗАЦИЯ СКОРОСТИ: Выносим статические карты нот за пределы компонента,
@@ -32,7 +32,7 @@ const SynthRowComponent = ({
         />
         {keyboardLetter.map((letter) => {
           return (
-            <Cell
+            <SynthCell
               className="sequencer-cell"
               key={`${instrument}-${letter}-${stepIndex}-${octave}`}
               instrument={instrument}

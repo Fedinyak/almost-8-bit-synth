@@ -1,5 +1,5 @@
-@import './components/Keyboard/keyboard.css';
-@import './components/sequencer.css';
+@import './components/sequencer/synths/keyboard/keyboard.css';
+@import './components/groovebox.css';
 
 /* :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;

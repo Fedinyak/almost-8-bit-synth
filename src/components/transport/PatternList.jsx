@@ -1,6 +1,6 @@
 import { useDispatch, useSelector } from 'react-redux';
-import { dispatchPatternAction } from '../../../utility/audioPlaybackActions';
-import { getPatternVisualFlags } from '../../../utility/patternStatusSelectors';
+import { dispatchPatternAction } from '../../utility/audioPlaybackActions';
+import { getPatternVisualFlags } from '../../utility/patternStatusSelectors';
 import { PatternItem } from './PatternItem';
 import { PatternControls } from './PatternControls';
 import './patternList.css';

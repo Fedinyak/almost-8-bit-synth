@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux'; // Добавили useDispatch
 import SoundParamGroup from './SoundParamGroup';
-import { updateSynthParam } from '../../../slices/soundSettingsSlice'; // Импортируем твой экшен обновления стейта
+import { updateSynthParam } from '../../slices/soundSettingsSlice'; // Импортируем твой экшен обновления стейта
 import {
   SOUND_PARAM_GROUPS,
   UI_EFFECTS_LIST,
   EFFECT_DEVICES,
-} from '../../../constants/soundParamsConfig';
-import { WaveformMirror } from '../Synths/WaveformMirror';
+} from '../../constants/soundParamsConfig';
+import { WaveformMirror } from '../visualizers/WaveformMirror';
 import LfoModulationPanel from './LfoModulationPanel';
 
-export const SynthSoundPanel = ({ synthName }) => {
+export const SoundEnginePanel = ({ synthName }) => {
   const dispatch = useDispatch();
 
   const synthSettings = useSelector(
@@ -151,4 +151,4 @@ export const SynthSoundPanel = ({ synthName }) => {
   );
 };
 
-export default SynthSoundPanel;
+export default SoundEnginePanel;

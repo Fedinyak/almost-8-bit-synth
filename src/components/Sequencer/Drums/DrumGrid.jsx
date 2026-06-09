@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import StepIndicator from '../Controls/StepIndicator';
+import StepIndicator from '../StepIndicator';
 import DrumCell from './DrumCell';
 import DrumMonitor from '../../visualizers/DrumMonitor';
 import { updateSynthParam } from '../../../slices/soundSettingsSlice';
@@ -10,10 +10,10 @@ import {
   UI_EFFECTS_LIST,
   EFFECT_DEVICES,
 } from '../../../constants/soundParamsConfig';
-import SoundParamGroup from '../Controls/SoundParamGroup';
+import SoundParamGroup from '../../synthesis/SoundParamGroup';
 import { setActiveSoundControlDrumTabIndex } from '../../../slices/playerSlice';
-import { WaveformMirror } from '../Synths/WaveformMirror';
-import { LfoModulationPanel } from '../Controls/LfoModulationPanel';
+import { WaveformMirror } from '../../visualizers/WaveformMirror';
+import { LfoModulationPanel } from '../../synthesis/LfoModulationPanel';
 
 const DrumGridComponent = () => {
   const dispatch = useDispatch();

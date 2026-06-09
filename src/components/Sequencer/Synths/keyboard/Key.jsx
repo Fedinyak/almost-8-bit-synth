@@ -1,10 +1,10 @@
 import cn from 'classnames';
 import { useDispatch } from 'react-redux';
-import { setActiveNote } from '../../slices/noteSlice';
-import getNote from '../../utility/getNote';
-import noteAndKeyMap from '../../constants/noteAndKeyMap';
+import { setActiveNote } from '../../../../slices/noteSlice';
+import getNote from '../../../../utility/getNote';
+import noteAndKeyMap from '../../../../constants/noteAndKeyMap';
 
-const KeyboardKey = ({ keyboardLetter, octave, activeNote }) => {
+const Key = ({ keyboardLetter, octave, activeNote }) => {
   const dispatch = useDispatch();
 
   // const noteMap = useSelector(state => state.note.noteMap);
@@ -47,4 +47,4 @@ const KeyboardKey = ({ keyboardLetter, octave, activeNote }) => {
   );
 };
 
-export default KeyboardKey;
+export default Key;

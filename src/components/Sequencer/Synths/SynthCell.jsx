@@ -2,7 +2,7 @@ import { useDispatch } from 'react-redux';
 import { setSequencerInstrumentNote } from '../../../slices/patternsSlice';
 import cn from 'classnames';
 
-const Cell = ({
+const SynthCell = ({
   instrument,
   note,
   sequencerActiveNote,
@@ -45,4 +45,4 @@ const Cell = ({
   );
 };
 
-export default Cell;
+export default SynthCell;

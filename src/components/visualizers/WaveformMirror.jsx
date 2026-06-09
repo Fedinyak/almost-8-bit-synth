@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 // 🆕 ИМПОРТИРУЕМ ЕДИНЫЙ ИСТОЧНИК ПРАВДЫ ДЛЯ ЦЕПОЧКИ ЭФФЕКТОВ:
-import { DRUM_EFFECTS_CHAIN } from '../../../constants/soundParamsConfig';
+import { DRUM_EFFECTS_CHAIN } from '../../constants/soundParamsConfig';
 
 // ============================================================================
 // 1. ДЕКЛАРАТИВНЫЙ СЛОВАРЬ МАТЕМАТИЧЕСКИХ ТРАНСФОРМАЦИЙ ВОЛНЫ

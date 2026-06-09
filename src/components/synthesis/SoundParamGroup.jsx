@@ -1,6 +1,6 @@
 import React from 'react';
 import AudioParamControl from './AudioParamControl';
-import { SOUND_PARAMS } from '../../../constants/soundParamsConfig';
+import { SOUND_PARAMS } from '../../constants/soundParamsConfig';
 
 export const SoundParamGroup = ({
   groupKey,

@@ -1,8 +1,8 @@
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { updateSynthParam } from '../../../slices/soundSettingsSlice';
-import { SOUND_PARAMS } from '../../../constants/soundParamsConfig';
-import { LfoOscilloscope } from './LfoOscilloscope';
+import { updateSynthParam } from '../../slices/soundSettingsSlice';
+import { SOUND_PARAMS } from '../../constants/soundParamsConfig';
+import { LfoOscilloscope } from '../visualizers/LfoOscilloscope';
 
 export const LfoModulationPanel = ({ synthName }) => {
   const dispatch = useDispatch();

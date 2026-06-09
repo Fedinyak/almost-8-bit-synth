@@ -4,9 +4,9 @@ import getNote from '../../../utility/getNote';
 import noteAndKeyMap from '../../../constants/noteAndKeyMap';
 import SynthRow from './SynthRow';
 import WaveMonitor from '../../visualizers/WaveMonitor';
-import SynthSoundPanel from '../Controls/SynthSoundPanel';
-import Keyboard from '../../keyboard/Keyboard'; // Подключи здесь правильный относительный путь до папки клавиатуры
-import OctaveSelector from '../Controls/OctaveSelector';
+import OctaveSelector from './OctaveSelector';
+import Keyboard from './keyboard/Keyboard';
+import SoundEnginePanel from '../../synthesis/SynthesisPanel';
 
 const SynthGrid = ({ activeVisualPattern, synthName }) => {
   const octave = useSelector((state) => state.note.octave);
@@ -47,7 +47,7 @@ const SynthGrid = ({ activeVisualPattern, synthName }) => {
         {/* Внедряем клавиатуру в грид и явно скармливаем ей имя текущего синтезатора */}
         <Keyboard activeInstrument={synthName} />
 
-        <SynthSoundPanel synthName={synthName} />
+        <SoundEnginePanel synthName={synthName} />
       </React.Fragment>
     </>
   );

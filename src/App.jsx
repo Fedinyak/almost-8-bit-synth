@@ -1,11 +1,10 @@
 import './App.css';
-import Keyboard from './components/keyboard/Keyboard';
-import Sequencer from './components/Sequencer';
+import Groovebox from './components/Groovebox';
 
 function App() {
   return (
     <>
-      <Sequencer />
+      <Groovebox />
     </>
   );
 }

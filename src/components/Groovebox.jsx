@@ -1,14 +1,14 @@
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import ControlPanel from './Sequencer/Controls/ControlPanel';
-import DrumGrid from './Sequencer/Drums/DrumGrid';
-import PatternList from './Sequencer/Controls/PatternList';
-import SynthGrid from './Sequencer/Synths/SynthGrid';
-import WorkspaceInstrumentTabs from './Sequencer/Controls/WorkspaceInstrumentTabs'; // Новый импорт
+import ControlPanel from './transport/ControlPanel';
+import DrumGrid from './sequencer/drums/DrumGrid';
+import SynthGrid from './sequencer/synths/SynthGrid';
+import WorkspaceInstrumentTabs from './ui/WorkspaceInstrumentTabs';
 import { setActiveTabByIndex } from '../slices/playerSlice';
 import { useEngineInitialization } from '../hooks/useEngineInitialization';
+import PatternList from './transport/PatternList';
 
-const Sequencer = () => {
+const Groovebox = () => {
   const dispatch = useDispatch();
 
   const currentPlayPatternIndex = useSelector(
@@ -55,4 +55,4 @@ const Sequencer = () => {
   );
 };
 
-export default Sequencer;
+export default Groovebox;

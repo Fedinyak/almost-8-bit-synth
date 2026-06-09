@@ -5,12 +5,12 @@ import {
   decreaseOctave,
   increaseOctave,
   setActiveNote,
-} from '../../slices/noteSlice.js';
+} from '../../../../slices/noteSlice.js';
 // import playSound from "../../utility/playSound";
-import getNote from '../../utility/getNote';
-import KeyboardKey from './KeyboardKey';
-import noteAndKeyMap from '../../constants/noteAndKeyMap.js';
-import { synthEnginesRegistry } from '../../utility/visualizerState';
+import { synthEnginesRegistry } from '../../../../utility/visualizerState.js';
+import noteAndKeyMap from '../../../../constants/noteAndKeyMap.js';
+import getNote from '../../../../utility/getNote.js';
+import Key from './Key.jsx';
 
 const OctaveSelector = () => {
   const dispatch = useDispatch();
@@ -54,7 +54,7 @@ const Keyboard = ({ activeInstrument }) => {
     octaveRef.current = octave;
   }, [octave]);
 
-  const handleKeyboardKeyDown = (event) => {
+  const handleKeyDown = (event) => {
     if (keyboardLetter.join().includes(event.key)) {
       console.log(event.key, octaveRef.current, 'event.key, octave');
       const note = getNote(event.key, octaveRef.current, noteMap, octaveMap);
@@ -76,9 +76,9 @@ const Keyboard = ({ activeInstrument }) => {
   };
 
   useEffect(() => {
-    document.addEventListener('keydown', handleKeyboardKeyDown);
+    document.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.removeEventListener('keydown', handleKeyboardKeyDown);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, []); // Пустой массив гарантирует стабильный единый слушатель без утечек памяти
 
@@ -87,7 +87,7 @@ const Keyboard = ({ activeInstrument }) => {
       <OctaveSelector />
       <div className="keyboard">
         {keyboardLetter.map((letter, i) => (
-          <KeyboardKey
+          <Key
             keyboardLetter={letter}
             octave={octave}
             activeNote={activeNote}

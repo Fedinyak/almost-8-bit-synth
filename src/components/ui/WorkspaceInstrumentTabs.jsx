@@ -1,5 +1,5 @@
 import React from 'react';
-import { SYNTH_PRESETS } from '../../../constants/soundParamsConfig';
+import { SYNTH_PRESETS } from '../../constants/soundParamsConfig';
 
 export const WorkspaceInstrumentTabs = ({
   tabs,
