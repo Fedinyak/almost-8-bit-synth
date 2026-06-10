@@ -6,7 +6,6 @@ import {
   DRUM_KIT_LIST,
 } from '../constants/constants';
 import noteAndKeyMap from '../constants/noteAndKeyMap';
-import { SOUND_PARAMS } from '../constants/soundParamsConfig';
 import {
   initializeDrums,
   initializeSynths,
@@ -20,11 +19,10 @@ import {
 } from '../audio/playback/audioPlaybackActions';
 import {
   initializeAudioRouting,
-  applySynthEnvelope,
-  applyDynamicBypass,
   updateInstrumentVolume,
 } from '../audio/playback/audioModulationActions';
 import { synthEnginesRegistry } from '../audio/sync/visualizerState';
+import { processInstrumentLfoModulation } from './processInstrumentLfoModulation';
 
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
 
@@ -39,21 +37,17 @@ export const useAudioEngineSync = (
   const soundSettings = useSelector(
     (state) => state.soundSettings?.synths || {},
   );
-  // ДОБАВЛЕН СЕЛЕКТОР ТЕКУЩЕГО СОСТОЯНИЯ ВОСПРОИЗВЕДЕНИЯ СЕКВЕНСОРА
   const sequencerPlayState = useSelector(
     (state) => state.player.sequencerPlayState,
   );
 
   const synthAnalysersRef = useRef({});
   const synthChannelsRef = useRef({});
-
-  // Хранилище для сглаживания прошлых значений параметров, чтобы убрать треск (Lag Filter)
   const smoothedValuesRef = useRef({});
 
   useEffect(() => {
     initializeSynths(SYNTH_LIST, synthEnginesRef.current);
     initializeDrums(drumsEngineRef);
-
     synthEnginesRegistry.current = synthEnginesRef.current;
 
     initializeAudioRouting(
@@ -74,11 +68,10 @@ export const useAudioEngineSync = (
     });
   }, [soundSettings, synthEnginesRef]);
 
-  // Конвейер матрицы модуляции LFO со встроенным подавлением щелчков и треска
+  // Чистый конвейер модуляции LFO, избавленный от дублирования кода
   useEffect(() => {
     let animationFrameId;
 
-    // АППАРАТНЫЙ ЗАСЛОН: Если плеер стоит на паузе или стопе, полностью блокируем холостой ход JavaScript
     if (sequencerPlayState !== 'start') {
       return () => {
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
@@ -86,122 +79,24 @@ export const useAudioEngineSync = (
     }
 
     const runModulationPipeline = () => {
-      // 1. Матрица модуляции для СИНТЕЗАТОРОВ
+      // 1. Прогоняем сквозь матрицу модуляции все СИНТЕЗАТОРЫ
       SYNTH_LIST.forEach((name) => {
-        const synthInstance = synthEnginesRef.current[name];
-        const settings = soundSettings[name];
-        if (!synthInstance || !settings) return;
-
-        if (synthInstance.masterLfo) {
-          if (settings.lfoRate !== undefined)
-            synthInstance.masterLfo.frequency.value = settings.lfoRate;
-          if (
-            settings.lfoWaveform !== undefined &&
-            synthInstance.masterLfo.type !== settings.lfoWaveform
-          ) {
-            synthInstance.masterLfo.type = settings.lfoWaveform;
-          }
-        }
-
-        let runtimeSettings = { ...settings };
-
-        if (
-          settings.lfoActive &&
-          synthInstance.masterLfoMeter &&
-          settings.lfoTarget
-        ) {
-          const targetParam = settings.lfoTarget;
-          const lfoPhase = synthInstance.masterLfoMeter.getValue();
-          const currentDepth = settings.lfoDepth ?? 0.5;
-
-          const paramConfig = SOUND_PARAMS[targetParam] || { min: 0, max: 1 };
-          const minVal = paramConfig.min ?? 0;
-          const maxVal = paramConfig.max ?? 1;
-          const fullRange = maxVal - minVal;
-
-          const baseValue = settings[targetParam] ?? paramConfig.default ?? 0;
-
-          let targetModulated =
-            baseValue + lfoPhase * (fullRange * 0.5 * currentDepth);
-          targetModulated = Math.max(minVal, Math.min(maxVal, targetModulated));
-
-          if (paramConfig.isTextParam) {
-            targetModulated = Math.round(targetModulated);
-          }
-
-          // ФИКС ТРЕСКА: Программный инерционный фильтр (Линейная интерполяция)
-          const cacheKey = `${name}_${targetParam}`;
-          if (smoothedValuesRef.current[cacheKey] === undefined) {
-            smoothedValuesRef.current[cacheKey] = targetModulated;
-          }
-          // Плавно подползаем к новому значению, стирая острые цифровые углы
-          smoothedValuesRef.current[cacheKey] +=
-            (targetModulated - smoothedValuesRef.current[cacheKey]) * 0.15;
-
-          runtimeSettings[targetParam] = smoothedValuesRef.current[cacheKey];
-        }
-
-        applySynthEnvelope(synthInstance, runtimeSettings);
-        applyDynamicBypass(name, synthInstance, runtimeSettings);
+        processInstrumentLfoModulation({
+          name,
+          instance: synthEnginesRef.current[name],
+          settings: soundSettings[name],
+          smoothedValues: smoothedValuesRef.current,
+        });
       });
 
-      // 2. Матрица модуляции для БАРАБАНОВ ДРАМ-МАШИНЫ
+      // 2. Прогоняем сквозь матрицу модуляции все БАРАБАНЫ
       DRUM_KIT_LIST.forEach((name) => {
-        const drumInstance = drumsEngineRef.current?.[name];
-        const settings = soundSettings[name];
-        if (!drumInstance || !settings) return;
-
-        // Физически настраиваем независимое LFO этого конкретного барабана
-        if (drumInstance.masterLfo) {
-          if (settings.lfoRate !== undefined)
-            drumInstance.masterLfo.frequency.value = settings.lfoRate;
-          if (
-            settings.lfoWaveform !== undefined &&
-            drumInstance.masterLfo.type !== settings.lfoWaveform
-          ) {
-            drumInstance.masterLfo.type = settings.lfoWaveform;
-          }
-        }
-
-        let runtimeSettings = { ...settings };
-
-        if (
-          settings.lfoActive &&
-          drumInstance.masterLfoMeter &&
-          settings.lfoTarget
-        ) {
-          const targetParam = settings.lfoTarget;
-          const lfoPhase = drumInstance.masterLfoMeter.getValue();
-          const currentDepth = settings.lfoDepth ?? 0.5;
-
-          const paramConfig = SOUND_PARAMS[targetParam] || { min: 0, max: 1 };
-          const minVal = paramConfig.min ?? 0;
-          const maxVal = paramConfig.max ?? 1;
-          const fullRange = maxVal - minVal;
-
-          const baseValue = settings[targetParam] ?? paramConfig.default ?? 0;
-
-          let targetModulated =
-            baseValue + lfoPhase * (fullRange * 0.5 * currentDepth);
-          targetModulated = Math.max(minVal, Math.min(maxVal, targetModulated));
-
-          if (paramConfig.isTextParam) {
-            targetModulated = Math.round(targetModulated);
-          }
-
-          // Применяем инерционное сглаживание и для параметров барабанов
-          const cacheKey = `${name}_${targetParam}`;
-          if (smoothedValuesRef.current[cacheKey] === undefined) {
-            smoothedValuesRef.current[cacheKey] = targetModulated;
-          }
-          smoothedValuesRef.current[cacheKey] +=
-            (targetModulated - smoothedValuesRef.current[cacheKey]) * 0.15;
-
-          runtimeSettings[targetParam] = smoothedValuesRef.current[cacheKey];
-        }
-
-        applySynthEnvelope(drumInstance, runtimeSettings);
-        applyDynamicBypass(name, drumInstance, runtimeSettings);
+        processInstrumentLfoModulation({
+          name,
+          instance: drumsEngineRef.current?.[name],
+          settings: soundSettings[name],
+          smoothedValues: smoothedValuesRef.current,
+        });
       });
 
       animationFrameId = requestAnimationFrame(runModulationPipeline);
@@ -212,7 +107,7 @@ export const useAudioEngineSync = (
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [soundSettings, synthEnginesRef, drumsEngineRef, sequencerPlayState]); // ДОБАВЛЕН ФЛАГ В МАССИВ ЗАВИСИМОСТЕЙ
+  }, [soundSettings, synthEnginesRef, drumsEngineRef, sequencerPlayState]);
 
   useEffect(() => {
     SYNTH_LIST.forEach((name) => {
