@@ -58,7 +58,9 @@ export const useAudioEngineSync = (
     );
   }, [drumsEngineRef, synthEnginesRef]);
 
+  // ИСПРАВЛЕННЫЙ ХУК ГРОМКОСТИ: Крутит громкость напрямую внутри инстансов инструментов
   useEffect(() => {
+    // 1. Громкость синтов (Твой оригинальный рабочий код)
     SYNTH_LIST.forEach((name) => {
       const synthInstance = synthEnginesRef.current[name];
       const settings = soundSettings[name];
@@ -66,7 +68,21 @@ export const useAudioEngineSync = (
         updateInstrumentVolume(synthInstance.instrument, settings.volume);
       }
     });
-  }, [soundSettings, synthEnginesRef]);
+
+    // 2. Громкость барабанов (Лезем напрямую во внутренний инструмент контейнера драмов!)
+    DRUM_KIT_LIST.forEach((name) => {
+      // Находим инстанс конкретного барабана (кик, снэр, хэт...) в рефе движка драмов
+      const drumInstance = drumsEngineRef.current?.[name];
+      const settings = soundSettings[name];
+
+      // Если инстанс барабана и его внутренний инструмент существуют, и ручку крутанули в UI
+      if (drumInstance?.instrument && settings?.volume !== undefined) {
+        // Используем твою же универсальную функцию updateInstrumentVolume!
+        // Она сама проверит наличие свойства .volume и плавно применит децибелы через .rampTo()
+        updateInstrumentVolume(drumInstance.instrument, settings.volume);
+      }
+    });
+  }, [soundSettings, synthEnginesRef, drumsEngineRef]); // Добавили drumsEngineRef в зависимости
 
   // Чистый конвейер модуляции LFO, избавленный от дублирования кода
   useEffect(() => {
@@ -79,7 +95,6 @@ export const useAudioEngineSync = (
     }
 
     const runModulationPipeline = () => {
-      // 1. Прогоняем сквозь матрицу модуляции все СИНТЕЗАТОРЫ
       SYNTH_LIST.forEach((name) => {
         processInstrumentLfoModulation({
           name,
@@ -89,7 +104,6 @@ export const useAudioEngineSync = (
         });
       });
 
-      // 2. Прогоняем сквозь матрицу модуляции все БАРАБАНЫ
       DRUM_KIT_LIST.forEach((name) => {
         processInstrumentLfoModulation({
           name,
