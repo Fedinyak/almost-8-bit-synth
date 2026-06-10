@@ -26,6 +26,69 @@ import { processInstrumentLfoModulation } from './processInstrumentLfoModulation
 
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
 
+// 1. ДЕКЛАРАТИВНЫЙ ИЗОЛЯТОР: Синхронизация громкости всех инструментов
+const syncAllVolumes = ({ synthEngines, drumsEngine, soundSettings }) => {
+  // Громкость синтов
+  SYNTH_LIST.forEach((name) => {
+    const synthInstance = synthEngines[name];
+    const settings = soundSettings[name];
+    if (synthInstance?.instrument && settings?.volume !== undefined) {
+      updateInstrumentVolume(synthInstance.instrument, settings.volume);
+    }
+  });
+
+  // Громкость барабанов
+  DRUM_KIT_LIST.forEach((name) => {
+    const drumInstance = drumsEngine?.[name];
+    const settings = soundSettings[name];
+    if (drumInstance?.instrument && settings?.volume !== undefined) {
+      updateInstrumentVolume(drumInstance.instrument, settings.volume);
+    }
+  });
+};
+
+// 2. ДЕКЛАРАТИВНЫЙ ИЗОЛЯТОР: Конвейер LFO модуляции на requestAnimationFrame
+const runLfoModulationPipeline = ({
+  synthEngines,
+  drumsEngine,
+  soundSettings,
+  smoothedValues,
+}) => {
+  // Прогоняем сквозь матрицу модуляции все СИНТЕЗАТОРЫ
+  SYNTH_LIST.forEach((name) => {
+    processInstrumentLfoModulation({
+      name,
+      instance: synthEngines[name],
+      settings: soundSettings[name],
+      smoothedValues,
+    });
+  });
+
+  // Прогоняем сквозь матрицу модуляции все БАРАБАНЫ
+  DRUM_KIT_LIST.forEach((name) => {
+    processInstrumentLfoModulation({
+      name,
+      instance: drumsEngine?.[name],
+      settings: soundSettings[name],
+      smoothedValues,
+    });
+  });
+};
+
+// 3. ДЕКЛАРАТИВНЫЙ ИЗОЛЯТОР: Нарезка нот по дорожкам секвенсора Tone.js
+const syncPatternsToAudioTracks = ({
+  synthPart,
+  drumsPart,
+  synthData,
+  drumsList,
+}) => {
+  SYNTH_LIST.forEach((synthName) => {
+    syncInstrumentPatternsToTrack(synthPart[synthName], synthData[synthName]);
+  });
+
+  syncDrumPatternsToTrack(drumsPart, drumsList, drumNoteMap);
+};
+
 export const useAudioEngineSync = (
   synthEnginesRef,
   synthPartRef,
@@ -45,6 +108,7 @@ export const useAudioEngineSync = (
   const synthChannelsRef = useRef({});
   const smoothedValuesRef = useRef({});
 
+  // Жизненный цикл 1: Низкоуровневая инициализация аудио-чипа
   useEffect(() => {
     initializeSynths(SYNTH_LIST, synthEnginesRef.current);
     initializeDrums(drumsEngineRef);
@@ -58,33 +122,16 @@ export const useAudioEngineSync = (
     );
   }, [drumsEngineRef, synthEnginesRef]);
 
-  // ИСПРАВЛЕННЫЙ ХУК ГРОМКОСТИ: Крутит громкость напрямую внутри инстансов инструментов
+  // Жизненный цикл 2: Управление громкостью на мейне (0% ЦП)
   useEffect(() => {
-    // 1. Громкость синтов (Твой оригинальный рабочий код)
-    SYNTH_LIST.forEach((name) => {
-      const synthInstance = synthEnginesRef.current[name];
-      const settings = soundSettings[name];
-      if (synthInstance?.instrument && settings?.volume !== undefined) {
-        updateInstrumentVolume(synthInstance.instrument, settings.volume);
-      }
+    syncAllVolumes({
+      synthEngines: synthEnginesRef.current,
+      drumsEngine: drumsEngineRef.current,
+      soundSettings,
     });
+  }, [soundSettings, synthEnginesRef, drumsEngineRef]);
 
-    // 2. Громкость барабанов (Лезем напрямую во внутренний инструмент контейнера драмов!)
-    DRUM_KIT_LIST.forEach((name) => {
-      // Находим инстанс конкретного барабана (кик, снэр, хэт...) в рефе движка драмов
-      const drumInstance = drumsEngineRef.current?.[name];
-      const settings = soundSettings[name];
-
-      // Если инстанс барабана и его внутренний инструмент существуют, и ручку крутанули в UI
-      if (drumInstance?.instrument && settings?.volume !== undefined) {
-        // Используем твою же универсальную функцию updateInstrumentVolume!
-        // Она сама проверит наличие свойства .volume и плавно применит децибелы через .rampTo()
-        updateInstrumentVolume(drumInstance.instrument, settings.volume);
-      }
-    });
-  }, [soundSettings, synthEnginesRef, drumsEngineRef]); // Добавили drumsEngineRef в зависимости
-
-  // Чистый конвейер модуляции LFO, избавленный от дублирования кода
+  // Жизненный цикл 3: Высокочастотный конвейер LFO модуляции параметров
   useEffect(() => {
     let animationFrameId;
 
@@ -94,35 +141,22 @@ export const useAudioEngineSync = (
       };
     }
 
-    const runModulationPipeline = () => {
-      SYNTH_LIST.forEach((name) => {
-        processInstrumentLfoModulation({
-          name,
-          instance: synthEnginesRef.current[name],
-          settings: soundSettings[name],
-          smoothedValues: smoothedValuesRef.current,
-        });
+    const loop = () => {
+      runLfoModulationPipeline({
+        synthEngines: synthEnginesRef.current,
+        drumsEngine: drumsEngineRef.current,
+        soundSettings,
+        smoothedValues: smoothedValuesRef.current,
       });
-
-      DRUM_KIT_LIST.forEach((name) => {
-        processInstrumentLfoModulation({
-          name,
-          instance: drumsEngineRef.current?.[name],
-          settings: soundSettings[name],
-          smoothedValues: smoothedValuesRef.current,
-        });
-      });
-
-      animationFrameId = requestAnimationFrame(runModulationPipeline);
+      animationFrameId = requestAnimationFrame(loop);
     };
 
-    animationFrameId = requestAnimationFrame(runModulationPipeline);
+    animationFrameId = requestAnimationFrame(loop);
 
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-    };
+    return () => cancelAnimationFrame(animationFrameId);
   }, [soundSettings, synthEnginesRef, drumsEngineRef, sequencerPlayState]);
 
+  // Жизненный цикл 4: Подготовка дорожек воспроизведения и сборка мусора
   useEffect(() => {
     SYNTH_LIST.forEach((name) => {
       setupSynthPlayback(name, synthEnginesRef.current, synthPartRef.current);
@@ -147,14 +181,13 @@ export const useAudioEngineSync = (
     };
   }, [drumsEngineRef, drumsPartRef, synthEnginesRef, synthPartRef]);
 
+  // Жизненный цикл 5: Забивка нотных матриц при мутации паттернов
   useEffect(() => {
-    SYNTH_LIST.forEach((synthName) => {
-      syncInstrumentPatternsToTrack(
-        synthPartRef.current[synthName],
-        synthData[synthName],
-      );
+    syncPatternsToAudioTracks({
+      synthPart: synthPartRef.current,
+      drumsPart: drumsPartRef.current,
+      synthData,
+      drumsList,
     });
-
-    syncDrumPatternsToTrack(drumsPartRef.current, drumsList, drumNoteMap);
   }, [synthData, drumsList, drumsPartRef, synthPartRef]);
 };
