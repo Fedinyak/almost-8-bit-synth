@@ -1,115 +1,309 @@
-import * as Tone from 'tone';
+import * as Tone from 'tone'; // Оставляем строго для wrapInstrumentWithEffects
 import { LOOKAHEAD_OFFSET_SEC } from '../../constants/constants';
 import { drumLevels } from '../sync/visualizerState';
+import { getNativeContext } from './nativeContext';
 
-export const createPlaybackTrack = (onStepAction) => {
-  const track = new Tone.Part(onStepAction, []).start(0);
-  track.loop = true;
-  return track;
-};
+// --- НАДРОДНЫЙ СТЕЙТ ЧАСОВ ---
+let schedulerTimerId = null;
+let isPlaying = false;
 
-export const scheduleFrame = (time, drawFunction) =>
-  Tone.Draw.schedule(drawFunction, time);
+export let currentBpm = 120;
+const BASE_BPM = 120; // 🌟 ЗАКОН: Все внутренние секунды нот и длин всегда считаются под 120 BPM!
 
-export const triggerDrumVisualLevel = (drumIndex, time) => {
-  Tone.Draw.schedule(() => {
-    drumLevels[drumIndex] = 1.0;
-  }, time);
-};
+let trackTimeSeconds = 0;
+let lastContextTime = 0;
 
-export const startDrawingLoop = (callback, rate) =>
-  Tone.Transport.scheduleRepeat(callback, rate);
+// Длины лупов жестко привязаны к сетке BASE_BPM (120), под которую скомпилированы ноты в проекте
+let totalTrackDurationSeconds = 4.0 * (60 / BASE_BPM) * 4;
+let loopStartSeconds = 0;
+let loopEndSeconds = totalTrackDurationSeconds;
+let isPatternLoopEnabled = false;
 
-export const stopDrawingLoop = (id) => Tone.Transport.clear(id);
+const LOOKAHEAD_WINDOW_SEC = 0.1;
+const SCHEDULER_INTERVAL_MS = 25;
 
-export const setEngineBpm = (bpmValue) => {
-  Tone.Transport.bpm.value = bpmValue;
-};
+const activeTracks = new Set();
+const nativeDrawingCallbacks = new Map();
+let lastScheduledDrawingTime = -0.001;
+let lastSentStepIndex = -1;
 
-export const setPlayState = (state) => {
-  if (state === 'start') {
-    // Снимаем тотальный мут с аудио-движка браузера
-    Tone.Destination.mute = false;
+export const getCurrentEngineBpm = () => currentBpm;
 
-    // Аппаратно будим аудио-поток Хрома перед запуском часов
-    if (Tone.context && typeof Tone.context.resume === 'function') {
-      Tone.context.resume().catch(() => {});
+// Главный цикл Look-Ahead планировщика
+const runSchedulerLoop = () => {
+  if (!isPlaying) return;
+
+  const ctx = getNativeContext();
+  const now = ctx.currentTime;
+
+  const delta = now - lastContextTime;
+  lastContextTime = now;
+
+  // Время бежит со скоростью, пропорциональной выбранному BPM относительно базовых 120
+  const bpmRatio = currentBpm / BASE_BPM;
+  trackTimeSeconds += delta * bpmRatio;
+
+  const activeStart = isPatternLoopEnabled ? loopStartSeconds : 0;
+  const activeEnd = isPatternLoopEnabled
+    ? loopEndSeconds
+    : totalTrackDurationSeconds;
+  const loopLength = activeEnd - activeStart;
+
+  // Бесшовный сдвиг лупа по фиксированным границам 120 BPM сетки
+  if (trackTimeSeconds >= activeEnd) {
+    trackTimeSeconds = activeStart + (trackTimeSeconds - activeEnd);
+    activeTracks.forEach((track) => {
+      track.lastScheduledTime -= loopLength;
+    });
+    lastScheduledDrawingTime -= loopLength;
+  }
+
+  const scheduleUntilTime = trackTimeSeconds + LOOKAHEAD_WINDOW_SEC;
+
+  // 1. Планируем звук (передаем bpmRatio для правильного сжатия физического времени в Web Audio)
+  activeTracks.forEach((track) => {
+    track._processSchedule(
+      trackTimeSeconds,
+      scheduleUntilTime,
+      now,
+      activeStart,
+      activeEnd,
+      loopLength,
+      bpmRatio,
+    );
+  });
+
+  // 2. Планируем графику строго по фиксированной сетке шагов 120 BPM
+  const secondsPerStep = 60 / BASE_BPM / 4;
+  let nextStepTime =
+    Math.ceil(lastScheduledDrawingTime / secondsPerStep) * secondsPerStep;
+  if (nextStepTime <= lastScheduledDrawingTime) {
+    nextStepTime += secondsPerStep;
+  }
+
+  while (nextStepTime <= scheduleUntilTime) {
+    if (nextStepTime > lastScheduledDrawingTime) {
+      nativeDrawingCallbacks.forEach((callback) => {
+        const stepTimeCapture = nextStepTime;
+        scheduleFrame(stepTimeCapture, () => {
+          if (isPlaying) {
+            // Вычисляем текущий индекс шага на основе ИДЕАЛЬНОГО запланированного времени шага,
+            // полностью исключая дрейф и микросекундные погрешности физических таймеров!
+            const currentStepIndex = Math.floor(
+              stepTimeCapture / secondsPerStep,
+            );
+
+            if (currentStepIndex !== lastSentStepIndex) {
+              lastSentStepIndex = currentStepIndex;
+              // Передаем в React идеальное квантованное время начала этого шага
+              callback(currentStepIndex * secondsPerStep);
+            }
+          }
+        });
+      });
+      lastScheduledDrawingTime = nextStepTime;
     }
-    Tone.Transport.start();
-  } else if (state === 'pause') {
-    Tone.Transport.pause();
-
-    // Аппаратно затыкаем все ворклеты и приборы, заставляя C++ потоки Хрома полностью замолчать
-    Tone.Destination.mute = true;
-
-    // Отправляем аудио-чип в глубокий сон, высвобождая ресурсы процессора
-    if (Tone.context && typeof Tone.context.suspend === 'function') {
-      Tone.context.suspend().catch(() => {});
-    }
-  } else {
-    Tone.Transport.stop();
-
-    // Аппаратно затыкаем все ворклеты и приборы, заставляя C++ потоки Хрома полностью замолчать
-    Tone.Destination.mute = true;
-
-    // Полностью усыпляем аудио-чип при сбросе трека
-    if (Tone.context && typeof Tone.context.suspend === 'function') {
-      Tone.context.suspend().catch(() => {});
-    }
+    nextStepTime += secondsPerStep;
   }
 };
 
+// --- НАДРОДНАЯ СИМУЛЯЦИЯ ТРЕКА ---
+class NativePlaybackTrack {
+  constructor(onStepAction) {
+    this.onStepAction = onStepAction;
+    this.notes = [];
+    this.lastScheduledTime = -0.05;
+  }
+
+  clear() {
+    this.notes = [];
+    this.lastScheduledTime = trackTimeSeconds - 0.05;
+  }
+
+  add(timeInSeconds, noteData) {
+    this.notes.push({ time: timeInSeconds, data: noteData });
+    this.notes.sort((a, b) => a.time - b.time);
+  }
+
+  _processSchedule(
+    currentTrackTime,
+    endTrackTime,
+    currentContextTime,
+    startBoundary,
+    endBoundary,
+    loopLength,
+    bpmRatio,
+  ) {
+    this.notes.forEach((note) => {
+      let noteTime = note.time;
+
+      if (noteTime > this.lastScheduledTime && noteTime <= endTrackTime) {
+        const timeOffsetInTrack = noteTime - currentTrackTime;
+        // Масштабируем физическое время старта ноты относительно базовой сетки
+        const exactAudioContextTime =
+          currentContextTime + timeOffsetInTrack / bpmRatio;
+        this.onStepAction(exactAudioContextTime, note.data);
+      }
+
+      if (endTrackTime > endBoundary) {
+        const projectedTime = noteTime + loopLength;
+        if (
+          projectedTime > this.lastScheduledTime &&
+          projectedTime <= endTrackTime
+        ) {
+          const timeOffsetInTrack = projectedTime - currentTrackTime;
+          const exactAudioContextTime =
+            currentContextTime + timeOffsetInTrack / bpmRatio;
+          this.onStepAction(exactAudioContextTime, note.data);
+        }
+      }
+    });
+
+    this.lastScheduledTime = endTrackTime;
+  }
+}
+
+// ============================================================================
+// ПУБЛИЧНЫЙ API КАНАЛОВ И ТЕМПА
+// ============================================================================
+
+export const createPlaybackTrack = (onStepAction) => {
+  const track = new NativePlaybackTrack(onStepAction);
+  activeTracks.add(track);
+  return track;
+};
+
 export const clearTrackNotes = (track) => {
-  track.clear();
+  if (track && typeof track.clear === 'function') track.clear();
 };
 
 export const writeNoteToTrack = (track, time, noteData) => {
-  track.add(time, noteData);
+  if (track && typeof track.add === 'function') track.add(time, noteData);
 };
 
 export const setTrackLoopDuration = (track, numberOfMeasures) => {
-  track.loopEnd = `${numberOfMeasures}m`;
+  // Фиксируем длину строго в системе координат BASE_BPM (120)
+  const secondsPerMeasure = (60 / BASE_BPM) * 4;
+  totalTrackDurationSeconds = numberOfMeasures * secondsPerMeasure;
+  if (!isPatternLoopEnabled) loopEndSeconds = totalTrackDurationSeconds;
+};
+
+export const setEngineBpm = (bpmValue) => {
+  // Меняем только коэффициент скорости, не ломая длины лупов и секундную сетку нот!
+  currentBpm = bpmValue;
+};
+
+export const setPlayState = (state) => {
+  const ctx = getNativeContext();
+
+  if (state === 'start') {
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+
+    if (!isPlaying) {
+      isPlaying = true;
+      lastContextTime = ctx.currentTime;
+      lastScheduledDrawingTime = trackTimeSeconds - 0.001;
+      lastSentStepIndex = -1;
+      schedulerTimerId = setInterval(runSchedulerLoop, SCHEDULER_INTERVAL_MS);
+    }
+  } else if (state === 'pause') {
+    isPlaying = false;
+    if (schedulerTimerId) {
+      clearInterval(schedulerTimerId);
+      schedulerTimerId = null;
+    }
+  } else {
+    isPlaying = false;
+    if (schedulerTimerId) {
+      clearInterval(schedulerTimerId);
+      schedulerTimerId = null;
+    }
+    trackTimeSeconds = isPatternLoopEnabled ? loopStartSeconds : 0;
+    lastScheduledDrawingTime = trackTimeSeconds - 0.001;
+    lastSentStepIndex = -1;
+    activeTracks.forEach((t) => {
+      t.lastScheduledTime = trackTimeSeconds - 0.05;
+    });
+  }
 };
 
 export const setEnginePosition = (patternIndex) => {
-  const patternStartTimeInSeconds = Tone.Time(`${patternIndex}m`).toSeconds();
-
+  const secondsPerMeasure = (60 / BASE_BPM) * 4;
+  const patternStartTimeInSeconds = patternIndex * secondsPerMeasure;
   const quantizedJumpTime = Math.max(
     0,
     patternStartTimeInSeconds - LOOKAHEAD_OFFSET_SEC,
   );
-
   setGlobalTransportTime(quantizedJumpTime);
 };
 
 export const setGlobalTransportTime = (seconds) => {
-  Tone.Transport.seconds = seconds;
+  trackTimeSeconds = seconds;
+  lastScheduledDrawingTime = seconds - 0.001;
+  lastSentStepIndex = -1;
+  activeTracks.forEach((t) => {
+    t.lastScheduledTime = seconds - 0.05;
+  });
 };
 
 export const enableEngineLoop = (patternIndex) => {
-  Tone.Transport.loopStart = `${patternIndex}m`;
-  Tone.Transport.loopEnd = `${patternIndex + 1}m`;
-  Tone.Transport.loop = true;
-};
-
-export const disableEngineLoop = () => {
-  Tone.Transport.loop = false;
-};
-
-export const enableGlobalTransportLoop = (numberOfMeasures) => {
-  Tone.Transport.loopStart = `0m`;
-  Tone.Transport.loopEnd = `${numberOfMeasures}m`;
-  Tone.Transport.loop = true;
-};
-
-const resetEffectMix = (node) => {
-  if (node.wet) {
-    node.set({ wet: 0 });
+  const secondsPerMeasure = (60 / BASE_BPM) * 4;
+  loopStartSeconds = patternIndex * secondsPerMeasure;
+  loopEndSeconds = (patternIndex + 1) * secondsPerMeasure;
+  isPatternLoopEnabled = true;
+  if (
+    trackTimeSeconds < loopStartSeconds ||
+    trackTimeSeconds >= loopEndSeconds
+  ) {
+    setGlobalTransportTime(loopStartSeconds);
   }
 };
 
+export const disableEngineLoop = () => {
+  isPatternLoopEnabled = false;
+};
+export const enableGlobalTransportLoop = (numberOfMeasures) => {
+  isPatternLoopEnabled = false;
+};
+
+// --- НАДРОДНАЯ ГРАФИКА С КОМПЕНСАЦИЕЙ ОПЕРЕЖЕНИЯ ---
+export const scheduleFrame = (time, drawFunction) => {
+  const ctx = getNativeContext();
+  const bpmRatio = currentBpm / BASE_BPM;
+
+  // Вычисляем точную задержку кадра с учетом текущей скорости прокрутки времени
+  const delayMs = Math.max(0, ((time - trackTimeSeconds) / bpmRatio) * 1000);
+  setTimeout(() => {
+    requestAnimationFrame(drawFunction);
+  }, delayMs);
+};
+
+export const triggerDrumVisualLevel = (drumIndex, time) => {
+  scheduleFrame(time, () => {
+    drumLevels[drumIndex] = 1.0;
+  });
+};
+
+export const startDrawingLoop = (callback, rate) => {
+  const id = Math.random().toString(36).substring(2, 9);
+  nativeDrawingCallbacks.set(id, callback);
+  return id;
+};
+
+export const stopDrawingLoop = (id) => {
+  nativeDrawingCallbacks.delete(id);
+};
+
+// ============================================================================
+// СБОРКА ЭФФЕКТОВ
+// ============================================================================
+const resetEffectMix = (node) => {
+  if (node && node.wet) node.set({ wet: 0 });
+};
 const bypassAudioNode = (node) => {
-  node.bypassed = true;
+  if (node) node.bypassed = true;
 };
 
 export const createSleeperNode = (EffectClass, constructorParams) => {
@@ -119,21 +313,17 @@ export const createSleeperNode = (EffectClass, constructorParams) => {
   return node;
 };
 
-// ХАРДВЕРНОЕ ПРАВИЛО: Соединяем ноды последовательно и вешаем .toDestination()
-// на самый последний элемент, чтобы звук долетал до колонок без конфликтов микшера
 export const connectAudioChain = (nodes) => {
   if (!Array.isArray(nodes) || nodes.length < 2) return;
-
   for (let i = 0; i < nodes.length - 1; i++) {
-    nodes[i].connect(nodes[i + 1]);
+    if (typeof nodes[i].connect === 'function') nodes[i].connect(nodes[i + 1]);
   }
-
-  nodes[nodes.length - 1].toDestination();
-};
-
-const buildDeviceParams = (instrumentPreset, deviceKey, defaultParams) => {
-  const customParams = instrumentPreset?.[deviceKey] || {};
-  return { ...defaultParams, ...customParams };
+  if (
+    nodes[nodes.length - 1] &&
+    typeof nodes[nodes.length - 1].toDestination === 'function'
+  ) {
+    nodes[nodes.length - 1].toDestination();
+  }
 };
 
 export const wrapInstrumentWithEffects = (
@@ -143,63 +333,52 @@ export const wrapInstrumentWithEffects = (
   effectDevices,
 ) => {
   const fxRegistry = {};
-
   const audioEffectsChain = effectsChain.filter((key) => key !== 'testLfo');
-
   const createdEffects = audioEffectsChain
     .map((deviceKey) => {
       const device = effectDevices[deviceKey];
       if (!device) return null;
-
-      const finalParams = buildDeviceParams(
-        instrumentPreset,
-        deviceKey,
-        device.defaultParams,
-      );
-      const node = createSleeperNode(device.ClassRef, finalParams);
-
+      const node = createSleeperNode(device.ClassRef, {
+        ...device.defaultParams,
+        ...(instrumentPreset?.[deviceKey] || {}),
+      });
       fxRegistry[device.nodeKey] = node;
-
       return node;
     })
     .filter(Boolean);
-
-  // 🆕 ДОБАВЛЯЕМ АППАРАТНЫЙ УЗЕЛ СТЕРЕО-ПАННЕРА (Для ручной ручки PAN)
-  // Он весит 0% ЦП, так как не имеет буферов задержки
   const hardwareStaticPanner = new Tone.Panner(0);
-
-  // 🧱 СТРОИМ ЦЕПОЧКУ: Сырой синт -> Все созданные эффекты рэка -> Статический Паннер
-  // Паннер стоит в самом конце, и именно на него connectAudioChain повесит .toDestination()
   const fullGraphChain = [rawSynth, ...createdEffects, hardwareStaticPanner];
   connectAudioChain(fullGraphChain);
-
-  const masterLfoNode = new Tone.LFO({
-    type: 'sine',
-    frequency: 5.0,
-    min: -1,
-    max: 1,
-  });
-
-  const masterLfoMeter = new Tone.Meter({ type: 'value' });
-  masterLfoNode.connect(masterLfoMeter);
-
-  try {
-    masterLfoNode.start();
-  } catch (e) {}
-
+  const fakeLfoNode = {
+    _param: { value: 0 },
+    frequency: { value: 5.0 },
+    amplitude: { value: 1.0 },
+    get value() {
+      return 0;
+    },
+    set value(val) {},
+    start: () => {},
+    stop: () => {},
+    connect: () => {},
+    disconnect: () => {},
+    dispose: () => {},
+  };
+  const fakeLfoMeter = { getValue: () => 0, dispose: () => {} };
   return {
     instrument: rawSynth,
     ...fxRegistry,
-    panner: hardwareStaticPanner, // Регистрируем ссылку на паннер, чтобы ручка PAN в UI могла его крутить!
-    masterLfo: masterLfoNode,
-    masterLfoMeter: masterLfoMeter,
-    output: hardwareStaticPanner, // Выходом контейнера теперь честно становится финальный паннер
+    panner: hardwareStaticPanner,
+    masterLfo: fakeLfoNode,
+    masterLfoMeter: fakeLfoMeter,
+    output: hardwareStaticPanner,
     dispose() {
-      masterLfoNode.dispose();
-      masterLfoMeter.dispose();
-      hardwareStaticPanner.dispose(); // Чистим паннер при удалении сцены
-      createdEffects.forEach((node) => node.dispose());
-      rawSynth.dispose();
+      if (typeof hardwareStaticPanner.dispose === 'function')
+        hardwareStaticPanner.dispose();
+      createdEffects.forEach((node) => {
+        if (node && typeof node.dispose === 'function') node.dispose();
+      });
+      if (rawSynth && typeof rawSynth.dispose === 'function')
+        rawSynth.dispose();
     },
   };
 };

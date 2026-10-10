@@ -1,4 +1,4 @@
-import * as Tone from 'tone';
+import * as Tone from 'tone'; // Оставляем только для Volume/Analyser, пока они не переписаны
 import { checkBypassCondition } from '../../utils/audioMathUtils';
 import { synthAnalysers } from '../sync/visualizerState';
 import {
@@ -17,6 +17,7 @@ import {
 } from '../../constants/audioEngineConfig';
 import { buildAndConnectInstrumentChannel } from './audioLifecycleActions';
 import { connectSynthToMixer } from './audioPlaybackActions';
+import { getNativeContext } from '../core/nativeContext';
 
 export const createAudioChannel = () => new Tone.Volume();
 
@@ -46,21 +47,45 @@ export const initializeAudioRouting = (
   });
 };
 
-export const updateInstrumentVolume = (instrument, volumeValue) => {
-  if (instrument?.volume) {
-    // Декларативное сглаживание общей громкости для предотвращения щелчков
-    if (typeof instrument.volume.rampTo === 'function') {
-      instrument.volume.rampTo(volumeValue ?? AUDIO_DEFAULT_VOLUME, 0.05);
+// Вспомогательная утилита для НАДРОДНОГО плавного изменения любого AudioParam (Замена .rampTo)
+const nativeRampTo = (paramNode, targetValue, duration = 0.05) => {
+  if (!paramNode) return;
+  const ctx = getNativeContext();
+  const now = ctx.currentTime;
+
+  try {
+    const nativeParam = paramNode._param || paramNode.input || paramNode;
+
+    if (nativeParam && typeof nativeParam.setValueAtTime === 'function') {
+      nativeParam.cancelScheduledValues(now);
+      nativeParam.setValueAtTime(nativeParam.value, now);
+      nativeParam.linearRampToValueAtTime(targetValue, now + duration);
     } else {
-      instrument.volume.value = volumeValue ?? AUDIO_DEFAULT_VOLUME;
+      paramNode.value = targetValue;
+    }
+  } catch (e) {
+    try {
+      paramNode.value = targetValue;
+    } catch (err) {
+      paramNode = targetValue;
     }
   }
 };
 
+export const updateInstrumentVolume = (instrument, volumeValue) => {
+  if (instrument?.volume) {
+    const targetVolume = volumeValue ?? AUDIO_DEFAULT_VOLUME;
+    nativeRampTo(instrument.volume, targetVolume, 0.05);
+  }
+};
+
 const updateMetalSynthEnvelope = (instrument, attack, decay) => {
-  instrument.set({
-    envelope: { attack, decay },
-  });
+  if (typeof instrument.set === 'function') {
+    instrument.set({ envelope: { attack, decay } });
+  } else if (instrument.envelope) {
+    instrument.envelope.attack = attack;
+    instrument.envelope.decay = decay;
+  }
 };
 
 const updateStandardSynthEnvelope = (
@@ -70,11 +95,24 @@ const updateStandardSynthEnvelope = (
   sustain,
   release,
 ) => {
-  instrument.envelope.set({ attack, decay, sustain, release });
+  if (instrument.envelope?.set) {
+    instrument.envelope.set({ attack, decay, sustain, release });
+  } else if (instrument.envelope) {
+    instrument.envelope.attack = attack;
+    instrument.envelope.decay = decay;
+    instrument.envelope.sustain = sustain;
+    instrument.envelope.release = release;
+  }
 };
 
 const updatePercussiveSynthEnvelope = (instrument, attack, decay, release) => {
-  instrument.envelope.set({ attack, decay, release });
+  if (instrument.envelope?.set) {
+    instrument.envelope.set({ attack, decay, release });
+  } else if (instrument.envelope) {
+    instrument.envelope.attack = attack;
+    instrument.envelope.decay = decay;
+    instrument.envelope.release = release;
+  }
 };
 
 export const updateInstrumentEnvelope = (instrument, settings) => {
@@ -89,22 +127,12 @@ export const updateInstrumentEnvelope = (instrument, settings) => {
     instrument.portamento = settings.synthGlide;
   }
 
-  // ПОДДЕРЖКА DETUNE ДЛЯ ВСЕХ СИНТОВ: Плавно расстраиваем осциллятор
   if (settings.detune !== undefined && instrument.detune) {
-    if (typeof instrument.detune.rampTo === 'function') {
-      instrument.detune.rampTo(settings.detune, 0.05);
-    } else {
-      instrument.detune.value = settings.detune;
-    }
+    nativeRampTo(instrument.detune, settings.detune, 0.05);
   }
 
-  // Если это СИНТ (MonoSynth) — крутим параметры его ВНУТРЕННЕГО фильтра
   if (settings.filterQ !== undefined && instrument.filter) {
-    if (typeof instrument.filter.Q.rampTo === 'function') {
-      instrument.filter.Q.rampTo(settings.filterQ, 0.05);
-    } else {
-      instrument.filter.Q.value = settings.filterQ;
-    }
+    nativeRampTo(instrument.filter.Q, settings.filterQ, 0.05);
   }
 
   if (settings.filterEnvOctaves !== undefined && instrument.filterEnvelope) {
@@ -129,52 +157,51 @@ export const applySynthEnvelope = (synthInstance, settings) => {
   const nativeInstrument = synthInstance?.instrument;
   if (!nativeInstrument || !settings) return;
 
-  // Крутим встроенную панораму инструмента, не ломая внешние провода и микшер
   if (settings.pan !== undefined && synthInstance.panner?.pan) {
-    synthInstance.panner.pan.value = settings.pan;
+    nativeRampTo(synthInstance.panner.pan, settings.pan, 0.05);
   }
 
-  // Если это БАРАБАН — у него есть ВНЕШНИЙ фильтр fxFilter в контейнере эффектов!
   if (synthInstance.fxFilter) {
     if (
       settings.filterCutoff !== undefined &&
       synthInstance.fxFilter.frequency
     ) {
-      if (typeof synthInstance.fxFilter.frequency.rampTo === 'function') {
-        synthInstance.fxFilter.frequency.rampTo(settings.filterCutoff, 0.05);
-      } else {
-        synthInstance.fxFilter.frequency.value = settings.filterCutoff;
-      }
+      nativeRampTo(
+        synthInstance.fxFilter.frequency,
+        settings.filterCutoff,
+        0.05,
+      );
     }
     if (settings.filterQ !== undefined && synthInstance.fxFilter.Q) {
-      if (typeof synthInstance.fxFilter.Q.rampTo === 'function') {
-        synthInstance.fxFilter.Q.rampTo(settings.filterQ, 0.05);
-      } else {
-        synthInstance.fxFilter.Q.value = settings.filterQ;
-      }
+      nativeRampTo(synthInstance.fxFilter.Q, settings.filterQ, 0.05);
     }
   }
 
   updateInstrumentEnvelope(nativeInstrument, settings);
 };
 
+// ============================================================================
+// ВТОРАЯ ЧАСТЬ (Управление параметрами эффектов и динамический байпас)
+// ============================================================================
+
 export const updateEffectParam = (fxNode, targetParam, value) => {
   if (!fxNode || !targetParam) return;
 
-  // 1. Декларативная обработка комплексных параметров через метод .set()
   if (targetParam === 'wet') {
-    fxNode.set({ wet: value });
+    if (typeof fxNode.set === 'function') {
+      fxNode.set({ wet: value });
+    } else {
+      fxNode.wet = value;
+    }
     return;
   }
 
-  // ЧИСТЫЙ АВТО-СТАРТ БЕЗ ХАРДКОДА И ИМЁН
   if (typeof fxNode.start === 'function' && fxNode.state !== 'started') {
     try {
       fxNode.start();
     } catch (e) {}
   }
 
-  // Ищем текущий параметр в паспорте SOUND_PARAMS по совпадению nodeKey и targetParam
   const paramConfig = Object.values(SOUND_PARAMS).find(
     (p) =>
       p.nodeKey === fxNode.name ||
@@ -184,7 +211,6 @@ export const updateEffectParam = (fxNode, targetParam, value) => {
 
   let finalValue = value;
 
-  // Если в паспорте указано, что параметр текстовый — преобразуем прилетевший числовой индекс в сочную строку
   if (paramConfig?.isTextParam && paramConfig.dictionaryKey) {
     const dict = TEXT_PARAM_DICTIONARIES[paramConfig.dictionaryKey];
     if (dict && dict.audioValues[value] !== undefined) {
@@ -202,9 +228,12 @@ export const updateEffectParam = (fxNode, targetParam, value) => {
   const paramNode = fxNode[targetParam];
   if (paramNode === undefined) return;
 
-  // КРИТИЧЕСКИЙ ФИКС: Защита от RangeError при суженном диапазоне [0, 0] в байпасе
-  if (paramNode && typeof paramNode.rampTo === 'function') {
-    // Если нода аппаратно усыплена или заблокирована, пишем напрямую в свойство в обход интерполятора rampTo
+  if (
+    paramNode &&
+    (paramNode._param ||
+      paramNode.input ||
+      typeof paramNode.cancelScheduledValues === 'function')
+  ) {
     if (paramNode.maxValue === 0 || fxNode.bypassed) {
       try {
         paramNode.value = finalValue;
@@ -212,17 +241,14 @@ export const updateEffectParam = (fxNode, targetParam, value) => {
       return;
     }
 
-    try {
-      paramNode.rampTo(finalValue, 0.05);
-    } catch (e) {
-      try {
-        paramNode.value = finalValue;
-      } catch (innerError) {}
-    }
+    // Крутим ручки параметров эффектов нативно
+    nativeRampTo(paramNode, finalValue, 0.05);
     return;
   }
 
-  fxNode[targetParam] = finalValue;
+  try {
+    fxNode[targetParam] = finalValue;
+  } catch (e) {}
 };
 
 export const logBypassTransition = (
@@ -264,12 +290,10 @@ const applyEffectSettings = (
     (device) => device.nodeKey === paramConfig.nodeKey,
   );
 
-  // ЧЕСТНАЯ СТРОГАЯ ПРОВЕРКА:
   const isEffectActiveByButton = deviceConfig?.activeKey
     ? allSettings[deviceConfig.activeKey] === true
     : true;
 
-  // Если прибор выключен кнопкой (Active === false), принудительно зануляем микс wet в железе
   if (!isEffectActiveByButton && paramConfig.targetParam === 'wet') {
     updateEffectParam(fxNode, 'wet', 0);
   } else {
@@ -289,14 +313,11 @@ const applyEffectSettings = (
       0;
     const wetParamConfig = SOUND_PARAMS[mainWetParamName];
 
-    // Условие слайдера: равен ли он нулю руками
     const isSliderAtBypassValue = checkBypassCondition(
       wetValue,
       wetParamConfig.bypassValue,
     );
 
-    // Нода уходит в байпас (0% ЦП), если кнопка выключена (OFF)
-    // ИЛИ если кнопка включена (ON), но сам ползунок микса Wet равен нулю!
     const shouldBypass =
       !isEffectActiveByButton ||
       (isEffectActiveByButton && isSliderAtBypassValue);
@@ -311,7 +332,6 @@ export const applyDynamicBypass = (synthName, synthInstance, settings) => {
     .forEach(([paramName, paramConfig]) => {
       const fxNode = synthInstance[paramConfig.nodeKey];
 
-      // БЕЗОПАСНЫЙ ПОДХВАТ ДЕФОЛТОВ ИЗ ПАСПОРТА:
       const liveValue = settings[paramName] ?? paramConfig.default ?? 0;
 
       if (isValidEffectNode(fxNode, liveValue)) {
