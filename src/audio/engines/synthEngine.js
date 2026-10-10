@@ -1,33 +1,9 @@
-// import * as Tone from 'tone';
-// import {
-//   DRUM_EFFECTS_CHAIN,
-//   EFFECT_DEVICES,
-//   SYNTH_PRESETS,
-// } from '../../constants/soundParamsConfig';
-// import { wrapInstrumentWithEffects } from '../../audio/core/audioEngineCore';
-
-// const createSynth = (synthName) => {
-//   const presetConfig = SYNTH_PRESETS[synthName] || {};
-
-//   const rawSynth = new Tone.MonoSynth({
-//     oscillator: { type: presetConfig.oscillatorType || 'square' },
-//     envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 },
-//   });
-
-//   return wrapInstrumentWithEffects(
-//     rawSynth,
-//     presetConfig,
-//     DRUM_EFFECTS_CHAIN,
-//     EFFECT_DEVICES,
-//   );
-// };
-
-// export default createSynth;
 import {
   DRUM_EFFECTS_CHAIN,
   EFFECT_DEVICES,
   SYNTH_PRESETS,
 } from '../../constants/soundParamsConfig';
+// Теперь берем wrapInstrumentWithEffects из чистого реэкспорта audioEngineCore
 import { wrapInstrumentWithEffects } from '../../audio/core/audioEngineCore';
 
 // Утилита перевода "C4", "D#3" в Герцы
@@ -59,11 +35,9 @@ const noteToFrequency = (noteStr) => {
 
 class NativeMonoSynthAdapter {
   constructor(presetConfig) {
-    // Сохраняем пресеты для ленивой инициализации
     this.presetConfig = presetConfig;
     this.oscillatorType = presetConfig.oscillatorType || 'square';
 
-    // Инициализируем стейт параметров, чтобы внешние ручки UI могли писать сюда до коннекта
     this._volumeValue =
       typeof presetConfig.volume === 'number' ? presetConfig.volume : 0;
     this._detuneValue =
@@ -77,13 +51,11 @@ class NativeMonoSynthAdapter {
     this.portamento = 0;
     this.filterEnvelope = { octaves: 0 };
 
-    // Флаг сборки графа
     this.isInitialized = false;
     this.ctx = null;
     this.outputNode = null;
     this.nativeBiquad = null;
 
-    // Пропсы-геттеры/сеттеры для внешнего LFO-конвейера и ручек модуляции
     const self = this;
     this.volume = {
       get value() {
@@ -93,7 +65,6 @@ class NativeMonoSynthAdapter {
         if (typeof val === 'number' && !isNaN(val)) {
           self._volumeValue = val;
           if (self.outputNode) {
-            // Если граф уже собран — плавно применяем громкость
             const targetGain = Math.pow(10, val / 20);
             self.outputNode.gain.setValueAtTime(
               targetGain,
@@ -130,17 +101,13 @@ class NativeMonoSynthAdapter {
     };
   }
 
-  // МЕТОД СОПРЯЖЕНИЯ С СИНХРОНИЗАЦИЕЙ КОНТЕКСТА
   connect(toneNode) {
     if (!toneNode) return this;
 
-    // 1. ВЫТАСКИВАЕМ ИСТИННЫЙ НАТИВНЫЙ КОНТЕКСТ ИЗ ЭФФЕКТА TONE.JS
-    // Это гарантирует, что наши ноды будут жить в ОДНОЙ вселенной с эффектами
     if (!this.isInitialized) {
       this.ctx =
         toneNode.context?.rawContext || toneNode.context || window.audioContext;
 
-      // Создаем нативные узлы внутри правильного контекста
       this.outputNode = this.ctx.createGain();
       this.outputNode.gain.value = 0;
 
@@ -149,7 +116,6 @@ class NativeMonoSynthAdapter {
       this.nativeBiquad.frequency.value = this._filterCutoff;
       this.nativeBiquad.Q.value = this._filterQ;
 
-      // Замыкаем внутреннюю цепь синта
       this.input = this.nativeBiquad;
       this.nativeBiquad.connect(this.outputNode);
 
@@ -160,7 +126,6 @@ class NativeMonoSynthAdapter {
       );
     }
 
-    // 2. Расковыриваем целевой узел эффекта до C++
     let target = toneNode.input || toneNode;
     const nativeDestination =
       target._gainNode || target._node || target.input || target;
@@ -173,7 +138,7 @@ class NativeMonoSynthAdapter {
     try {
       this.outputNode.connect(nativeDestination);
       console.log(
-        '[AUDIO DIAG]: ✅ ЖЕЛЕЗОБЕТОННЫЙ УСПЕХ! Синт и Эффекты сошлись в одном контексте!',
+        '[AUDIO DIAG]: ✅ ЖЕЛЕЗОБЕТОННЫЙ УСПЕХ! Синт и Эффекты сошлись in одном контексте!',
       );
     } catch (e) {
       console.error(
@@ -197,12 +162,8 @@ class NativeMonoSynthAdapter {
   }
 
   triggerAttackRelease(note, duration, time) {
-    // Если по какой-то причине нота сработала до connect, игнорируем удар во избежание краша
     if (!this.isInitialized || !this.ctx) return;
-
-    if (this.ctx.state === 'suspended') {
-      this.ctx.resume().catch(() => {});
-    }
+    if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
 
     const now = this.ctx.currentTime;
     let ctxTime = typeof time === 'number' ? time : now;
@@ -211,7 +172,6 @@ class NativeMonoSynthAdapter {
     const parsedDuration =
       typeof duration === 'number' && duration > 0 ? duration : 0.2;
 
-    // Создаем одноразовый осциллятор внутри правильного контекста
     const osc = this.ctx.createOscillator();
     osc.type = this.oscillatorType;
 
@@ -219,8 +179,6 @@ class NativeMonoSynthAdapter {
     osc.frequency.setValueAtTime(hz, ctxTime);
     osc.detune.setValueAtTime(this._detuneValue, ctxTime);
 
-    // Подключаем строго во внутренний нативный фильтр.
-    // Аварийный провод УБРАН — звук обязан пойти через общую цепь!
     osc.connect(this.input);
 
     const gainParam = this.outputNode.gain;

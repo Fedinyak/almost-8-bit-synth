@@ -1,9 +1,4 @@
-import {
-  clearTrackNotes,
-  createPlaybackTrack,
-  setTrackLoopDuration,
-  writeNoteToTrack,
-} from '../core/audioEngineCore';
+import { PlaybackTrack } from '../core/playbackTrack';
 import {
   calculateAbsoluteTime,
   microTimingOffset,
@@ -13,7 +8,7 @@ import { processDrumPlaybackHit, playSynthNote } from './audioEngineTriggers';
 export const setupSynthPlayback = (synthName, enginesRef, tracksRef) => {
   if (tracksRef[synthName]) return;
 
-  tracksRef[synthName] = createPlaybackTrack((time, noteData) => {
+  tracksRef[synthName] = new PlaybackTrack((time, noteData) => {
     const engine = enginesRef[synthName];
     if (engine) playSynthNote(engine, time, noteData);
   });
@@ -27,7 +22,7 @@ export const setupDrumsPlayback = (
 ) => {
   if (drumsTrackRef.current) return;
 
-  drumsTrackRef.current = createPlaybackTrack((time, noteData) => {
+  drumsTrackRef.current = new PlaybackTrack((time, noteData) => {
     const engine = drumsEngineRef.current;
     if (!engine) return;
 
@@ -38,18 +33,21 @@ export const setupDrumsPlayback = (
 export const syncInstrumentPatternsToTrack = (track, instrumentData) => {
   if (!track || !instrumentData?.patterns) return;
 
-  clearTrackNotes(track);
+  // Прямой вызов метода объекта дорожки
+  track.clear();
 
   instrumentData.patterns.forEach((patternGrid, measureIndex) => {
     patternGrid
       .filter((item) => item.note)
       .forEach((item) => {
         const startTime = calculateAbsoluteTime(item.time, measureIndex);
-        writeNoteToTrack(track, startTime, item);
+        // Прямой пуш в объект дорожки
+        track.add(startTime, item);
       });
   });
 
-  setTrackLoopDuration(track, instrumentData.patterns.length);
+  const secondsPerMeasure = (60 / 120) * 4;
+  track.loopEnd = instrumentData.patterns.length * secondsPerMeasure;
 };
 
 const calculateDrumStartTime = (stepIndex, measureIndex, drumIndex) => {
@@ -76,7 +74,8 @@ const syncDrumTrackSteps = (
       measureIndex,
       drumIndex,
     );
-    writeNoteToTrack(track, startTime, { note, drumIndex });
+    // Прямой пуш в объект дорожки
+    track.add(startTime, { note, drumIndex });
   });
 };
 
@@ -94,11 +93,13 @@ const syncMeasureDrums = (track, drumsInMeasure, measureIndex, drumNoteMap) => {
 export const syncDrumPatternsToTrack = (track, drumsData, drumNoteMap) => {
   if (!track || !drumsData?.patterns) return;
 
-  clearTrackNotes(track);
+  // Прямой вызов метода объекта дорожки
+  track.clear();
 
   drumsData.patterns.forEach((drumsInMeasure, measureIndex) => {
     syncMeasureDrums(track, drumsInMeasure, measureIndex, drumNoteMap);
   });
 
-  setTrackLoopDuration(track, drumsData.patterns.length);
+  const secondsPerMeasure = (60 / 120) * 4;
+  track.loopEnd = drumsData.patterns.length * secondsPerMeasure;
 };
