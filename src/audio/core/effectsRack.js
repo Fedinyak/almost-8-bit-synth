@@ -79,6 +79,13 @@ export const wrapInstrumentWithEffects = (
     dispose: () => {},
   };
 
+  // Локальный хелпер для безопасного уничтожения аудио-нод
+  const safelyDisposeNode = (node) => {
+    if (node && typeof node.dispose === 'function') {
+      node.dispose();
+    }
+  };
+
   return {
     instrument: rawSynth,
     ...fxRegistry,
@@ -87,18 +94,9 @@ export const wrapInstrumentWithEffects = (
     masterLfoMeter: fakeLfoMeter,
     output: hardwareStaticPanner,
     dispose() {
-      if (
-        hardwareStaticPanner &&
-        typeof hardwareStaticPanner.dispose === 'function'
-      ) {
-        hardwareStaticPanner.dispose();
-      }
-      createdEffects.forEach((node) => {
-        if (node && typeof node.dispose === 'function') node.dispose();
-      });
-      if (rawSynth && typeof rawSynth.dispose === 'function') {
-        rawSynth.dispose();
-      }
+      safelyDisposeNode(hardwareStaticPanner);
+      createdEffects.forEach(safelyDisposeNode);
+      safelyDisposeNode(rawSynth);
     },
   };
 };

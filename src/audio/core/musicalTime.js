@@ -9,6 +9,9 @@ const SECONDS_IN_MINUTE = 60; // Секунд в минуте для расче�
 const SIXTEENTH_NOTE_ID = '16n'; // Идентификатор 16-й ноты в формате Tone.js
 const DEFAULT_16TH_DURATION_SEC = 0.125; // Длительность 16-й ноты в секундах при дефолтных 120 BPM
 
+// Внутренний хелпер для получения текущей длительности четверти
+const getSecondsPerBeat = () => SECONDS_IN_MINUTE / transport.bpm;
+
 export const musicalTime = {
   /**
    * Перевод музыкальных тактов (номеров паттернов) в физические секунды
@@ -16,8 +19,7 @@ export const musicalTime = {
    * @returns {number} Секунды
    */
   measuresToSeconds(numberOfMeasures) {
-    const secondsPerBeat = SECONDS_IN_MINUTE / transport.bpm;
-    const secondsPerMeasure = secondsPerBeat * BEATS_PER_MEASURE;
+    const secondsPerMeasure = getSecondsPerBeat() * BEATS_PER_MEASURE;
     return numberOfMeasures * secondsPerMeasure;
   },
 
@@ -27,14 +29,9 @@ export const musicalTime = {
    * @returns {number} Секунды
    */
   noteToSeconds(rate) {
-    if (rate === SIXTEENTH_NOTE_ID) {
-      const secondsPerBeat = SECONDS_IN_MINUTE / transport.bpm;
-      return secondsPerBeat / STEPS_PER_BEAT;
-    }
-    if (typeof rate === 'number') {
-      return rate;
-    }
-    // Безопасный дефолтный фолбек
+    if (typeof rate === 'number') return rate;
+    if (rate === SIXTEENTH_NOTE_ID) return getSecondsPerBeat() / STEPS_PER_BEAT;
+
     return DEFAULT_16TH_DURATION_SEC;
   },
 };
