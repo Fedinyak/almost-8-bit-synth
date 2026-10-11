@@ -6,20 +6,68 @@ let transportSeconds = 0;
 let lastContextTime = 0;
 let currentBpm = 120;
 
-// Ссылка на запущенный низкоуровневый таймер
+// Ссылка на запущенный низкоуровневый таймер (возвращена для совместимости с внешним шедулером)
 let timerId = null;
 
+// --- ЛОКАЛЬНЫЕ ЧИСТЫЕ ФУНКЦИИ ОБРАБОТКИ (ПОВЕДЕНИЕ) ---
+
+const startTransport = () => {
+  const ctx = getNativeContext();
+  if (ctx.state === 'suspended') {
+    ctx.resume().catch(() => {});
+  }
+
+  if (!isPlaying) {
+    isPlaying = true;
+    lastContextTime = ctx.currentTime;
+  }
+};
+
+const pauseTransport = () => {
+  isPlaying = false;
+};
+
+const stopTransport = () => {
+  isPlaying = false;
+  transportSeconds = 0;
+};
+
+const executeTick = () => {
+  if (!isPlaying) return 0;
+
+  const ctx = getNativeContext();
+  const now = ctx.currentTime;
+  const delta = now - lastContextTime;
+  lastContextTime = now;
+
+  transportSeconds += delta;
+  return delta;
+};
+
+const updatePlayState = (state) => {
+  switch (state) {
+    case 'start':
+      startTransport();
+      break;
+    case 'pause':
+      pauseTransport();
+      break;
+    default:
+      stopTransport();
+      break;
+  }
+};
+
+// --- ПУБЛИЧНЫЙ API МОДУЛЯ ШЕДУЛЕРА ---
 export const transport = {
-  // Геттер для получения живого BPM (замена Tone.Transport.bpm.value)
+  // Адаптеры-геттеры для полной совместимости с внешними файлами без использования "this"
   get bpm() {
     return currentBpm;
   },
-  // Сеттер для изменения BPM на лету
   set bpm(value) {
     currentBpm = value;
   },
 
-  // Геттер текущей позиции транспорта в секундах
   get seconds() {
     return transportSeconds;
   },
@@ -27,50 +75,27 @@ export const transport = {
     transportSeconds = value;
   },
 
-  // Проверка статуса воспроизведения
   get isPlaying() {
     return isPlaying;
   },
 
-  // Метод СТАРТА транспорта
   start() {
-    const ctx = getNativeContext();
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {});
-    }
-
-    if (!isPlaying) {
-      isPlaying = true;
-      lastContextTime = ctx.currentTime;
-    }
+    startTransport();
   },
 
-  // Метод ПАУЗЫ транспорта
   pause() {
-    isPlaying = false;
+    pauseTransport();
   },
 
-  // Метод ПОЛНОЙ ОСТАНОВКИ и сброса времени в ноль
   stop() {
-    isPlaying = false;
-    transportSeconds = 0;
+    stopTransport();
   },
 
-  // Внутренний метод инкремента времени (вызывается только шедулером на каждом тике)
   tick() {
-    if (!isPlaying) return 0;
-
-    const ctx = getNativeContext();
-    const now = ctx.currentTime;
-    const delta = now - lastContextTime;
-    lastContextTime = now;
-
-    // Время транспорта идет вперед
-    transportSeconds += delta;
-    return delta;
+    return executeTick();
   },
 
-  // Сохраняем ссылки на запущенный интервал, чтобы шедулер мог им управлять
+  // Сохраняем ссылки на запущенный интервал для внешнего шедулера
   setTimerId(id) {
     timerId = id;
   },
@@ -79,8 +104,6 @@ export const transport = {
   },
 
   setPlayState(state) {
-    if (state === 'start') this.start();
-    else if (state === 'pause') this.pause();
-    else this.stop();
+    updatePlayState(state);
   },
 };
