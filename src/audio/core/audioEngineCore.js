@@ -1,10 +1,11 @@
 import { LOOKAHEAD_OFFSET_SEC } from '../../constants/constants';
 import { drumLevels } from '../sync/visualizerState';
 
-// Импортируем декомпозированные чистые модули времени, таймеров и отрисовки
+// Импортируем декомпозированные чистые подсистемы
 import { transport } from './transport';
 import { scheduler } from './scheduler';
 import { draw } from './draw';
+import { musicalTime } from './musicalTime';
 
 // Реэкспортируем конвейер сборки эффектов для фабрик синтов и драм-машины
 export { wrapInstrumentWithEffects } from './effectsRack';
@@ -13,42 +14,23 @@ export { wrapInstrumentWithEffects } from './effectsRack';
 export const getCurrentEngineBpm = () => transport.bpm;
 
 // ============================================================================
-// ЦЕНТРАЛЬНЫЙ ПУЛЬТ УПРАВЛЕНИЯ ПЛЕЕРОМ (API ТРАНСПОРТА)
+// ЦЕНТРАЛЬНЫЙ ПУЛЬТ УПРАВЛЕНИЯ ПЛЕЕРОМ (ГЛОБАЛЬНЫЙ ТРАНСПОРТ)
 // ============================================================================
 
 export const setEngineBpm = (bpmValue) => {
-  console.log(
-    `[ENGINE DIAG]: ⚡️ Изменение BPM. Старый: ${transport.bpm}, Новый: ${bpmValue}`,
-  );
   transport.bpm = bpmValue;
 };
 
 export const setPlayState = (state) => {
-  console.log(
-    `[ENGINE DIAG]: 🎛 Смена состояния плеера на: "${state}". Текущий BPM: ${transport.bpm}`,
-  );
+  // 1. Декларативно отдаем команду модулю времени
+  transport.setPlayState(state);
 
-  if (state === 'start') {
-    transport.start();
-    scheduler.startLoop();
-  } else if (state === 'pause') {
-    transport.pause();
-    scheduler.stopLoop();
-  } else {
-    transport.stop();
-    scheduler.stopLoop();
-
-    if (scheduler.activeTracks) {
-      scheduler.activeTracks.forEach((t) => {
-        t.lastScheduledTime = -0.05;
-      });
-    }
-  }
+  // 2. Декларативно переключаем внутреннее состояние планировщика
+  scheduler.updateState(state);
 };
 
 export const setEnginePosition = (patternIndex) => {
-  const secondsPerMeasure = (60 / transport.bpm) * 4;
-  const patternStartTimeInSeconds = patternIndex * secondsPerMeasure;
+  const patternStartTimeInSeconds = musicalTime.measuresToSeconds(patternIndex);
   const quantizedJumpTime = Math.max(
     0,
     patternStartTimeInSeconds - LOOKAHEAD_OFFSET_SEC,
@@ -57,24 +39,11 @@ export const setEnginePosition = (patternIndex) => {
 };
 
 export const setGlobalTransportTime = (seconds) => {
-  console.log(
-    `[ENGINE DIAG]: 📍 Перемотка транспорта на отметку: ${seconds.toFixed(3)}s`,
-  );
   transport.seconds = seconds;
 
-  if (scheduler.activeTracks) {
-    scheduler.activeTracks.forEach((t) => {
-      t.lastScheduledTime = seconds - 0.05;
-    });
-  }
-
-  scheduler.resetDrawingTimeline(seconds);
+  // Планировщик сам знает, как сдвинуть таймлайн у себя и у всех своих треков
+  scheduler.jumpToTimeline(seconds);
 };
-
-// Заглушки оригинального API для совместимости с внешними файлами настроек
-export const enableEngineLoop = (patternIndex) => {};
-export const disableEngineLoop = () => {};
-export const enableGlobalTransportLoop = (numberOfMeasures) => {};
 
 // --- СИНХРОНИЗАЦИЯ СДВИГА И ОПЕРЕЖЕНИЯ ГРАФИКИ ---
 export const scheduleFrame = (time, drawFunction) => {
@@ -87,11 +56,20 @@ export const triggerDrumVisualLevel = (drumIndex, time) => {
   });
 };
 
-// --- ФИКС СОВМЕСТИМОСТИ: Возвращаем прокси-методы для внешних хуков ---
+// --- СОВМЕСТИМОСТЬ: Официальные прокси-методы для внешнего хука useSequencerScheduler ---
 export const startDrawingLoop = (callback, rate) => {
-  return scheduler.registerDrawingLoop(callback, rate);
+  const id = Math.random().toString(36).substring(2, 9);
+  const intervalInSeconds = musicalTime.noteToSeconds(rate);
+
+  scheduler.registerDrawingLoop(id, callback, intervalInSeconds);
+  return id;
 };
 
 export const stopDrawingLoop = (id) => {
   scheduler.unregisterDrawingLoop(id);
 };
+
+// Заглушки оригинального API для обратной совместимости, если где-то вызываются в конфигах
+export const enableEngineLoop = (patternIndex) => {};
+export const disableEngineLoop = () => {};
+export const enableGlobalTransportLoop = (numberOfMeasures) => {};

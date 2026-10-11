@@ -77,4 +77,10 @@ export const transport = {
   getTimerId() {
     return timerId;
   },
+
+  setPlayState(state) {
+    if (state === 'start') this.start();
+    else if (state === 'pause') this.pause();
+    else this.stop();
+  },
 };

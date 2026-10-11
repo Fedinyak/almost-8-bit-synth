@@ -1,38 +1,49 @@
 import { scheduler } from './scheduler';
+import { musicalTime } from './musicalTime';
+
+// --- СИСТЕМНЫЕ КОНСТАНТЫ ПЛАНИРОВАНИЯ И ТАЙМЛАЙНОВ ---
+const SCHEDULER_BUFFER_OFFSET_SEC = -0.05; // Стартовое отрицательное смещение для захвата нот на нулевой отметке
+const DEFAULT_LOOP_DURATION_SEC = 4.0; // Длительность лупа дорожки по умолчанию в секундах
+const EMPTY_ARRAY_LENGTH = 0; // Лимит для проверки пустого массива нот
 
 export class PlaybackTrack {
   constructor(onStepAction) {
     this.onStepAction = onStepAction;
     this.notes = [];
-    this.lastScheduledTime = -0.05;
-    this.loopEnd = 4.0; // Значение по умолчанию в секундах
+    this.lastScheduledTime = SCHEDULER_BUFFER_OFFSET_SEC;
+    this.loopEnd = DEFAULT_LOOP_DURATION_SEC;
 
-    // Регистрируем дорожку в центральном планировщике при создании
+    // Автоматическая регистрация дорожки в глобальном планировщике событий
     scheduler.registerTrack(this);
   }
 
-  // Безопасная мгновенная очистка нот без разрушения итератора
+  // Мгновенная безопасная очистка таймлайна дорожки
   clear() {
     this.notes = [];
-    // Откатываем указатель назад, чтобы новые ноты на текущей позиции не пропустились
-    this.lastScheduledTime = -0.05;
+    // Откатываем указатель назад во избежание пропусков нот при горячей перезаписи сетки
+    this.lastScheduledTime = SCHEDULER_BUFFER_OFFSET_SEC;
   }
 
-  // Добавление ноты в таймлайн с сохранением хронологического порядка
+  // Хронологическое добавление музыкального события в массив
   add(timeInSeconds, noteData) {
     this.notes.push({ time: timeInSeconds, data: noteData });
     this.notes.sort((a, b) => a.time - b.time);
   }
 
-  // Черновой проход по нотам внутри окна планирования (вызывается шедулером)
+  // Изменение длины циклического лупа дорожки на основе музыкальных тактов
+  setLoopDuration(numberOfMeasures) {
+    this.loopEnd = musicalTime.measuresToSeconds(numberOfMeasures);
+  }
+
+  // Проход Look-Ahead планировщика по нотам (вызывается из scheduler.js)
   processSchedule(currentTransportTime, endTransportTime, currentContextTime) {
     const loopLength = this.loopEnd;
-    if (this.notes.length === 0) return;
+    if (this.notes.length === EMPTY_ARRAY_LENGTH) return;
 
     this.notes.forEach((note) => {
       const noteTime = note.time;
 
-      // Вычисляем, на какую итерацию глобального таймлайна попадает эта нота
+      // Рассчитываем, на какую итерацию лупа проецируется текущее время часов
       const currentLoopIteration = Math.floor(
         currentTransportTime / loopLength,
       );
@@ -42,7 +53,7 @@ export class PlaybackTrack {
         projectedTime += loopLength;
       }
 
-      // Проверяем, входит ли нота в текущее Look-Ahead окно
+      // Проверяем попадание ноты в текущее скользящее окно планирования
       if (
         projectedTime > this.lastScheduledTime &&
         projectedTime <= endTransportTime
@@ -50,7 +61,7 @@ export class PlaybackTrack {
         const timeOffset = projectedTime - currentTransportTime;
         const exactAudioContextTime = currentContextTime + timeOffset;
 
-        // Вызываем оригинальный коллбэк запуска звука
+        // Стреляем нативным аудио-коллбэком инструмента
         this.onStepAction(exactAudioContextTime, note.data);
       }
     });
@@ -58,7 +69,7 @@ export class PlaybackTrack {
     this.lastScheduledTime = endTransportTime;
   }
 
-  // Метод уничтожения дорожки для предотвращения утечек памяти
+  // Полная деструктуризация дорожки для исключения утечек памяти
   dispose() {
     scheduler.unregisterTrack(this);
     this.notes = [];

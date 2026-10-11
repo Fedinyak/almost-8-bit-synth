@@ -1,35 +1,38 @@
 import * as Tone from 'tone';
+// Импортируем чистые утилиты пайки
+import { connectAudioChain, createSleeperNode } from './audioGraphUtils';
 
-// Утилита последовательного соединения аудио-узлов (нативных или Tone.js)
-export const connectAudioChain = (nodes) => {
-  if (!Array.isArray(nodes) || nodes.length < 2) return;
-  for (let i = 0; i < nodes.length - 1; i++) {
-    if (typeof nodes[i].connect === 'function') nodes[i].connect(nodes[i + 1]);
-  }
-  if (
-    nodes[nodes.length - 1] &&
-    typeof nodes[nodes.length - 1].toDestination === 'function'
-  ) {
-    nodes[nodes.length - 1].toDestination();
-  }
-};
+// --- МУЗЫКАЛЬНЫЕ КОНСТАНТЫ СТЕРЕО-ГРАФА ---
+const PANNER_CENTER_POSITION = 0; // Центральное положение стереопанорамы по умолчанию
 
-const resetEffectMix = (node) => {
-  if (node && node.wet) node.set({ wet: 0 });
-};
+const FAKE_LFO_DEFAULT_VALUE = 0; // Дефолтное нулевое значение параметра заглушки LFO
+const FAKE_LFO_INITIAL_FREQ_HZ = 5.0; // Стартовая частота модуляции в Герцах
+const FAKE_LFO_MAX_AMPLITUDE = 1.0; // Максимальный коэффициент глубины волны модуляции
 
-const bypassAudioNode = (node) => {
-  if (node) node.bypassed = true;
-};
+/**
+ * Создает, конфигурирует и регистрирует одиночную ноду эффекта
+ */
+const buildSingleEffectNode = (
+  deviceKey,
+  instrumentPreset,
+  effectDevices,
+  fxRegistry,
+) => {
+  const device = effectDevices[deviceKey];
+  if (!device) return null;
 
-export const createSleeperNode = (EffectClass, constructorParams) => {
-  const node = new EffectClass(constructorParams);
-  resetEffectMix(node);
-  bypassAudioNode(node);
+  const node = createSleeperNode(device.ClassRef, {
+    ...device.defaultParams,
+    ...(instrumentPreset?.[deviceKey] || {}),
+  });
+
+  fxRegistry[device.nodeKey] = node;
   return node;
 };
 
-// Единая фабрика сборки эффектов для инструментов
+/**
+ * Единая фабрика сборки эффектов для инструментов
+ */
 export const wrapInstrumentWithEffects = (
   rawSynth,
   instrumentPreset,
@@ -39,30 +42,30 @@ export const wrapInstrumentWithEffects = (
   const fxRegistry = {};
   const audioEffectsChain = effectsChain.filter((key) => key !== 'testLfo');
 
+  // Плоский, читаемый маппинг
   const createdEffects = audioEffectsChain
-    .map((deviceKey) => {
-      const device = effectDevices[deviceKey];
-      if (!device) return null;
-      const node = createSleeperNode(device.ClassRef, {
-        ...device.defaultParams,
-        ...(instrumentPreset?.[deviceKey] || {}),
-      });
-      fxRegistry[device.nodeKey] = node;
-      return node;
-    })
+    .map((deviceKey) =>
+      buildSingleEffectNode(
+        deviceKey,
+        instrumentPreset,
+        effectDevices,
+        fxRegistry,
+      ),
+    )
     .filter(Boolean);
 
-  const hardwareStaticPanner = new Tone.Panner(0);
+  // Стыкуем собранный рэк со стерео-паннером
+  const hardwareStaticPanner = new Tone.Panner(PANNER_CENTER_POSITION);
   const fullGraphChain = [rawSynth, ...createdEffects, hardwareStaticPanner];
   connectAudioChain(fullGraphChain);
 
-  // Статичные заглушки вынесены из области видимости функции, чтобы не плодить мусорные объекты в куче (Heap)
+  // Статичные заглушки модуляции
   const fakeLfoNode = {
-    _param: { value: 0 },
-    frequency: { value: 5.0 },
-    amplitude: { value: 1.0 },
+    _param: { value: FAKE_LFO_DEFAULT_VALUE },
+    frequency: { value: FAKE_LFO_INITIAL_FREQ_HZ },
+    amplitude: { value: FAKE_LFO_MAX_AMPLITUDE },
     get value() {
-      return 0;
+      return FAKE_LFO_DEFAULT_VALUE;
     },
     set value(val) {},
     start: () => {},
@@ -71,7 +74,10 @@ export const wrapInstrumentWithEffects = (
     disconnect: () => {},
     dispose: () => {},
   };
-  const fakeLfoMeter = { getValue: () => 0, dispose: () => {} };
+  const fakeLfoMeter = {
+    getValue: () => FAKE_LFO_DEFAULT_VALUE,
+    dispose: () => {},
+  };
 
   return {
     instrument: rawSynth,
@@ -81,7 +87,10 @@ export const wrapInstrumentWithEffects = (
     masterLfoMeter: fakeLfoMeter,
     output: hardwareStaticPanner,
     dispose() {
-      if (typeof hardwareStaticPanner.dispose === 'function') {
+      if (
+        hardwareStaticPanner &&
+        typeof hardwareStaticPanner.dispose === 'function'
+      ) {
         hardwareStaticPanner.dispose();
       }
       createdEffects.forEach((node) => {
