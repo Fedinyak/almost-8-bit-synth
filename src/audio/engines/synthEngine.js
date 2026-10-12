@@ -7,15 +7,12 @@ import { wrapInstrumentWithEffects } from '../../audio/core/audioEngineCore';
 import { noteToFrequency } from './synthMath';
 import {
   ZERO_AUDIO_AMPLITUDE,
-  DEFAULT_LOG_GAIN_DECIBELS,
-  DEFAULT_FILTER_CUTOFF_HZ,
-  DEFAULT_FILTER_Q_VALUE,
   DEFAULT_PLAYBACK_DURATION_SEC,
-  ATTACK_RAMP_TIME_SEC,
-  DECAY_RAMP_TIME_SEC,
   RELEASE_RAMP_TIME_SEC,
-  SUSTAIN_GAIN_MULTIPLIER,
   createInitialSynthState,
+  isValidVolumeNumber,
+  isValidDetuneNumber,
+  isValidFilterQ,
   extractNativeAudioContext,
   routeAudioNodes,
   applySynthPropertyCompatibility,
@@ -23,9 +20,12 @@ import {
   ensureAudioContextIsActive,
   calculateTimelineTimes,
   executeHardwareDisconnect,
+  executeFilterDisconnect,
   canDisconnectFromHardware,
   isAudioEngineContextMissing,
   shouldUpdateActiveAudioHardware,
+  getOscillatorType,
+  updateHardwareVolume,
   applyOscillatorParameters,
   applyEnvelopeAutomations,
 } from './synthHardware';
@@ -37,7 +37,7 @@ const createNativeMonoSynthAdapter = (presetConfig) => {
 
   const adapter = {
     presetConfig,
-    oscillatorType: presetConfig.oscillatorType || 'square',
+    oscillatorType: getOscillatorType(presetConfig),
     portamento: 0,
     filterEnvelope: { octaves: 0 },
 
@@ -45,12 +45,11 @@ const createNativeMonoSynthAdapter = (presetConfig) => {
       return state.volumeValue;
     },
     setVolume(val) {
-      if (typeof val !== 'number' || isNaN(val)) return;
+      if (!isValidVolumeNumber(val)) return;
       state.volumeValue = val;
 
       if (shouldUpdateActiveAudioHardware(state)) {
-        const linearGain = Math.pow(10, val / 20);
-        state.outputNode.gain.setValueAtTime(linearGain, state.ctx.currentTime);
+        updateHardwareVolume(state, val);
       }
     },
 
@@ -58,20 +57,18 @@ const createNativeMonoSynthAdapter = (presetConfig) => {
       return state.detuneValue;
     },
     setDetune(val) {
-      if (typeof val === 'number' && !isNaN(val)) {
-        state.detuneValue = val;
-      }
+      if (!isValidDetuneNumber(val)) return;
+      state.detuneValue = val;
     },
 
     getFilterQ() {
       return state.filterQValue;
     },
     setFilterQ(val) {
-      const isValidQ = typeof val === 'number' && !isNaN(val) && val >= 0;
-      if (!isValidQ) return;
-
+      if (!isValidFilterQ(val)) return;
       state.filterQValue = val;
-      if (state.nativeBiquad && state.ctx) {
+
+      if (shouldUpdateActiveAudioHardware(state)) {
         state.nativeBiquad.Q.setValueAtTime(val, state.ctx.currentTime);
       }
     },
@@ -148,11 +145,7 @@ const createNativeMonoSynthAdapter = (presetConfig) => {
 
     dispose() {
       adapter.disconnect();
-      if (state.nativeBiquad) {
-        try {
-          state.nativeBiquad.disconnect();
-        } catch (e) {}
-      }
+      executeFilterDisconnect(state);
     },
   };
 

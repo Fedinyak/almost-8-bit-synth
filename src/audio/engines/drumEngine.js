@@ -25,6 +25,9 @@ import {
   canDisconnectFromHardware,
 } from './drumHardware';
 
+// --- НАСТРОЙКИ ТИПОВ СИНТЕЗА (INSTRUMENT TYPES) ---
+const SYNTH_TYPE_MEMBRANE = 'MembraneSynth';
+
 // --- ДЕФОЛТНЫЕ НАСТРОЙКИ ОГИБАЮЩЕЙ (ENVELOPE FALLBACKS) ---
 const DEFAULT_ENVELOPE_ATTACK_SEC = 0.005;
 const DEFAULT_ENVELOPE_DECAY_SEC = 0.1;
@@ -56,6 +59,14 @@ const executeHardwareDisconnect = (state, { outputNode }) => {
   } catch (e) {}
 };
 
+// Обновление физической громкости на аудио-ноде барабана
+const updateHardwareDrumVolume = ({ outputNode, ctx }, decibelsValue) => {
+  outputNode.gain.setValueAtTime(
+    dbToLinearGain(decibelsValue),
+    ctx.currentTime,
+  );
+};
+
 // --- ФАБРИКА СТРУКТУРЫ ДАННЫХ БАРАБАНА ---
 
 const createNativeDrumAdapter = (drumName, typeString, presetConfig) => {
@@ -84,10 +95,7 @@ const createNativeDrumAdapter = (drumName, typeString, presetConfig) => {
       state.volumeValue = val;
 
       if (shouldUpdateActiveAudioHardware(state)) {
-        state.outputNode.gain.setValueAtTime(
-          dbToLinearGain(val),
-          state.ctx.currentTime,
-        );
+        updateHardwareDrumVolume(state, val);
       }
     },
 
@@ -144,7 +152,7 @@ const createNativeDrumAdapter = (drumName, typeString, presetConfig) => {
         dbToLinearGain(state.volumeValue),
       );
 
-      const isMembrane = typeString === 'MembraneSynth';
+      const isMembrane = typeString === SYNTH_TYPE_MEMBRANE;
       if (isMembrane) {
         synthesisMembraneDrum(ctx, drumGain, ctxTime, totalDrumDuration);
         return;
