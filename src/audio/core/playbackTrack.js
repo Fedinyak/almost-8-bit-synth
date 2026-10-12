@@ -2,51 +2,85 @@ import { scheduler } from './scheduler';
 
 export function PlaybackTrack(onStepAction) {
   const track = {
-    // Плоская карта нот, где ключ — это сквозной абсолютный тик (шаг) ленты трекера
-    ticksMap: {},
+    patternsMap: {},
 
     clear() {
-      track.ticksMap = {};
+      track.patternsMap = {};
+      console.log(
+        '🗑️ [TRACK STORAGE]: База данных нот дорожки полностью очищена.',
+      );
     },
 
-    /**
-     * Декларативное забивание ноты на жесткий музыкальный адрес
-     * @param {number} absoluteTick - Сквозной индекс 16-го шага проекта (например, 32)
-     */
-    addNoteToTick(absoluteTick, noteData, phaseOffset = 0) {
-      track.ticksMap[absoluteTick] = {
+    add(musicalTimeValue, measureIndex, noteData, phaseOffset = 0) {
+      if (!track.patternsMap[measureIndex]) {
+        track.patternsMap[measureIndex] = {};
+      }
+
+      const parts = musicalTimeValue.split(':');
+      if (parts.length !== 3) return;
+
+      const stepIndexInMeasure = parseInt(parts[2], 10) || 0;
+
+      track.patternsMap[measureIndex][stepIndexInMeasure] = {
         data: noteData,
         phaseOffset,
       };
     },
 
-    setLoopDuration(numberOfMeasures) {
-      // Метод пассивен — длины тактов контролирует Playhead в scheduler.js
+    addNoteToTick(absoluteTick, noteData, phaseOffset = 0) {
+      const measureIndex = Math.floor(absoluteTick / 16);
+      const stepIndexInMeasure = absoluteTick % 16;
+
+      if (!track.patternsMap[measureIndex]) {
+        track.patternsMap[measureIndex] = {};
+      }
+
+      track.patternsMap[measureIndex][stepIndexInMeasure] = {
+        data: noteData,
+        phaseOffset,
+      };
     },
 
-    applyHardwareLoopEnd(count) {
-      // Метод пассивен — границы отслеживаются аппаратно
-    },
+    setLoopDuration(numberOfMeasures) {},
+    applyHardwareLoopEnd(count) {},
 
     /**
-     * ВЫСТРЕЛ ЗВУКА: Вызывается шедулером Look-Ahead на каждом нативном музыкальном тике
-     * Полная изоляция от плавающих секунд транспорта — срывы фазы времени физически уничтожены!
+     * АППАРАТНЫЙ ВЫСТРЕЛ ЗВУКА С ЛОГАМИ ОШИБОК ДАННЫХ
      */
-    processAudioTick(exactAudioTime, currentAbsoluteTick) {
-      const noteCell = track.ticksMap[currentAbsoluteTick];
-      if (!noteCell) return; // Если в этой ячейке тика пусто — наступает идеальная тишина
+    processAudioStep(
+      exactAudioTime,
+      stepIndexInPattern,
+      currentHardwarePattern,
+    ) {
+      const activeMeasure = track.patternsMap[currentHardwarePattern];
 
-      // Стреляем нотой в точную миллисекунду AudioContext
+      // КРИТИЧЕСКИЙ ЛОГ: Проверяем, есть ли вообще данные в ячейке, которую просит шедулер
+      if (!activeMeasure) {
+        // Если шедулер просит играть 3-й паттерн (индекс 2), а тут пусто — пишем ошибку в консоль
+        console.error(
+          `❌ [TRACK STORAGE ERROR]: Шедулер требует сыграть [Паттерн: ${currentHardwarePattern}], но в памяти дорожки этого такта НЕТ ЕБАТЬ! Объект undefined.`,
+        );
+        return;
+      }
+
+      const noteCell = activeMeasure[stepIndexInPattern];
+      if (!noteCell) return;
+
+      // Если нота нашлась — пишем, что триггер сработал успешно
+      if (noteCell.data && noteCell.data.note) {
+        console.log(
+          `🎯 [SOUND TRIGGER]: Физический выстрел ноты синтора/барабана -> ${noteCell.data.note} на шаге ${stepIndexInPattern} в Паттерне ${currentHardwarePattern}`,
+        );
+      }
+
       onStepAction(exactAudioTime + noteCell.phaseOffset, noteCell.data);
     },
 
-    processSchedule() {
-      // Старая логика с секундами удалена
-    },
+    processSchedule() {},
 
     dispose() {
       scheduler.unregisterTrack(track);
-      track.ticksMap = {};
+      track.patternsMap = {};
     },
   };
 

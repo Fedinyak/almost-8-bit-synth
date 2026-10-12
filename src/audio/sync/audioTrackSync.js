@@ -13,17 +13,20 @@ const isStepInactive = (hitValue) => hitValue !== ACTIVE_HIT_MARKER;
 const isNoteMissingInGrid = (item) => !item || !item.note;
 
 /**
- * Парсинг строки синта '0:1:2' в сквозной абсолютный тик (шаг) проекта
+ * НАСТОЯЩИЙ ИСПРАВЛЕННЫЙ ПАРСЕР: Из строки '0:1:2' собирает точный шаг внутри такта (beats * 4 + sixteenths)
  */
 const parseSynthTimeToAbsoluteTick = (timeStr, measureIndex) => {
   const parts = timeStr.split(':');
   if (parts.length !== 3) return measureIndex * STEPS_IN_MEASURE;
 
+  // Строка '0:1:2' -> parts[0] = такт, parts[1] = доля (0-3), parts[2] = микрошаг (0-3)
   const beats = parseInt(parts[1], 10) || 0;
   const sixteenths = parseInt(parts[2], 10) || 0;
 
-  // 1 четверть = 4 шестнадцатых шага. Считаем сквозной адрес тика
+  // В одной доле всегда ровно 4 шестнадцатых шага
   const stepInPattern = beats * 4 + sixteenths;
+
+  // Возвращаем сквозной индекс шага на глобальном таймлайне проекта
   return measureIndex * STEPS_IN_MEASURE + stepInPattern;
 };
 
@@ -42,7 +45,6 @@ const syncDrumTrackSteps = (
     if (isStepInactive(isHit)) return;
 
     const phaseOffset = drumIndex * DRUM_PHASE_OFFSET_STEP;
-    // Считаем сквозной абсолютный шаг для барабана
     const absoluteTick = measureIndex * STEPS_IN_MEASURE + stepIndex;
 
     track.addNoteToTick(absoluteTick, { note, drumIndex }, phaseOffset);
@@ -90,8 +92,21 @@ export const setupDrumsPlayback = (
 export const syncInstrumentPatternsToTrack = (track, instrumentData) => {
   if (isTrackMissing(track) || isPatternDataInvalid(instrumentData)) return;
 
-  // Очищаем карту нот перед полной перезабивкой (только при физическом изменении нот в UI)
-  track.clear();
+  const temporaryContainer = {
+    patternsMap: {},
+    addNoteToTick(absoluteTick, noteData, phaseOffset) {
+      const measureIndex = Math.floor(absoluteTick / 16);
+      const stepIndexInMeasure = absoluteTick % 16;
+
+      if (!temporaryContainer.patternsMap[measureIndex]) {
+        temporaryContainer.patternsMap[measureIndex] = {};
+      }
+      temporaryContainer.patternsMap[measureIndex][stepIndexInMeasure] = {
+        data: noteData,
+        phaseOffset,
+      };
+    },
+  };
 
   instrumentData.patterns.forEach((patternGrid, measureIndex) => {
     patternGrid
@@ -101,17 +116,42 @@ export const syncInstrumentPatternsToTrack = (track, instrumentData) => {
           item.time,
           measureIndex,
         );
-        track.addNoteToTick(absoluteTick, item);
+        temporaryContainer.addNoteToTick(absoluteTick, item);
       });
   });
+
+  // Атомарно подменяем матрицу синтов
+  track.patternsMap = temporaryContainer.patternsMap;
 };
 
 export const syncDrumPatternsToTrack = (track, drumsData, drumNoteMap) => {
   if (isTrackMissing(track) || isPatternDataInvalid(drumsData)) return;
 
-  track.clear();
+  const temporaryContainer = {
+    patternsMap: {},
+    addNoteToTick(absoluteTick, noteData, phaseOffset) {
+      const measureIndex = Math.floor(absoluteTick / 16);
+      const stepIndexInMeasure = absoluteTick % 16;
+
+      if (!temporaryContainer.patternsMap[measureIndex]) {
+        temporaryContainer.patternsMap[measureIndex] = {};
+      }
+      temporaryContainer.patternsMap[measureIndex][stepIndexInMeasure] = {
+        data: noteData,
+        phaseOffset,
+      };
+    },
+  };
 
   drumsData.patterns.forEach((drumsInMeasure, measureIndex) => {
-    syncMeasureDrums(track, drumsInMeasure, measureIndex, drumNoteMap);
+    syncMeasureDrums(
+      temporaryContainer,
+      drumsInMeasure,
+      measureIndex,
+      drumNoteMap,
+    );
   });
+
+  // Атомарно подменяем карту барабанов
+  track.patternsMap = temporaryContainer.patternsMap;
 };

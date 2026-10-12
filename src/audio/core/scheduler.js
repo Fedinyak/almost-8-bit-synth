@@ -3,33 +3,59 @@ import { getNativeContext } from './nativeContext';
 import { draw } from './draw';
 import { SEQUENCER_CONFIG } from '../../constants/sequencerConfig';
 
-// --- НАСТРОЙКИ НИЗКОУРОВНЕВОГО ТАЙМЕРА ---
 const SCHEDULER_INTERVAL_MS = 25;
 const LOOKAHEAD_WINDOW_SEC = 0.1;
 const SIXTEENTH_NOTE_ID = '16n';
 
 let timerId = null;
+let nextStepAudioTime = 0;
 
-// Опорное время AudioContext для следующего запланированного тика
-let nextTickAudioTime = 0;
+let currentHardwareStep = 0;
+let currentHardwarePattern = 0;
 
-// --- КВАНТОВЫЕ БУФЕРЫ ИЗ UI ---
-let maxPatternCount = SEQUENCER_CONFIG.DEFAULT_PATTERN_COUNT || 3;
+let pendingMaxPatternCount = SEQUENCER_CONFIG.DEFAULT_PATTERN_COUNT || 3;
 let hardwareIsLooping = false;
 let pendingLoopPatternIndex = 0;
 
 const activeTracks = new Set();
 const drawingCallbacks = new Map();
 
-export const updateHardwarePatternBounds = (count) => {
-  maxPatternCount = count;
+export const resetHardwareCounters = () => {
+  const ctx = getNativeContext();
+  nextStepAudioTime = ctx ? ctx.currentTime : 0;
+  currentHardwareStep = 0;
+  currentHardwarePattern = 0;
+  console.log('🎛️ [AUDIO ENGINE]: Полный сброс счётчиков времени в 0');
 };
 
-export const updateHardwareLoopState = (isLooping, selectedPatternIndex) => {
+export const updateHardwarePatternBounds = (count) => {
+  pendingMaxPatternCount = count;
+};
+
+// 🆕 ИСПРАВЛЕННЫЙ ПРЕДОХРАНИТЕЛЬ: Принимает третьим аргументом текущий живой индекс паттерна из UI
+export const updateHardwareLoopState = (
+  isLooping,
+  selectedPatternIndex,
+  currentPlayPatternIndex,
+) => {
   hardwareIsLooping = isLooping;
+
   if (typeof selectedPatternIndex === 'number') {
     pendingLoopPatternIndex = selectedPatternIndex;
+  } else if (typeof currentPlayPatternIndex === 'number') {
+    // ЗАЩИТА ОТ FALSE: Если выбранный индекс равен false, лупим тот паттерн, который играет прямо сейчас!
+    pendingLoopPatternIndex = currentPlayPatternIndex;
+  } else {
+    pendingLoopPatternIndex = 0;
   }
+
+  if (isLooping) {
+    currentHardwarePattern = pendingLoopPatternIndex;
+  }
+
+  console.log(
+    `🚨 [HOOK -> ENGINE]: Кликнули луп! Loop=${isLooping} | UI Selected=${selectedPatternIndex} | UI CurrentPlay=${currentPlayPatternIndex} -> ИТОГОВЫЙ ЖЕЛЕЗНЫЙ ЛУП ПАТТЕРНА=${pendingLoopPatternIndex}`,
+  );
 };
 
 export const getHardwareLoopState = () => ({
@@ -37,59 +63,75 @@ export const getHardwareLoopState = () => ({
   loopPatternIndex: pendingLoopPatternIndex,
 });
 
-// Главный Look-Ahead сканер музыкальной ленты шагов
-const processTimelineScheduling = (scheduleUntilAudioTime) => {
+const isTimeWithinPlanningWindow = (time, scheduleUntilTime) =>
+  time < scheduleUntilTime;
+
+const processHybridScheduling = (scheduleUntilAudioTime) => {
   const ctx = getNativeContext();
   if (!ctx) return;
 
-  if (nextTickAudioTime === 0) {
-    nextTickAudioTime = ctx.currentTime;
+  const secondsPerMeasure = transport.getSecondsPerMeasure();
+  const secondsPerStep = secondsPerMeasure / 16;
+
+  if (nextStepAudioTime === 0) {
+    nextStepAudioTime = ctx.currentTime;
   }
 
-  // Пока время следующей ноты в будущем попадает в наше скользящее 100 мс окно
-  while (nextTickAudioTime < scheduleUntilAudioTime) {
-    const exactAudioTime = nextTickAudioTime;
+  while (
+    isTimeWithinPlanningWindow(nextStepAudioTime, scheduleUntilAudioTime)
+  ) {
+    const exactAudioTime = nextStepAudioTime;
 
-    // Получаем текущие координаты из Playhead
-    const currentAbsoluteTick = transport.ticks;
-    const stepInPattern = currentAbsoluteTick % 16;
-    const patternIndex = Math.floor(currentAbsoluteTick / 16);
+    if (hardwareIsLooping) {
+      currentHardwarePattern = pendingLoopPatternIndex;
+    }
 
-    // 1. СИНХРОННЫЙ АППАРАТНЫЙ ВЫСТРЕЛ ЗВУКА: Передаем дорожкам сквозной тик
+    const stepToSchedule = currentHardwareStep;
+    const patternToSchedule = currentHardwarePattern;
+
+    if (stepToSchedule % 4 === 0 || hardwareIsLooping) {
+      console.log(
+        `🔊 [AUDIO ACTION]: Сканер Look-Ahead шлёт в звуковую карту -> [Паттерн: ${patternToSchedule} | Шаг: ${stepToSchedule}]`,
+      );
+    }
+
+    // 1. ВЫСТРЕЛ ЗВУКА
     activeTracks.forEach((track) => {
-      if (typeof track.processAudioTick === 'function') {
-        track.processAudioTick(exactAudioTime, currentAbsoluteTick);
+      if (typeof track.processAudioStep === 'function') {
+        track.processAudioStep(
+          exactAudioTime,
+          stepToSchedule,
+          patternToSchedule,
+        );
       }
     });
 
-    // 2. ПЛАНИРОВАНИЕ КАДРА ГРАФИКИ В UI (Строго 1 раз за шаг)
+    // 2. ОТРИСОВКА ИНТЕРФЕЙСА
     draw.schedule(exactAudioTime, () => {
       drawingCallbacks.forEach((repeater) => {
         if (typeof repeater.callback === 'function') {
-          repeater.callback(exactAudioTime, stepInPattern, patternIndex);
+          repeater.callback(exactAudioTime, stepToSchedule, patternToSchedule);
         }
       });
     });
 
-    // 3. АППАРАТНОЕ КВАНТОВАНИЕ И ДВИЖЕНИЕ PLAYHEAD КУРСОРA
-    if (stepInPattern === 15) {
-      // На границе такта проверяем локальный луп паттерна
-      if (hardwareIsLooping) {
-        transport.ticks = pendingLoopPatternIndex * 16; // Замыкаем Playhead в петлю
-      } else {
-        const nextPattern = patternIndex + 1;
-        if (nextPattern >= maxPatternCount) {
-          transport.ticks = 0; // Бесшовный сброс всей цепочки в ноль
+    // 3. ЛИНЕЙНЫЙ ИНКРЕМЕНТ ШАГОВ СЕКВЕНСОРА
+    if (currentHardwareStep === 15) {
+      currentHardwareStep = 0;
+
+      if (!hardwareIsLooping) {
+        const nextPatternCandidate = currentHardwarePattern + 1;
+        if (nextPatternCandidate >= pendingMaxPatternCount) {
+          currentHardwarePattern = 0;
         } else {
-          transport.ticks = nextPattern * 16;
+          currentHardwarePattern = nextPatternCandidate;
         }
       }
     } else {
-      transport.ticks = currentAbsoluteTick + 1; // Просто шагаем Playhead вперед
+      currentHardwareStep++;
     }
 
-    // Сдвигаем физический временной указатель ноты на точную длительность одного 16-го шага
-    nextTickAudioTime += transport.getSecondsPerTick();
+    nextStepAudioTime += secondsPerStep;
   }
 };
 
@@ -97,12 +139,10 @@ const isTimerRunning = () => timerId !== null;
 
 const executeSchedulerTick = () => {
   if (!transport.isPlaying) return;
-
   const ctx = getNativeContext();
   if (!ctx) return;
 
-  // Сканируем музыкальную ленту на 100 миллисекунд вперед
-  processTimelineScheduling(ctx.currentTime + LOOKAHEAD_WINDOW_SEC);
+  processHybridScheduling(ctx.currentTime + LOOKAHEAD_WINDOW_SEC);
 };
 
 export const scheduler = {
@@ -127,16 +167,16 @@ export const scheduler = {
     drawingCallbacks.delete(id);
   },
 
-  resetDrawingTimeline() {
+  resetDrawingTimeline(seconds) {
     draw.clear();
-    const ctx = getNativeContext();
-    nextTickAudioTime = ctx ? ctx.currentTime : 0;
+    resetHardwareCounters();
   },
 
   startLoop() {
     if (isTimerRunning()) return;
-    scheduler.resetDrawingTimeline();
+    resetHardwareCounters();
     timerId = setInterval(executeSchedulerTick, SCHEDULER_INTERVAL_MS);
+    console.log('🚀 [AUDIO ENGINE]: Низкоуровневый таймер запущен!');
   },
 
   stopLoop() {
@@ -144,19 +184,17 @@ export const scheduler = {
     clearInterval(timerId);
     timerId = null;
     draw.clear();
-    nextTickAudioTime = 0;
+    resetHardwareCounters();
+    console.log('🛑 [AUDIO ENGINE]: Низкоуровневый таймер остановлен.');
   },
 
   updateState(state) {
     if (state === 'start') scheduler.startLoop();
     else if (state === 'pause') scheduler.stopLoop();
-    else {
-      scheduler.stopLoop();
-      transport.ticks = 0; // Сбрасываем Playhead при Стопе
-    }
+    else scheduler.stopLoop();
   },
 
   jumpToTimeline(seconds) {
-    scheduler.resetDrawingTimeline();
+    scheduler.resetDrawingTimeline(seconds);
   },
 };

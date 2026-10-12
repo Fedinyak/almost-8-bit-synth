@@ -24,8 +24,8 @@ import {
 
 const handleStepSync = (
   time,
-  stepInPattern, // Чистый шаг 0-15 из опорных точек шедулера
-  currentHardwarePattern, // Чистый играющий паттерн из опорных точек шедулера
+  stepInPattern,
+  currentHardwarePattern,
   pendingPatternRef,
   dispatch,
   pendingDeleteLastRef,
@@ -34,10 +34,12 @@ const handleStepSync = (
   const totalPatternsCount = patternCountRef.current || 1;
   let nextPlayPatternIndex = currentHardwarePattern;
 
+  // На границе такта (15-й шаг) обрабатываем только отложенные изменения структуры из UI
   if (stepInPattern === 15) {
     const pendingPattern = pendingPatternRef.current;
     const shouldDeleteLast = pendingDeleteLastRef.current;
 
+    // 1. Квантованное удаление паттерна с конца
     if (shouldDeleteLast) {
       scheduleFrame(time, () => {
         const lastIndex = totalPatternsCount - 1;
@@ -47,6 +49,7 @@ const handleStepSync = (
       });
     }
 
+    // 2. Ручной принудительный прыжок на другой паттерн по клику пользователя (Кнопка PLAY)
     if (pendingPattern !== null) {
       nextPlayPatternIndex = pendingPattern;
       scheduleFrame(time, () => {
@@ -58,7 +61,7 @@ const handleStepSync = (
     }
   }
 
-  // МГНОВЕННЫЙ И СТАБИЛЬНЫЙ ДИСКУРС UI: Никакого деления по модулю и отставания графики!
+  // НЕПРЕРЫВНЫЙ И НАДЕЖНЫЙ ОБНОВИТЕЛЬ ИНТЕРФЕЙСА: Передаем точный шаг и паттерн в Redux
   scheduleFrame(time, () => {
     const targetGlobalStep =
       nextPlayPatternIndex * STEPS_IN_MEASURE + stepInPattern;
@@ -92,9 +95,14 @@ export const useSequencerScheduler = () => {
   const pendingDeleteLastRef = useRef(pendingDeleteLast);
   const patternCountRef = useRef(patternCount);
 
+  // ЖЕЛЕЗНЫЙ МОСТ: Каждую миллисекунду транслируем живое состояние кнопок лупа UI в буфер аудио-ядра
   useEffect(() => {
-    updateHardwareLoopState(isLooping, selectedPatternIndex);
-  }, [isLooping, selectedPatternIndex]);
+    updateHardwareLoopState(
+      isLooping,
+      selectedPatternIndex,
+      currentPlayPatternIndex,
+    );
+  }, [isLooping, selectedPatternIndex, currentPlayPatternIndex]);
 
   useEffect(() => {
     updateHardwarePatternBounds(patternCount);
@@ -109,6 +117,7 @@ export const useSequencerScheduler = () => {
     pendingDeleteLastRef.current = pendingDeleteLast;
   }, [pendingDeleteLast]);
 
+  // Конвейер планировщика кадров
   useEffect(() => {
     if (sequencerPlayState !== 'start') return;
 
