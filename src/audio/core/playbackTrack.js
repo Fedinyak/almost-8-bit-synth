@@ -1,21 +1,27 @@
 import { scheduler } from './scheduler';
 import { musicalTime } from './musicalTime';
-import {
-  isTrackNotesEmpty,
-  shouldNoteBeScheduled,
-  triggerAudioEvent,
-  commitLastScheduledTime,
-} from './schedulerUtils';
+import { transport } from './transport';
 
 // --- СИСТЕМНЫЕ КОНСТАНТЫ ПЛАНИРОВАНИЯ И ТАЙМЛАЙНОВ ---
 const SCHEDULER_BUFFER_OFFSET_SEC = -0.05; // Стартовое отрицательное смещение для захвата нот на нулевой отметке
-const DEFAULT_LOOP_DURATION_SEC = 4.0; // Длительность лупа дорожки по умолчанию в секундах
+const DEFAULT_LOOP_MEASURES_COUNT = 4; // Количество тактов лупа дорожки по умолчанию
+const EMPTY_ARRAY_LENGTH = 0; // Лимит для проверки пустого массива нот
+
+// --- ВЫНЕСЕННЫЕ ЛОКАЛЬНЫЕ ФУНКЦИИ ПРОВЕРКИ И ПЛАНИРОВАНИЯ ---
+
+const isTrackNotesEmpty = (notes) => notes.length === EMPTY_ARRAY_LENGTH;
+
+const commitLastScheduledTime = (track, endTransportTime) => {
+  track.lastScheduledTime = endTransportTime;
+};
+
+// --- КОНСТРУКТОР-ФАБРИКА СТРУКТУРЫ ДАННЫХ ---
 
 export function PlaybackTrack(onStepAction) {
   const track = {
     notes: [],
     lastScheduledTime: SCHEDULER_BUFFER_OFFSET_SEC,
-    loopEnd: DEFAULT_LOOP_DURATION_SEC,
+    loopEnd: DEFAULT_LOOP_MEASURES_COUNT, // Храним длину в тактах
 
     // Мгновенная безопасная очистка таймлайна дорожки
     clear() {
@@ -23,17 +29,17 @@ export function PlaybackTrack(onStepAction) {
       track.lastScheduledTime = SCHEDULER_BUFFER_OFFSET_SEC;
     },
 
-    // Хронологическое добавление музыкального события в массив
-    add(timeInSeconds, noteData) {
+    // Декларативное добавление музыкальной координаты без физических секунд
+    add(musicalTimeValue, measureIndex, noteData, phaseOffset = 0) {
       track.notes = [
         ...track.notes,
-        { time: timeInSeconds, data: noteData },
-      ].sort((a, b) => a.time - b.time);
+        { musicalTimeValue, measureIndex, phaseOffset, data: noteData },
+      ];
     },
 
     // Изменение длины циклического лупа дорожки на основе музыкальных тактов
     setLoopDuration(numberOfMeasures) {
-      track.loopEnd = musicalTime.measuresToSeconds(numberOfMeasures);
+      track.loopEnd = numberOfMeasures;
     },
 
     // Проход Look-Ahead планировщика по нотам (вызывается из scheduler.js)
@@ -44,22 +50,37 @@ export function PlaybackTrack(onStepAction) {
     ) {
       if (isTrackNotesEmpty(track.notes)) return;
 
+      const activeBpm = transport.bpm;
+      const loopEndSeconds = musicalTime.measuresToSeconds(track.loopEnd);
+
       track.notes.forEach((note) => {
+        // Вычисляем точную физическую секунду старта ноты на лету!
+        const calculatedSeconds =
+          musicalTime.calculateAbsoluteSeconds(
+            note.musicalTimeValue,
+            note.measureIndex,
+            activeBpm,
+          ) + note.phaseOffset;
+
+        const projectedTime = musicalTime.calculateProjectedTime(
+          calculatedSeconds,
+          currentTransportTime,
+          loopEndSeconds,
+        );
+
         if (
-          shouldNoteBeScheduled(
-            note,
-            track,
-            currentTransportTime,
+          musicalTime.isNoteInSchedulingWindow(
+            projectedTime,
+            track.lastScheduledTime,
             endTransportTime,
           )
         ) {
-          triggerAudioEvent(
-            note,
-            track,
-            onStepAction,
+          const exactAudioTime = musicalTime.calculateExactAudioTime(
+            projectedTime,
             currentTransportTime,
             currentContextTime,
           );
+          onStepAction(exactAudioTime, note.data);
         }
       });
 

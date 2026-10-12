@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
+import { transport } from '../audio/core/transport'; // Подтягиваем наш кастомный транспорт
 import {
   DEFAULT_DRUM_RELEASE,
   SYNTH_LIST,
@@ -26,9 +27,7 @@ import { processInstrumentLfoModulation } from './processInstrumentLfoModulation
 
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
 
-// 1. ДЕКЛАРАТИВНЫЙ ИЗОЛЯТОР: Синхронизация громкости всех инструментов
 const syncAllVolumes = ({ synthEngines, drumsEngine, soundSettings }) => {
-  // Громкость синтов
   SYNTH_LIST.forEach((name) => {
     const synthInstance = synthEngines[name];
     const settings = soundSettings[name];
@@ -37,7 +36,6 @@ const syncAllVolumes = ({ synthEngines, drumsEngine, soundSettings }) => {
     }
   });
 
-  // Громкость барабанов
   DRUM_KIT_LIST.forEach((name) => {
     const drumInstance = drumsEngine?.[name];
     const settings = soundSettings[name];
@@ -47,14 +45,12 @@ const syncAllVolumes = ({ synthEngines, drumsEngine, soundSettings }) => {
   });
 };
 
-// 2. ДЕКЛАРАТИВНЫЙ ИЗОЛЯТОР: Конвейер LFO модуляции на requestAnimationFrame
 const runLfoModulationPipeline = ({
   synthEngines,
   drumsEngine,
   soundSettings,
   smoothedValues,
 }) => {
-  // Прогоняем сквозь матрицу модуляции все СИНТЕЗАТОРЫ
   SYNTH_LIST.forEach((name) => {
     processInstrumentLfoModulation({
       name,
@@ -64,7 +60,6 @@ const runLfoModulationPipeline = ({
     });
   });
 
-  // Прогоняем сквозь матрицу модуляции все БАРАБАНЫ
   DRUM_KIT_LIST.forEach((name) => {
     processInstrumentLfoModulation({
       name,
@@ -75,7 +70,6 @@ const runLfoModulationPipeline = ({
   });
 };
 
-// 3. ДЕКЛАРАТИВНЫЙ ИЗОЛЯТОР: Нарезка нот по дорожкам секвенсора Tone.js
 const syncPatternsToAudioTracks = ({
   synthPart,
   drumsPart,
@@ -104,6 +98,9 @@ export const useAudioEngineSync = (
     (state) => state.player.sequencerPlayState,
   );
 
+  // Достаем живой темп из Redux Toolkit среза playerSlice
+  const bpm = useSelector((state) => state.player.bpm);
+
   const synthAnalysersRef = useRef({});
   const synthChannelsRef = useRef({});
   const smoothedValuesRef = useRef({});
@@ -122,7 +119,7 @@ export const useAudioEngineSync = (
     );
   }, [drumsEngineRef, synthEnginesRef]);
 
-  // Жизненный цикл 2: Управление громкостью на мейне (0% ЦП)
+  // Жизненный цикл 2: Управление громкостью на мейне
   useEffect(() => {
     syncAllVolumes({
       synthEngines: synthEnginesRef.current,
@@ -181,7 +178,7 @@ export const useAudioEngineSync = (
     };
   }, [drumsEngineRef, drumsPartRef, synthEnginesRef, synthPartRef]);
 
-  // Жизненный цикл 5: Забивка нотных матриц при мутации паттернов
+  // Жизненный цикл 5: Забивка нотных матриц при мутации паттернов ИЛИ ПРИ СМЕНЕ BPM!
   useEffect(() => {
     syncPatternsToAudioTracks({
       synthPart: synthPartRef.current,
@@ -189,5 +186,12 @@ export const useAudioEngineSync = (
       synthData,
       drumsList,
     });
-  }, [synthData, drumsList, drumsPartRef, synthPartRef]);
+  }, [synthData, drumsList, drumsPartRef, synthPartRef, bpm]);
+
+  // Жизненный цикл 6: Бесшовный мост темпа. Синхронизируем BPM из Redux с нативным транспортом часов на лету!
+  useEffect(() => {
+    if (bpm) {
+      transport.bpm = bpm;
+    }
+  }, [bpm]);
 };

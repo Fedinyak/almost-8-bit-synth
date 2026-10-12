@@ -1,12 +1,9 @@
 import { PlaybackTrack } from '../core/playbackTrack';
-import {
-  calculateAbsoluteTime,
-  microTimingOffset,
-} from '../../utils/audioMathUtils';
 import { processDrumPlaybackHit, playSynthNote } from './audioEngineTriggers';
 
 // --- МУЗЫКАЛЬНЫЕ КОНСТАНТЫ СЕТКИ СЕКВЕНСОРА ---
 const ACTIVE_HIT_MARKER = 1; // Маркер активного шага в сетке драм-машины (триггер удара)
+const DRUM_PHASE_OFFSET_STEP = 0.001; // Сдвиг фазы на 1 мс на индекс для предотвращения каши
 
 // --- ЛОКАЛЬНЫЕ ПРЕДИКАТЫ И ВАЛИДАТОРЫ ---
 
@@ -14,15 +11,6 @@ const isTrackMissing = (track) => !track;
 const isPatternDataInvalid = (data) => !data || !Array.isArray(data.patterns);
 const isStepInactive = (hitValue) => hitValue !== ACTIVE_HIT_MARKER;
 const isNoteMissingInGrid = (item) => !item || !item.note;
-
-// --- ВСПОМОГАТЕЛЬНЫЕ КАЛЬКУЛЯЦИИ ВРЕМЕНИ ---
-
-const calculateDrumStartTime = (stepIndex, measureIndex, drumIndex) => {
-  const stepTime = `0:0:${stepIndex}`;
-  return (
-    calculateAbsoluteTime(stepTime, measureIndex) + microTimingOffset(drumIndex)
-  );
-};
 
 // --- ВНУТРЕННИЕ КОНВЕЙЕРЫ СИНХРОНИЗАЦИИ ШАГОВ ---
 
@@ -38,12 +26,11 @@ const syncDrumTrackSteps = (
   trackSteps.forEach((isHit, stepIndex) => {
     if (isStepInactive(isHit)) return;
 
-    const startTime = calculateDrumStartTime(
-      stepIndex,
-      measureIndex,
-      drumIndex,
-    );
-    track.add(startTime, { note, drumIndex });
+    const phaseOffset = drumIndex * DRUM_PHASE_OFFSET_STEP;
+    const stepTimeStr = `0:0:${stepIndex}`;
+
+    // Передаем музыкальное время, индекс такта и микротайминг фазы
+    track.add(stepTimeStr, measureIndex, { note, drumIndex }, phaseOffset);
   });
 };
 
@@ -58,7 +45,6 @@ const syncMeasureDrums = (track, drumsInMeasure, measureIndex, drumNoteMap) => {
   );
 };
 
-// Декларативная фиксация длины циклического паттерна на основе количества тактов
 const applyLoopDurationFromPatterns = (track, { patterns }) => {
   track.setLoopDuration(patterns.length);
 };
@@ -99,8 +85,8 @@ export const syncInstrumentPatternsToTrack = (track, instrumentData) => {
     patternGrid
       .filter((item) => !isNoteMissingInGrid(item))
       .forEach((item) => {
-        const startTime = calculateAbsoluteTime(item.time, measureIndex);
-        track.add(startTime, item);
+        // Пушим чистую строку времени '0:1:2' и индекс такта, без хардкода секунд!
+        track.add(item.time, measureIndex, item);
       });
   });
 
