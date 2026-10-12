@@ -1,8 +1,8 @@
 import {
   applyDynamicBypass,
   applySynthEnvelope,
-} from '../audio/playback/audioModulationActions';
-import { SOUND_PARAMS } from '../constants/soundParamsConfig';
+} from '../playback/audioModulationActions';
+import { SOUND_PARAMS } from '../../constants/soundParamsConfig';
 
 // Чистая функция обработки LFO и сглаживания треска для одного аудио-узла
 export const processInstrumentLfoModulation = ({

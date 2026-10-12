@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
-import { transport } from '../audio/core/transport'; // Подтягиваем наш кастомный транспорт
 import {
   DEFAULT_DRUM_RELEASE,
   SYNTH_LIST,
@@ -23,7 +22,8 @@ import {
   updateInstrumentVolume,
 } from '../audio/playback/audioModulationActions';
 import { synthEnginesRegistry } from '../audio/sync/visualizerState';
-import { processInstrumentLfoModulation } from './processInstrumentLfoModulation';
+// ИСПРАВЛЕНО: Новый правильный путь к файлу автоматизации LFO с явным расширением .js
+import { processInstrumentLfoModulation } from '../audio/core/processInstrumentLfoModulation.js';
 
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
 
@@ -97,8 +97,6 @@ export const useAudioEngineSync = (
   const sequencerPlayState = useSelector(
     (state) => state.player.sequencerPlayState,
   );
-
-  // Достаем живой темп из Redux Toolkit среза playerSlice
   const bpm = useSelector((state) => state.player.bpm);
 
   const synthAnalysersRef = useRef({});
@@ -178,7 +176,7 @@ export const useAudioEngineSync = (
     };
   }, [drumsEngineRef, drumsPartRef, synthEnginesRef, synthPartRef]);
 
-  // Жизненный цикл 5: Забивка нотных матриц при мутации паттернов ИЛИ ПРИ СМЕНЕ BPM!
+  // Жизненный цикл 5: Забивка нотных матриц при мутации паттернов или изменении темпа
   useEffect(() => {
     syncPatternsToAudioTracks({
       synthPart: synthPartRef.current,
@@ -187,11 +185,4 @@ export const useAudioEngineSync = (
       drumsList,
     });
   }, [synthData, drumsList, drumsPartRef, synthPartRef, bpm]);
-
-  // Жизненный цикл 6: Бесшовный мост темпа. Синхронизируем BPM из Redux с нативным транспортом часов на лету!
-  useEffect(() => {
-    if (bpm) {
-      transport.bpm = bpm;
-    }
-  }, [bpm]);
 };

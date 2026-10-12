@@ -1,25 +1,73 @@
 import { getNativeContext } from './nativeContext';
+import { drumLevels } from '../sync/visualizerState';
+import { scheduler } from './scheduler';
 
-// --- МАТЕМАТИЧЕСКИЕ КОНСТАНТЫ СИСТЕМЫ ВРЕМЕНИ ---
-const SECONDS_TO_MS_COEFFICIENT = 1000; // Коэффициент перевода секунд в миллисекунды
-const MINIMUM_DELAY_THRESHOLD_MS = 0; // Минимальный порог задержки для предотвращения отрицательных чисел
+// Высокоточная скрытая очередь запланированных кадров
+const drawingQueue = new Set();
+let isAnimationLoopActive = false;
+
+// Единый монолитный цикл отрисовки, который крутится на requestAnimationFrame
+const runVisualSyncLoop = () => {
+  if (drawingQueue.size === 0) {
+    isAnimationLoopActive = false;
+    return;
+  }
+
+  const ctx = getNativeContext();
+  const now = ctx.currentTime;
+
+  drawingQueue.forEach((task) => {
+    // Кадр стреляет в React строго в ту миллисекунду, когда часы аудио-карты сравнялись с временем ноты
+    if (now >= task.time) {
+      task.callback();
+      drawingQueue.delete(task); // Выполнили — удалили
+    }
+  });
+
+  requestAnimationFrame(runVisualSyncLoop);
+};
 
 export const draw = {
   /**
-   * Планирование отрисовки кадра интерфейса (Аналог Tone.Draw.schedule)
-   * @param {number} time - Абсолютное целевое время AudioContext в секундах
-   * @param {function} drawFunction - Коллбэк отрисовки шага/уровня в интерфейсе
+   * Честный аналог Tone.Draw.schedule без таймаутов: пушит задачу в массив
    */
   schedule(time, drawFunction) {
-    const ctx = getNativeContext();
-    const now = ctx.currentTime;
+    drawingQueue.add({ time, callback: drawFunction });
 
-    // Вычисляем физическую задержку кадра в миллисекундах
-    const rawDelayMs = (time - now) * SECONDS_TO_MS_COEFFICIENT;
-    const safeDelayMs = Math.max(MINIMUM_DELAY_THRESHOLD_MS, rawDelayMs);
-
-    setTimeout(() => {
-      requestAnimationFrame(drawFunction);
-    }, safeDelayMs);
+    // Ленивый запуск цикла, если он спал
+    if (!isAnimationLoopActive) {
+      isAnimationLoopActive = true;
+      requestAnimationFrame(runVisualSyncLoop);
+    }
   },
+
+  /**
+   * Сброс всех кадров при остановке плеера
+   */
+  clear() {
+    drawingQueue.clear();
+    isAnimationLoopActive = false;
+  },
+};
+
+// --- СИСТЕМНЫЕ МЕТОДЫ СОВМЕСТИМОСТИ С ИНТЕРФЕЙСОМ ---
+
+export const scheduleFrame = (time, drawFunction) => {
+  draw.schedule(time, drawFunction);
+};
+
+export const triggerDrumVisualLevel = (drumIndex, time) => {
+  draw.schedule(time, () => {
+    drumLevels[drumIndex] = 1.0;
+  });
+};
+
+export const startDrawingLoop = (callback, rate) => {
+  const generatedId = Math.random().toString(36).substring(2, 9);
+  scheduler.registerDrawingLoop(generatedId, callback, rate);
+  return generatedId;
+};
+
+export const stopDrawingLoop = (id) => {
+  scheduler.unregisterDrawingLoop(id);
 };

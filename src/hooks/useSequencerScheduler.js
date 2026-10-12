@@ -13,86 +13,57 @@ import {
   STEP_DURATION_NOTATION,
 } from '../constants/constants';
 import {
-  calculateCurrentPlayPattern,
-  calculateCurrentStep,
-} from '../utils/audioMathUtils';
-import {
-  disableEngineLoop,
-  enableEngineLoop,
-  enableGlobalTransportLoop,
   scheduleFrame,
-  setEnginePosition,
   startDrawingLoop,
   stopDrawingLoop,
-} from '../audio/core/audioEngineCore';
+} from '../audio/core/draw';
+import {
+  updateHardwarePatternBounds,
+  updateHardwareLoopState,
+} from '../audio/core/scheduler';
 
 const handleStepSync = (
   time,
+  stepInPattern, // Чистый шаг 0-15 из опорных точек шедулера
+  currentHardwarePattern, // Чистый играющий паттерн из опорных точек шедулера
   pendingPatternRef,
-  isPatternLoopRef,
   dispatch,
   pendingDeleteLastRef,
-  currentPlayPatternIndexRef,
   patternCountRef,
 ) => {
-  const absoluteStep = calculateCurrentStep(time);
-
-  // Вычисляем сырой индекс паттерна из абсолютного шага
-  const rawPlayPattern = calculateCurrentPlayPattern(
-    absoluteStep,
-    STEPS_IN_MEASURE,
-  );
-
-  // ЖЕЛЕЗНЫЙ ПРЕДОХРАНИТЕЛЬ: Ограничиваем индекс рамками реального количества паттернов трека.
-  // Если из-за прыжков таймлайна каунтер улетает выше крыши, оператор % красиво сбросит его в 0.
-  const totalCount = patternCountRef.current || 1;
-  const currentPlayPattern = rawPlayPattern % totalCount;
-
-  const stepInPattern = absoluteStep % STEPS_IN_MEASURE;
+  const totalPatternsCount = patternCountRef.current || 1;
+  let nextPlayPatternIndex = currentHardwarePattern;
 
   if (stepInPattern === 15) {
-    const nextPattern = pendingPatternRef.current;
-    const isLoopActive = isPatternLoopRef.current;
+    const pendingPattern = pendingPatternRef.current;
     const shouldDeleteLast = pendingDeleteLastRef.current;
 
     if (shouldDeleteLast) {
-      const activeIndex = currentPlayPatternIndexRef.current;
-      const lastIndex = totalCount - 1;
-
-      if (activeIndex === lastIndex || isLoopActive) {
-        scheduleFrame(time, () => {
-          dispatch(backupAndDropPatternData(lastIndex));
-          dispatch(decrementPatternCountSync());
-          dispatch(clearPendingDeleteLastPattern());
-        });
-      }
-    }
-
-    if (nextPattern !== null) {
-      disableEngineLoop();
-      setEnginePosition(nextPattern);
-
       scheduleFrame(time, () => {
-        dispatch(setCurrentPlayPatternIndex(nextPattern));
-        dispatch(setCurrentStep(nextPattern * STEPS_IN_MEASURE));
-        dispatch(clearPendingPattern());
+        const lastIndex = totalPatternsCount - 1;
+        dispatch(backupAndDropPatternData(lastIndex));
+        dispatch(decrementPatternCountSync());
+        dispatch(clearPendingDeleteLastPattern());
       });
-      return;
     }
 
-    if (isLoopActive) {
-      enableEngineLoop(currentPlayPattern);
-
+    if (pendingPattern !== null) {
+      nextPlayPatternIndex = pendingPattern;
       scheduleFrame(time, () => {
-        dispatch(setCurrentStep(absoluteStep));
+        dispatch(setCurrentPlayPatternIndex(nextPlayPatternIndex));
+        dispatch(setCurrentStep(nextPlayPatternIndex * STEPS_IN_MEASURE));
+        dispatch(clearPendingPattern());
       });
       return;
     }
   }
 
+  // МГНОВЕННЫЙ И СТАБИЛЬНЫЙ ДИСКУРС UI: Никакого деления по модулю и отставания графики!
   scheduleFrame(time, () => {
-    dispatch(setCurrentStep(absoluteStep));
-    dispatch(setCurrentPlayPatternIndex(currentPlayPattern));
+    const targetGlobalStep =
+      nextPlayPatternIndex * STEPS_IN_MEASURE + stepInPattern;
+    dispatch(setCurrentStep(targetGlobalStep));
+    dispatch(setCurrentPlayPatternIndex(nextPlayPatternIndex));
   });
 };
 
@@ -110,62 +81,51 @@ export const useSequencerScheduler = () => {
     (state) => state.player.currentPlayPatternIndex,
   );
   const patternCount = useSelector((state) => state.player.patternCount);
-  // ДОБАВЛЕН СЕЛЕКТОР ДЛЯ ОТСЛЕЖИВАНИЯ ТЕКУЩЕГО СОСТОЯНИЯ ПЛЕЕРА
   const sequencerPlayState = useSelector(
     (state) => state.player.sequencerPlayState,
   );
+  const selectedPatternIndex = useSelector(
+    (state) => state.player.selectedPatternIndex,
+  );
 
   const pendingPatternRef = useRef(null);
-  const isPatternLoopRef = useRef(null);
-
   const pendingDeleteLastRef = useRef(pendingDeleteLast);
-  const currentPlayPatternIndexRef = useRef(currentPlayPatternIndex);
   const patternCountRef = useRef(patternCount);
 
   useEffect(() => {
-    if (!isLooping) {
-      enableGlobalTransportLoop(patternCount);
-    }
-  }, [patternCount, isLooping]);
+    updateHardwareLoopState(isLooping, selectedPatternIndex);
+  }, [isLooping, selectedPatternIndex]);
+
+  useEffect(() => {
+    updateHardwarePatternBounds(patternCount);
+    patternCountRef.current = patternCount;
+  }, [patternCount]);
 
   useEffect(() => {
     pendingPatternRef.current = pendingPatternIndex;
   }, [pendingPatternIndex]);
 
   useEffect(() => {
-    isPatternLoopRef.current = isLooping;
-  }, [isLooping]);
-
-  useEffect(() => {
     pendingDeleteLastRef.current = pendingDeleteLast;
   }, [pendingDeleteLast]);
 
   useEffect(() => {
-    currentPlayPatternIndexRef.current = currentPlayPatternIndex;
-  }, [currentPlayPatternIndex]);
-
-  useEffect(() => {
-    patternCountRef.current = patternCount;
-  }, [patternCount]);
-
-  // Конвейер планировщика: запускается только в режиме воспроизведения start
-  useEffect(() => {
     if (sequencerPlayState !== 'start') return;
 
     const drawingProcess = startDrawingLoop(
-      (time) =>
+      (time, hardwareStep, hardwarePattern) =>
         handleStepSync(
           time,
+          hardwareStep,
+          hardwarePattern,
           pendingPatternRef,
-          isPatternLoopRef,
           dispatch,
           pendingDeleteLastRef,
-          currentPlayPatternIndexRef,
           patternCountRef,
         ),
       STEP_DURATION_NOTATION,
     );
 
     return () => stopDrawingLoop(drawingProcess);
-  }, [dispatch, sequencerPlayState]); // СЛУШАЕМ СТАТУС ПЛЕЕРА ДЛЯ СБРОСА ТАЙМЕРА БРАУЗЕРА
+  }, [dispatch, sequencerPlayState]);
 };

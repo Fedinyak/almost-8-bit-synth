@@ -1,66 +1,16 @@
-import { getNativeContext } from './nativeContext';
+import { SEQUENCER_CONFIG } from '../../constants/sequencerConfig';
 
-// --- ВНУТРЕННИЙ СТЕЙТ МУЗЫКАЛЬНЫХ ЧАСОВ ---
+// --- МУЗЫКАЛЬНЫЕ КОНСТАНТЫ СИСТЕМЫ ---
+const SECONDS_IN_MINUTE = 60;
+const STEPS_PER_BEAT = 4; // Четыре 16-х шага в одной четверти
+
 let isPlaying = false;
-let transportSeconds = 0;
-let lastContextTime = 0;
-let currentBpm = 120;
+let currentBpm = SEQUENCER_CONFIG.DEFAULT_BPM || 120;
 
-// Ссылка на запущенный низкоуровневый таймер (возвращена для совместимости с внешним шедулером)
-let timerId = null;
+// НАСТОЯЩИЙ PLAYHEAD: Сквозная позиция плеера в музыкальных тиках (16-х шагах)
+let playheadTicks = 0;
 
-// --- ЛОКАЛЬНЫЕ ЧИСТЫЕ ФУНКЦИИ ОБРАБОТКИ (ПОВЕДЕНИЕ) ---
-
-const startTransport = () => {
-  const ctx = getNativeContext();
-  if (ctx.state === 'suspended') {
-    ctx.resume().catch(() => {});
-  }
-
-  if (!isPlaying) {
-    isPlaying = true;
-    lastContextTime = ctx.currentTime;
-  }
-};
-
-const pauseTransport = () => {
-  isPlaying = false;
-};
-
-const stopTransport = () => {
-  isPlaying = false;
-  transportSeconds = 0;
-};
-
-const executeTick = () => {
-  if (!isPlaying) return 0;
-
-  const ctx = getNativeContext();
-  const now = ctx.currentTime;
-  const delta = now - lastContextTime;
-  lastContextTime = now;
-
-  transportSeconds += delta;
-  return delta;
-};
-
-const updatePlayState = (state) => {
-  switch (state) {
-    case 'start':
-      startTransport();
-      break;
-    case 'pause':
-      pauseTransport();
-      break;
-    default:
-      stopTransport();
-      break;
-  }
-};
-
-// --- ПУБЛИЧНЫЙ API МОДУЛЯ ШЕДУЛЕРА ---
 export const transport = {
-  // Адаптеры-геттеры для полной совместимости с внешними файлами без использования "this"
   get bpm() {
     return currentBpm;
   },
@@ -68,42 +18,57 @@ export const transport = {
     currentBpm = value;
   },
 
-  get seconds() {
-    return transportSeconds;
-  },
-  set seconds(value) {
-    transportSeconds = value;
-  },
-
   get isPlaying() {
     return isPlaying;
   },
 
+  // Геттер и сеттер для Playhead курсора в тиках
+  get ticks() {
+    return playheadTicks;
+  },
+  set ticks(value) {
+    playheadTicks = value;
+  },
+
+  /**
+   * МАТЕМАТИКА PPQ: Вычисляет точную длительность одного 16-го шага (импульса) в физических секундах
+   */
+  getSecondsPerTick() {
+    const secondsPerBeat = SECONDS_IN_MINUTE / currentBpm;
+    return secondsPerBeat / STEPS_PER_BEAT;
+  },
+
+  /**
+   * Вычисляет длительность одного музыкального такта (16 шагов) в секундах
+   */
+  getSecondsPerMeasure() {
+    return transport.getSecondsPerTick() * 16;
+  },
+
   start() {
-    startTransport();
+    isPlaying = true;
   },
 
   pause() {
-    pauseTransport();
+    isPlaying = false;
   },
 
   stop() {
-    stopTransport();
-  },
-
-  tick() {
-    return executeTick();
-  },
-
-  // Сохраняем ссылки на запущенный интервал для внешнего шедулера
-  setTimerId(id) {
-    timerId = id;
-  },
-  getTimerId() {
-    return timerId;
+    isPlaying = false;
+    playheadTicks = 0; // Полный физический сброс Playhead в начало ленты нот
   },
 
   setPlayState(state) {
-    updatePlayState(state);
+    switch (state) {
+      case 'start':
+        transport.start();
+        break;
+      case 'pause':
+        transport.pause();
+        break;
+      default:
+        transport.stop();
+        break;
+    }
   },
 };

@@ -2,15 +2,30 @@ import { PlaybackTrack } from '../core/playbackTrack';
 import { processDrumPlaybackHit, playSynthNote } from './audioEngineTriggers';
 
 // --- МУЗЫКАЛЬНЫЕ КОНСТАНТЫ СЕТКИ СЕКВЕНСОРА ---
-const ACTIVE_HIT_MARKER = 1; // Маркер активного шага в сетке драм-машины (триггер удара)
-const DRUM_PHASE_OFFSET_STEP = 0.001; // Сдвиг фазы на 1 мс на индекс для предотвращения каши
+const ACTIVE_HIT_MARKER = 1;
+const DRUM_PHASE_OFFSET_STEP = 0.001;
+const STEPS_IN_MEASURE = 16;
 
 // --- ЛОКАЛЬНЫЕ ПРЕДИКАТЫ И ВАЛИДАТОРЫ ---
-
 const isTrackMissing = (track) => !track;
 const isPatternDataInvalid = (data) => !data || !Array.isArray(data.patterns);
 const isStepInactive = (hitValue) => hitValue !== ACTIVE_HIT_MARKER;
 const isNoteMissingInGrid = (item) => !item || !item.note;
+
+/**
+ * Парсинг строки синта '0:1:2' в сквозной абсолютный тик (шаг) проекта
+ */
+const parseSynthTimeToAbsoluteTick = (timeStr, measureIndex) => {
+  const parts = timeStr.split(':');
+  if (parts.length !== 3) return measureIndex * STEPS_IN_MEASURE;
+
+  const beats = parseInt(parts[1], 10) || 0;
+  const sixteenths = parseInt(parts[2], 10) || 0;
+
+  // 1 четверть = 4 шестнадцатых шага. Считаем сквозной адрес тика
+  const stepInPattern = beats * 4 + sixteenths;
+  return measureIndex * STEPS_IN_MEASURE + stepInPattern;
+};
 
 // --- ВНУТРЕННИЕ КОНВЕЙЕРЫ СИНХРОНИЗАЦИИ ШАГОВ ---
 
@@ -27,10 +42,10 @@ const syncDrumTrackSteps = (
     if (isStepInactive(isHit)) return;
 
     const phaseOffset = drumIndex * DRUM_PHASE_OFFSET_STEP;
-    const stepTimeStr = `0:0:${stepIndex}`;
+    // Считаем сквозной абсолютный шаг для барабана
+    const absoluteTick = measureIndex * STEPS_IN_MEASURE + stepIndex;
 
-    // Передаем музыкальное время, индекс такта и микротайминг фазы
-    track.add(stepTimeStr, measureIndex, { note, drumIndex }, phaseOffset);
+    track.addNoteToTick(absoluteTick, { note, drumIndex }, phaseOffset);
   });
 };
 
@@ -43,10 +58,6 @@ const syncMeasureDrums = (track, drumsInMeasure, measureIndex, drumNoteMap) => {
       syncDrumTrackSteps(track, trackSteps, measureIndex, drumIndex, note);
     },
   );
-};
-
-const applyLoopDurationFromPatterns = (track, { patterns }) => {
-  track.setLoopDuration(patterns.length);
 };
 
 // --- ПУБЛИЧНЫЙ API СИНХРОНИЗАЦИИ СТЕЙТА И ЖЕЛЕЗА ---
@@ -79,18 +90,20 @@ export const setupDrumsPlayback = (
 export const syncInstrumentPatternsToTrack = (track, instrumentData) => {
   if (isTrackMissing(track) || isPatternDataInvalid(instrumentData)) return;
 
+  // Очищаем карту нот перед полной перезабивкой (только при физическом изменении нот в UI)
   track.clear();
 
   instrumentData.patterns.forEach((patternGrid, measureIndex) => {
     patternGrid
       .filter((item) => !isNoteMissingInGrid(item))
       .forEach((item) => {
-        // Пушим чистую строку времени '0:1:2' и индекс такта, без хардкода секунд!
-        track.add(item.time, measureIndex, item);
+        const absoluteTick = parseSynthTimeToAbsoluteTick(
+          item.time,
+          measureIndex,
+        );
+        track.addNoteToTick(absoluteTick, item);
       });
   });
-
-  applyLoopDurationFromPatterns(track, instrumentData);
 };
 
 export const syncDrumPatternsToTrack = (track, drumsData, drumNoteMap) => {
@@ -101,6 +114,4 @@ export const syncDrumPatternsToTrack = (track, drumsData, drumNoteMap) => {
   drumsData.patterns.forEach((drumsInMeasure, measureIndex) => {
     syncMeasureDrums(track, drumsInMeasure, measureIndex, drumNoteMap);
   });
-
-  applyLoopDurationFromPatterns(track, drumsData);
 };

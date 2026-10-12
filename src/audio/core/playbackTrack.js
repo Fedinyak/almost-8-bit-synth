@@ -1,96 +1,52 @@
 import { scheduler } from './scheduler';
-import { musicalTime } from './musicalTime';
-import { transport } from './transport';
-
-// --- СИСТЕМНЫЕ КОНСТАНТЫ ПЛАНИРОВАНИЯ И ТАЙМЛАЙНОВ ---
-const SCHEDULER_BUFFER_OFFSET_SEC = -0.05; // Стартовое отрицательное смещение для захвата нот на нулевой отметке
-const DEFAULT_LOOP_MEASURES_COUNT = 4; // Количество тактов лупа дорожки по умолчанию
-const EMPTY_ARRAY_LENGTH = 0; // Лимит для проверки пустого массива нот
-
-// --- ВЫНЕСЕННЫЕ ЛОКАЛЬНЫЕ ФУНКЦИИ ПРОВЕРКИ И ПЛАНИРОВАНИЯ ---
-
-const isTrackNotesEmpty = (notes) => notes.length === EMPTY_ARRAY_LENGTH;
-
-const commitLastScheduledTime = (track, endTransportTime) => {
-  track.lastScheduledTime = endTransportTime;
-};
-
-// --- КОНСТРУКТОР-ФАБРИКА СТРУКТУРЫ ДАННЫХ ---
 
 export function PlaybackTrack(onStepAction) {
   const track = {
-    notes: [],
-    lastScheduledTime: SCHEDULER_BUFFER_OFFSET_SEC,
-    loopEnd: DEFAULT_LOOP_MEASURES_COUNT, // Храним длину в тактах
+    // Плоская карта нот, где ключ — это сквозной абсолютный тик (шаг) ленты трекера
+    ticksMap: {},
 
-    // Мгновенная безопасная очистка таймлайна дорожки
     clear() {
-      track.notes = [];
-      track.lastScheduledTime = SCHEDULER_BUFFER_OFFSET_SEC;
+      track.ticksMap = {};
     },
 
-    // Декларативное добавление музыкальной координаты без физических секунд
-    add(musicalTimeValue, measureIndex, noteData, phaseOffset = 0) {
-      track.notes = [
-        ...track.notes,
-        { musicalTimeValue, measureIndex, phaseOffset, data: noteData },
-      ];
+    /**
+     * Декларативное забивание ноты на жесткий музыкальный адрес
+     * @param {number} absoluteTick - Сквозной индекс 16-го шага проекта (например, 32)
+     */
+    addNoteToTick(absoluteTick, noteData, phaseOffset = 0) {
+      track.ticksMap[absoluteTick] = {
+        data: noteData,
+        phaseOffset,
+      };
     },
 
-    // Изменение длины циклического лупа дорожки на основе музыкальных тактов
     setLoopDuration(numberOfMeasures) {
-      track.loopEnd = numberOfMeasures;
+      // Метод пассивен — длины тактов контролирует Playhead в scheduler.js
     },
 
-    // Проход Look-Ahead планировщика по нотам (вызывается из scheduler.js)
-    processSchedule(
-      currentTransportTime,
-      endTransportTime,
-      currentContextTime,
-    ) {
-      if (isTrackNotesEmpty(track.notes)) return;
-
-      const activeBpm = transport.bpm;
-      const loopEndSeconds = musicalTime.measuresToSeconds(track.loopEnd);
-
-      track.notes.forEach((note) => {
-        // Вычисляем точную физическую секунду старта ноты на лету!
-        const calculatedSeconds =
-          musicalTime.calculateAbsoluteSeconds(
-            note.musicalTimeValue,
-            note.measureIndex,
-            activeBpm,
-          ) + note.phaseOffset;
-
-        const projectedTime = musicalTime.calculateProjectedTime(
-          calculatedSeconds,
-          currentTransportTime,
-          loopEndSeconds,
-        );
-
-        if (
-          musicalTime.isNoteInSchedulingWindow(
-            projectedTime,
-            track.lastScheduledTime,
-            endTransportTime,
-          )
-        ) {
-          const exactAudioTime = musicalTime.calculateExactAudioTime(
-            projectedTime,
-            currentTransportTime,
-            currentContextTime,
-          );
-          onStepAction(exactAudioTime, note.data);
-        }
-      });
-
-      commitLastScheduledTime(track, endTransportTime);
+    applyHardwareLoopEnd(count) {
+      // Метод пассивен — границы отслеживаются аппаратно
     },
 
-    // Полная деструктуризация дорожки для исключения утечек памяти
+    /**
+     * ВЫСТРЕЛ ЗВУКА: Вызывается шедулером Look-Ahead на каждом нативном музыкальном тике
+     * Полная изоляция от плавающих секунд транспорта — срывы фазы времени физически уничтожены!
+     */
+    processAudioTick(exactAudioTime, currentAbsoluteTick) {
+      const noteCell = track.ticksMap[currentAbsoluteTick];
+      if (!noteCell) return; // Если в этой ячейке тика пусто — наступает идеальная тишина
+
+      // Стреляем нотой в точную миллисекунду AudioContext
+      onStepAction(exactAudioTime + noteCell.phaseOffset, noteCell.data);
+    },
+
+    processSchedule() {
+      // Старая логика с секундами удалена
+    },
+
     dispose() {
       scheduler.unregisterTrack(track);
-      track.notes = [];
+      track.ticksMap = {};
     },
   };
 

@@ -1,71 +1,114 @@
 import { transport } from './transport';
 import { getNativeContext } from './nativeContext';
-import { musicalTime } from './musicalTime';
+import { draw } from './draw';
+import { SEQUENCER_CONFIG } from '../../constants/sequencerConfig';
 
-// --- НАСТРОЙКИ НИЗКОУРОВНЕВОГО ТАЙМЕРА (LOOK-AHEAD) ---
-const SCHEDULER_INTERVAL_MS = 25; // Интервал просыпания таймера в миллисекундах
-const LOOKAHEAD_WINDOW_SEC = 0.1; // Скользящее окно планирования (100 миллисекунд вперед)
-
-// --- МУЗЫКАЛЬНЫЕ И СИСТЕМНЫЕ КОНСТАНТЫ СЕТКИ ---
-const SIXTEENTH_NOTE_ID = '16n'; // Музыкальный маркер 16-й доли секвенсора
-
-// --- ЗАЩИТНЫЕ СДВИГИ ДЛЯ ПРЕДОТВРАЩЕНИЯ ПРОПУСКОВ КАДРОВ ---
-const TIMELINE_RESET_OFFSET_SEC = 0.001; // Сдвиг на 1 мс назад для надежного захвата текущей доли
-const TRACK_RESET_OFFSET_SEC = -0.05; // Сдвиг по умолчанию для сброса аудио-дорожек
+// --- НАСТРОЙКИ НИЗКОУРОВНЕВОГО ТАЙМЕРА ---
+const SCHEDULER_INTERVAL_MS = 25;
+const LOOKAHEAD_WINDOW_SEC = 0.1;
+const SIXTEENTH_NOTE_ID = '16n';
 
 let timerId = null;
 
-// Чистые скрытые коллекции внутри модуля (файла) — никакого хардкода и никаких "this"
+// Опорное время AudioContext для следующего запланированного тика
+let nextTickAudioTime = 0;
+
+// --- КВАНТОВЫЕ БУФЕРЫ ИЗ UI ---
+let maxPatternCount = SEQUENCER_CONFIG.DEFAULT_PATTERN_COUNT || 3;
+let hardwareIsLooping = false;
+let pendingLoopPatternIndex = 0;
+
 const activeTracks = new Set();
 const drawingCallbacks = new Map();
 
-// --- ВНУТРЕННИЕ ФУНКЦИИ КОНВЕЙЕРА ВРЕМЕНИ ---
-
-const advanceDrawing = (currentSeconds, scheduleUntilTime, now) => {
-  drawingCallbacks.forEach((repeater) => {
-    // Вся тяжелая логика и циклы репитера теперь ушли в модуль времени
-    musicalTime.advanceRepeaterLoop(
-      repeater,
-      currentSeconds,
-      scheduleUntilTime,
-      now,
-    );
-  });
+export const updateHardwarePatternBounds = (count) => {
+  maxPatternCount = count;
 };
 
-const advanceAudio = (currentSeconds, scheduleUntilTime, now) => {
-  activeTracks.forEach((track) => {
-    track.processSchedule(currentSeconds, scheduleUntilTime, now);
-  });
+export const updateHardwareLoopState = (isLooping, selectedPatternIndex) => {
+  hardwareIsLooping = isLooping;
+  if (typeof selectedPatternIndex === 'number') {
+    pendingLoopPatternIndex = selectedPatternIndex;
+  }
 };
 
-// Проверка: запущен ли сейчас низкоуровневый таймер
+export const getHardwareLoopState = () => ({
+  isLooping: hardwareIsLooping,
+  loopPatternIndex: pendingLoopPatternIndex,
+});
+
+// Главный Look-Ahead сканер музыкальной ленты шагов
+const processTimelineScheduling = (scheduleUntilAudioTime) => {
+  const ctx = getNativeContext();
+  if (!ctx) return;
+
+  if (nextTickAudioTime === 0) {
+    nextTickAudioTime = ctx.currentTime;
+  }
+
+  // Пока время следующей ноты в будущем попадает в наше скользящее 100 мс окно
+  while (nextTickAudioTime < scheduleUntilAudioTime) {
+    const exactAudioTime = nextTickAudioTime;
+
+    // Получаем текущие координаты из Playhead
+    const currentAbsoluteTick = transport.ticks;
+    const stepInPattern = currentAbsoluteTick % 16;
+    const patternIndex = Math.floor(currentAbsoluteTick / 16);
+
+    // 1. СИНХРОННЫЙ АППАРАТНЫЙ ВЫСТРЕЛ ЗВУКА: Передаем дорожкам сквозной тик
+    activeTracks.forEach((track) => {
+      if (typeof track.processAudioTick === 'function') {
+        track.processAudioTick(exactAudioTime, currentAbsoluteTick);
+      }
+    });
+
+    // 2. ПЛАНИРОВАНИЕ КАДРА ГРАФИКИ В UI (Строго 1 раз за шаг)
+    draw.schedule(exactAudioTime, () => {
+      drawingCallbacks.forEach((repeater) => {
+        if (typeof repeater.callback === 'function') {
+          repeater.callback(exactAudioTime, stepInPattern, patternIndex);
+        }
+      });
+    });
+
+    // 3. АППАРАТНОЕ КВАНТОВАНИЕ И ДВИЖЕНИЕ PLAYHEAD КУРСОРA
+    if (stepInPattern === 15) {
+      // На границе такта проверяем локальный луп паттерна
+      if (hardwareIsLooping) {
+        transport.ticks = pendingLoopPatternIndex * 16; // Замыкаем Playhead в петлю
+      } else {
+        const nextPattern = patternIndex + 1;
+        if (nextPattern >= maxPatternCount) {
+          transport.ticks = 0; // Бесшовный сброс всей цепочки в ноль
+        } else {
+          transport.ticks = nextPattern * 16;
+        }
+      }
+    } else {
+      transport.ticks = currentAbsoluteTick + 1; // Просто шагаем Playhead вперед
+    }
+
+    // Сдвигаем физический временной указатель ноты на точную длительность одного 16-го шага
+    nextTickAudioTime += transport.getSecondsPerTick();
+  }
+};
+
 const isTimerRunning = () => timerId !== null;
 
-// Выполнение шага времени транспорта и запуск очередей планирования
 const executeSchedulerTick = () => {
   if (!transport.isPlaying) return;
 
-  transport.tick();
-
-  const currentSeconds = transport.seconds;
-  const scheduleUntilTime = currentSeconds + LOOKAHEAD_WINDOW_SEC;
-
   const ctx = getNativeContext();
-  const now = ctx.currentTime;
+  if (!ctx) return;
 
-  advanceDrawing(currentSeconds, scheduleUntilTime, now);
-  advanceAudio(currentSeconds, scheduleUntilTime, now);
+  // Сканируем музыкальную ленту на 100 миллисекунд вперед
+  processTimelineScheduling(ctx.currentTime + LOOKAHEAD_WINDOW_SEC);
 };
 
-// --- ПУБЛИЧНЫЙ API МОДУЛЯ ШЕДУЛЕРА ---
 export const scheduler = {
-  // Выставляем ссылку на треки наружу через обычный метод
   getActiveTracks() {
     return activeTracks;
   },
-
-  // Регистрация аудио-дорожек
   registerTrack(track) {
     activeTracks.add(track);
   },
@@ -73,68 +116,47 @@ export const scheduler = {
     activeTracks.delete(track);
   },
 
-  // Регистрация репитеров интерфейса
   registerDrawingLoop(id, callback, intervalInSeconds) {
     drawingCallbacks.set(id, {
       callback,
       interval: intervalInSeconds,
       rate: SIXTEENTH_NOTE_ID,
-      lastScheduledTime: transport.seconds - TIMELINE_RESET_OFFSET_SEC,
     });
   },
-
   unregisterDrawingLoop(id) {
     drawingCallbacks.delete(id);
   },
 
-  // Сброс таймлайна графики при перемотке транспорта
-  resetDrawingTimeline(seconds) {
-    drawingCallbacks.forEach((repeater) => {
-      repeater.lastScheduledTime = seconds - TIMELINE_RESET_OFFSET_SEC;
-    });
+  resetDrawingTimeline() {
+    draw.clear();
+    const ctx = getNativeContext();
+    nextTickAudioTime = ctx ? ctx.currentTime : 0;
   },
 
-  // Запуск низкоуровневого цикла часов
   startLoop() {
     if (isTimerRunning()) return;
+    scheduler.resetDrawingTimeline();
     timerId = setInterval(executeSchedulerTick, SCHEDULER_INTERVAL_MS);
   },
 
-  // Остановка низкоуровневого цикла часов
   stopLoop() {
     if (!isTimerRunning()) return;
-
     clearInterval(timerId);
     timerId = null;
-
-    drawingCallbacks.forEach((repeater) => {
-      repeater.lastScheduledTime = -TIMELINE_RESET_OFFSET_SEC;
-    });
+    draw.clear();
+    nextTickAudioTime = 0;
   },
 
   updateState(state) {
-    switch (state) {
-      case 'start':
-        scheduler.startLoop();
-        break;
-
-      case 'pause':
-        scheduler.stopLoop();
-        break;
-
-      default:
-        scheduler.stopLoop();
-        activeTracks.forEach((track) => {
-          track.lastScheduledTime = TRACK_RESET_OFFSET_SEC;
-        });
-        break;
+    if (state === 'start') scheduler.startLoop();
+    else if (state === 'pause') scheduler.stopLoop();
+    else {
+      scheduler.stopLoop();
+      transport.ticks = 0; // Сбрасываем Playhead при Стопе
     }
   },
 
   jumpToTimeline(seconds) {
-    activeTracks.forEach((track) => {
-      track.lastScheduledTime = seconds - TRACK_RESET_OFFSET_SEC;
-    });
-    scheduler.resetDrawingTimeline(seconds);
+    scheduler.resetDrawingTimeline();
   },
 };
