@@ -25,14 +25,12 @@ export const resetHardwareCounters = () => {
   nextStepAudioTime = ctx ? ctx.currentTime : 0;
   currentHardwareStep = 0;
   currentHardwarePattern = 0;
-  console.log('🎛️ [AUDIO ENGINE]: Полный сброс счётчиков времени в 0');
 };
 
 export const updateHardwarePatternBounds = (count) => {
   pendingMaxPatternCount = count;
 };
 
-// 🆕 ИСПРАВЛЕННЫЙ ПРЕДОХРАНИТЕЛЬ: Принимает третьим аргументом текущий живой индекс паттерна из UI
 export const updateHardwareLoopState = (
   isLooping,
   selectedPatternIndex,
@@ -43,7 +41,6 @@ export const updateHardwareLoopState = (
   if (typeof selectedPatternIndex === 'number') {
     pendingLoopPatternIndex = selectedPatternIndex;
   } else if (typeof currentPlayPatternIndex === 'number') {
-    // ЗАЩИТА ОТ FALSE: Если выбранный индекс равен false, лупим тот паттерн, который играет прямо сейчас!
     pendingLoopPatternIndex = currentPlayPatternIndex;
   } else {
     pendingLoopPatternIndex = 0;
@@ -52,10 +49,6 @@ export const updateHardwareLoopState = (
   if (isLooping) {
     currentHardwarePattern = pendingLoopPatternIndex;
   }
-
-  console.log(
-    `🚨 [HOOK -> ENGINE]: Кликнули луп! Loop=${isLooping} | UI Selected=${selectedPatternIndex} | UI CurrentPlay=${currentPlayPatternIndex} -> ИТОГОВЫЙ ЖЕЛЕЗНЫЙ ЛУП ПАТТЕРНА=${pendingLoopPatternIndex}`,
-  );
 };
 
 export const getHardwareLoopState = () => ({
@@ -89,12 +82,6 @@ const processHybridScheduling = (scheduleUntilAudioTime) => {
     const stepToSchedule = currentHardwareStep;
     const patternToSchedule = currentHardwarePattern;
 
-    if (stepToSchedule % 4 === 0 || hardwareIsLooping) {
-      console.log(
-        `🔊 [AUDIO ACTION]: Сканер Look-Ahead шлёт в звуковую карту -> [Паттерн: ${patternToSchedule} | Шаг: ${stepToSchedule}]`,
-      );
-    }
-
     // 1. ВЫСТРЕЛ ЗВУКА
     activeTracks.forEach((track) => {
       if (typeof track.processAudioStep === 'function') {
@@ -115,7 +102,7 @@ const processHybridScheduling = (scheduleUntilAudioTime) => {
       });
     });
 
-    // 3. ЛИНЕЙНЫЙ ИНКРЕМЕНТ ШАГОВ СЕКВЕНСОРА
+    // 3. ЛИНЕЙНЫЙ ИНКРЕМЕНТ ШАГОВ
     if (currentHardwareStep === 15) {
       currentHardwareStep = 0;
 
@@ -176,7 +163,6 @@ export const scheduler = {
     if (isTimerRunning()) return;
     resetHardwareCounters();
     timerId = setInterval(executeSchedulerTick, SCHEDULER_INTERVAL_MS);
-    console.log('🚀 [AUDIO ENGINE]: Низкоуровневый таймер запущен!');
   },
 
   stopLoop() {
@@ -185,7 +171,6 @@ export const scheduler = {
     timerId = null;
     draw.clear();
     resetHardwareCounters();
-    console.log('🛑 [AUDIO ENGINE]: Низкоуровневый таймер остановлен.');
   },
 
   updateState(state) {
