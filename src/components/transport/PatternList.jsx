@@ -1,3 +1,4 @@
+import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   setIsLoopingTrue,
@@ -29,9 +30,13 @@ const PatternList = () => {
     selectedPatternIndex,
     isFollowMode,
     isLooping,
+    systemState, // ЦЕНТРАЛИЗОВАННЫЙ СТАТУС КОНЕЧНОГО АВТОМАТА
   } = playerState;
 
-  const patternCountIndex = Array.from({ length: patternCount }, (_, i) => i);
+  const patternCountIndex = Array.from(
+    { length: patternCount || 0 },
+    (_, i) => i,
+  );
 
   const handlePatternAction = async (type, index) => {
     const isPlaying = sequencerPlayState === 'start';
@@ -65,9 +70,6 @@ const PatternList = () => {
           dispatch(setIsLoopingTrue());
           dispatch(setSelectedPatternIndex(index));
 
-          // ИСПРАВЛЕНО: Если музыка играет, мы обязательно заносим индекс
-          // целевого паттерна в буфер намерения (pendingPatternIndex),
-          // чтобы селектор флагов четко видел, что луп квантуется для ДРУГОГО паттерна!
           if (isPlaying) {
             dispatch(setPendingPattern(index));
           } else {
@@ -103,24 +105,29 @@ const PatternList = () => {
       <PatternControls />
 
       <ul className="patten-list">
-        {patternCountIndex.map((index) => (
-          <PatternItem
-            key={index}
-            index={index}
-            visualFlags={getPatternVisualFlags({
-              index,
-              sequencerPlayState,
-              pendingPatternIndex,
-              currentPlayPatternIndex,
-              isLooping,
-              selectedPatternIndex,
-              isFollowMode,
-            })}
-            isSelected={!isFollowMode && selectedPatternIndex === index}
-            isFollowMode={isFollowMode}
-            onAction={handlePatternAction}
-          />
-        ))}
+        {patternCountIndex.map((idx) => {
+          const flags = getPatternVisualFlags({
+            index: idx,
+            sequencerPlayState,
+            pendingPatternIndex,
+            currentPlayPatternIndex,
+            isLooping,
+            selectedPatternIndex,
+            isFollowMode,
+            systemState, // ЦЕНТРАЛЬНЫЙ СТАТУС АВТОМАТА ПЕРЕДАН В МАТРИЦУ ИНДИКАЦИИ
+          });
+
+          return (
+            <PatternItem
+              key={idx}
+              index={idx}
+              visualFlags={flags}
+              isSelected={!isFollowMode && selectedPatternIndex === idx}
+              isFollowMode={isFollowMode}
+              onAction={handlePatternAction}
+            />
+          );
+        })}
       </ul>
     </div>
   );
