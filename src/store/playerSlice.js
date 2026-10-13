@@ -5,7 +5,6 @@ import { SYNTH_LIST } from '../constants/constants';
 const initialState = {
   bpm: SEQUENCER_CONFIG.DEFAULT_BPM,
   sequencerPlayState: 'stop',
-  systemState: 'STOP_DEFAULT', // ЦЕНТРАЛЬНЫЙ ДЕТЕРМИНИРОВАННЫЙ АВТОМАТ ПЛЕЕРА
   isLooping: false,
   totalSteps: SEQUENCER_CONFIG.TOTAL_STEPS,
   sequencerStep: SEQUENCER_CONFIG.SEQUENCER_STEP,
@@ -43,79 +42,20 @@ export const playerSlice = createSlice({
     setBpm: (state, action) => {
       state.bpm = action.payload;
     },
-
-    // КОМАНДЫ ДЛЯ СИСТЕМНОГО АВТОМАТА (ДЕТЕРМИНИРОВАННЫЕ ПЕРЕХОДЫ)
     setIsLoopingTrue: (state) => {
       state.isLooping = true;
-      if (state.sequencerPlayState === 'start') {
-        state.systemState = 'PLAY_QUANTIZED_LOOP_WAITING';
-      } else {
-        state.systemState = 'STOP_LOOP_LOCKED';
-      }
     },
-
     setIsLoopingFalse: (state) => {
       state.isLooping = false;
-      state.pendingPatternIndex = null;
-      if (state.sequencerPlayState === 'start') {
-        state.systemState = 'PLAY_FORWARD';
-      } else {
-        state.systemState = 'STOP_DEFAULT';
-      }
     },
-
     setSequencerPlayState: (state, action) => {
       state.sequencerPlayState = action.payload;
-      if (action.payload === 'start') {
-        // Если запускаемся из залупанного в стопе состояния, сразу переходим в активную петлю
-        if (state.systemState === 'STOP_LOOP_LOCKED') {
-          state.systemState = 'PLAY_LOOP_ACTIVE';
-        } else {
-          state.systemState = 'PLAY_FORWARD';
-        }
-      } else if (action.payload === 'stop') {
-        state.pendingPatternIndex = null;
-        state.systemState = 'STOP_DEFAULT';
-      }
     },
-
-    setPendingPattern: (state, action) => {
-      state.pendingPatternIndex = action.payload;
-      if (state.sequencerPlayState === 'start') {
-        if (state.isLooping) {
-          state.systemState = 'PLAY_QUANTIZED_LOOP_WAITING';
-        } else {
-          state.systemState = 'PLAY_QUANTIZED_JUMP_WAITING';
-        }
-      }
-    },
-
-    clearPendingPattern: (state) => {
-      state.pendingPatternIndex = null;
-      if (state.sequencerPlayState === 'start') {
-        if (state.isLooping) {
-          state.systemState = 'PLAY_LOOP_ACTIVE';
-        } else {
-          state.systemState = 'PLAY_FORWARD';
-        }
-      }
-    },
-
-    setCurrentPlayPatternIndex: (state, action) => {
-      state.currentPlayPatternIndex = action.payload;
-      // Звуковой движок дошел до границы такта и переключил трек
-      if (state.pendingPatternIndex === action.payload) {
-        state.pendingPatternIndex = null;
-        if (state.isLooping) {
-          state.systemState = 'PLAY_LOOP_ACTIVE';
-        } else {
-          state.systemState = 'PLAY_FORWARD';
-        }
-      }
-    },
-
     setCurrentStep: (state, action) => {
       state.currentStep = action.payload;
+    },
+    setCurrentPlayPatternIndex: (state, action) => {
+      state.currentPlayPatternIndex = action.payload;
     },
     setSelectedPatternIndex: (state, action) => {
       state.selectedPatternIndex = action.payload;
@@ -125,6 +65,24 @@ export const playerSlice = createSlice({
     },
     setFollowModeFalse: (state) => {
       state.isFollowMode = false;
+    },
+
+    // ИСПРАВЛЕНО: Пробиваем блокировку рендеринга React Toolkit.
+    // Если пользователь нажимает PLAY на паттерне, который уже воспроизводится,
+    // мы временно сбрасываем текущий звуковой индекс, чтобы заставить мост
+    // гарантированно передать команду перезапуска такта в аудио-ядро.
+    setPendingPattern: (state, action) => {
+      state.pendingPatternIndex = action.payload;
+      if (
+        state.sequencerPlayState === 'start' &&
+        state.currentPlayPatternIndex === action.payload
+      ) {
+        state.currentPlayPatternIndex = null;
+      }
+    },
+
+    clearPendingPattern: (state) => {
+      state.pendingPatternIndex = null;
     },
     incrementPatternCount: (state) => {
       if (state.patternCount < state.patternMaxCount) {

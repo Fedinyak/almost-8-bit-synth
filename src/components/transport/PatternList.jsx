@@ -68,9 +68,6 @@ const PatternList = () => {
         } else {
           dispatch(setIsLoopingTrue());
 
-          // ИСПРАВЛЕНО: Если мы уже находимся в режиме ручного просмотра/редактирования (!isFollowMode),
-          // то при активации лупа на другом паттерне мы НЕ переключаем экран редактирования (selectedPatternIndex).
-          // Экран остается заморожен на текущем паттерне, а новый луп просто уходит в буфер квантования звука.
           if (isFollowMode) {
             dispatch(setSelectedPatternIndex(index));
           }

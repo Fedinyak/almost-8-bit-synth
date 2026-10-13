@@ -91,14 +91,14 @@ export const useSequencerScheduler = () => {
   const pendingDeleteLastRef = useRef(pendingDeleteLast);
   const patternCountRef = useRef(patternCount);
 
-  // ЖЕЛЕЗНЫЙ МОСТ ИСПРАВЛЕН: Если активен режим зацикливания (isLooping),
-  // мы изолируем аудио-ядро от перемещений UI-экрана редактора. Мы передаем
-  // текущий воспроизводимый паттерн в качестве цели лупа, позволяя пользователю
-  // свободно переключать экраны (SELECT) без срыва и отмены фонового звукового кольца.
   useEffect(() => {
+    const effectiveLoopTarget = isLooping
+      ? currentPlayPatternIndex
+      : selectedPatternIndex;
+
     updateHardwareLoopState(
       isLooping,
-      isLooping ? currentPlayPatternIndex : selectedPatternIndex,
+      effectiveLoopTarget,
       currentPlayPatternIndex,
       pendingPatternIndex,
     );
