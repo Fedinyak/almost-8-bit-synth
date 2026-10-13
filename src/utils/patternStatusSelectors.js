@@ -5,9 +5,14 @@ export const getPatternVisualFlags = ({
   currentPlayPatternIndex,
   isLooping,
   selectedPatternIndex,
+  isFollowMode, // Добавляем флаг режима следования для автоматического сброса фокуса
 }) => {
   const isPlaying = sequencerPlayState === 'start';
   const isActivePlayback = currentPlayPatternIndex === index;
+
+  // Если включен режим следования за экраном (Follow Mode),
+  // мы игнорируем ручной выбор паттерна, так как интерфейс обязан прыгать за музыкой
+  const effectiveSelectedIndex = isFollowMode ? false : selectedPatternIndex;
 
   // Паттерн ждет очереди, если на него нажали PLAY
   const isTargetPending = pendingPatternIndex === index;
@@ -15,20 +20,19 @@ export const getPatternVisualFlags = ({
   const isPlayWaiting = isPlaying && isTargetPending && !isLooping;
 
   // Ожидание квантования лупа: музыка играет, включен луп, этот паттерн СЕЙЧАС НЕ играет на самом деле,
-  // но пользователь выбрал именно его через экшен (selectedPatternIndex равен index)
+  // но пользователь выбрал именно его через экшен (effectiveSelectedIndex равен index)
   const isLoopWaiting =
     isPlaying &&
     !isActivePlayback &&
     isLooping &&
-    (selectedPatternIndex === index || isTargetPending);
+    (effectiveSelectedIndex === index || isTargetPending);
 
-  // ИСПРАВЛЕНО: Активный луп горит только тогда, когда включен режим лупа,
+  // Активный луп горит только тогда, когда включен режим лупа,
   // паттерн физически воспроизводится И этот паттерн совпадает с выбранным в UI лупом.
-  // Это полностью исключает ложное подсвечивание кнопки loop на текущем паттерне во время квантования.
   const isLoopActive =
     isLooping &&
     isActivePlayback &&
-    (selectedPatternIndex === index || selectedPatternIndex === false);
+    (effectiveSelectedIndex === index || effectiveSelectedIndex === false);
 
   return {
     isPlayWaiting,

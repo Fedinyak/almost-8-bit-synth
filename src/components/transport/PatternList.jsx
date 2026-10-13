@@ -54,6 +54,9 @@ const PatternList = () => {
           dispatch(setFollowModeFalse());
         } else {
           dispatch(setFollowModeTrue());
+          // ИСПРАВЛЕНО: Принудительно сбрасываем выбранный индекс паттерна в Redux,
+          // чтобы интерфейс переключился на системный плейхед звукового движка
+          dispatch(setSelectedPatternIndex(false));
         }
         break;
 
@@ -71,9 +74,6 @@ const PatternList = () => {
           <PatternItem
             key={index}
             index={index}
-            // ИСПРАВЛЕНО: Убрана деструктивная подмена параметров. Передаем чистые
-            // данные из Redux Store, чтобы селектор корректно разделял физический
-            // статус воспроизведения и UI-намерение сделать квантованный луп.
             visualFlags={getPatternVisualFlags({
               index,
               sequencerPlayState,
@@ -81,8 +81,11 @@ const PatternList = () => {
               currentPlayPatternIndex,
               isLooping,
               selectedPatternIndex,
+              isFollowMode,
             })}
-            isSelected={selectedPatternIndex === index}
+            // ИСПРАВЛЕНО: Если активен режим следования, выбор паттерна визуально гаснет,
+            // убирая класс patten-list-btn-select с кнопки
+            isSelected={!isFollowMode && selectedPatternIndex === index}
             isFollowMode={isFollowMode}
             onAction={handlePatternAction}
           />
