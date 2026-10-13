@@ -136,5 +136,5 @@ export const useSequencerScheduler = () => {
     );
 
     return () => stopDrawingLoop(drawingProcess);
-  }, [dispatch, sequencerPlayState]);
+  }, [sequencerPlayState, dispatch]); // Убрали лишние зависимости, заставлявшие хук паниковать на старте
 };

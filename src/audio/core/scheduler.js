@@ -22,7 +22,15 @@ const drawingCallbacks = new Map();
 
 export const resetHardwareCounters = () => {
   const ctx = getNativeContext();
-  nextStepAudioTime = ctx ? ctx.currentTime : 0;
+  if (ctx) {
+    const secondsPerMeasure = transport.getSecondsPerMeasure();
+    const secondsPerStep = secondsPerMeasure / 16;
+    // Инициализируем стартовое время с точным сдвигом на один шаг вперед,
+    // чтобы дать Look-Ahead планировщику запас времени на обработку первого события
+    nextStepAudioTime = ctx.currentTime + secondsPerStep;
+  } else {
+    nextStepAudioTime = 0;
+  }
   currentHardwareStep = 0;
   currentHardwarePattern = 0;
 };
@@ -31,6 +39,8 @@ export const updateHardwarePatternBounds = (count) => {
   pendingMaxPatternCount = count;
 };
 
+// БЕЗОПАСНАЯ ЗАПИСЬ: Сохраняем намерения интерфейса только в буферные переменные.
+// Аудио-поток применит их строго на границе такта (квантованно).
 export const updateHardwareLoopState = (
   isLooping,
   selectedPatternIndex,
@@ -44,10 +54,6 @@ export const updateHardwareLoopState = (
     pendingLoopPatternIndex = currentPlayPatternIndex;
   } else {
     pendingLoopPatternIndex = 0;
-  }
-
-  if (isLooping) {
-    currentHardwarePattern = pendingLoopPatternIndex;
   }
 };
 
@@ -66,27 +72,24 @@ const processHybridScheduling = (scheduleUntilAudioTime) => {
   const secondsPerMeasure = transport.getSecondsPerMeasure();
   const secondsPerStep = secondsPerMeasure / 16;
 
-  if (nextStepAudioTime === 0) {
-    nextStepAudioTime = ctx.currentTime;
+  if (nextStepAudioTime < ctx.currentTime) {
+    nextStepAudioTime = ctx.currentTime + secondsPerStep;
   }
 
   while (
     isTimeWithinPlanningWindow(nextStepAudioTime, scheduleUntilAudioTime)
   ) {
     const exactAudioTime = nextStepAudioTime;
-
-    if (hardwareIsLooping) {
-      currentHardwarePattern = pendingLoopPatternIndex;
-    }
-
     const stepToSchedule = currentHardwareStep;
     const patternToSchedule = currentHardwarePattern;
+
+    const safeAudioTime = Math.max(exactAudioTime, ctx.currentTime);
 
     // 1. ВЫСТРЕЛ ЗВУКА
     activeTracks.forEach((track) => {
       if (typeof track.processAudioStep === 'function') {
         track.processAudioStep(
-          exactAudioTime,
+          safeAudioTime,
           stepToSchedule,
           patternToSchedule,
         );
@@ -102,11 +105,14 @@ const processHybridScheduling = (scheduleUntilAudioTime) => {
       });
     });
 
-    // 3. ЛИНЕЙНЫЙ ИНКРЕМЕНТ ШАГОВ
+    // 3. МАТЕМАТИЧЕСКИ ИДЕАЛЬНЫЙ ИНКРЕМЕНТ ШАГОВ И КВАНТОВАНИЕ ЛУПОВ
     if (currentHardwareStep === 15) {
       currentHardwareStep = 0;
 
-      if (!hardwareIsLooping) {
+      if (hardwareIsLooping) {
+        // Квантованный переход на залупанный паттерн происходит строго по окончании 15-го шага
+        currentHardwarePattern = pendingLoopPatternIndex;
+      } else {
         const nextPatternCandidate = currentHardwarePattern + 1;
         if (nextPatternCandidate >= pendingMaxPatternCount) {
           currentHardwarePattern = 0;
@@ -161,7 +167,9 @@ export const scheduler = {
 
   startLoop() {
     if (isTimerRunning()) return;
+
     resetHardwareCounters();
+
     timerId = setInterval(executeSchedulerTick, SCHEDULER_INTERVAL_MS);
   },
 

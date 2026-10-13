@@ -6,6 +6,9 @@ import {
   setIsLoopingTrue,
   setSequencerPlayState,
 } from '../../store/playerSlice';
+import { getNativeContext } from '../../audio/core/nativeContext';
+// Импортируем Tone для его безопасной разблокировки по жесту пользователя
+import * as Tone from 'tone';
 
 const SequencerControlPanel = () => {
   const dispatch = useDispatch();
@@ -15,11 +18,26 @@ const SequencerControlPanel = () => {
   const isLoopingActiveInMachine =
     playbackStatus === 'LOOPING_ACTIVE' || playbackStatus === 'LOOP_CHANGING';
 
+  const handleStart = async () => {
+    // 1. Разблокируем нативный контекст Web Audio API
+    const audioContext = getNativeContext();
+    if (audioContext && audioContext.state === 'suspended') {
+      audioContext.resume().catch((err) => {
+        console.error('Failed to resume Native AudioContext:', err);
+      });
+    }
+
+    // 2. Разблокируем контекст Tone.js, чтобы он не ругался в консоли
+    if (Tone && typeof Tone.start === 'function') {
+      await Tone.start();
+    }
+
+    dispatch(setSequencerPlayState('start'));
+  };
+
   return (
     <div>
-      <button onClick={() => dispatch(setSequencerPlayState('start'))}>
-        start
-      </button>
+      <button onClick={handleStart}>start</button>
       <button onClick={() => dispatch(setSequencerPlayState('stop'))}>
         stop
       </button>

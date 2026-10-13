@@ -71,18 +71,16 @@ const PatternList = () => {
           <PatternItem
             key={index}
             index={index}
-            // ИСПРАВЛЕНО: Передаем selectedPatternIndex вместо currentPlayPatternIndex,
-            // чтобы селектор флагов поджигал мигание ожидания СТРОГО на кликнутом паттерне,
-            // полностью ликвидируя ложные вспышки соседних кнопок!
+            // ИСПРАВЛЕНО: Убрана деструктивная подмена параметров. Передаем чистые
+            // данные из Redux Store, чтобы селектор корректно разделял физический
+            // статус воспроизведения и UI-намерение сделать квантованный луп.
             visualFlags={getPatternVisualFlags({
               index,
               sequencerPlayState,
               pendingPatternIndex,
-              currentPlayPatternIndex:
-                selectedPatternIndex !== false
-                  ? selectedPatternIndex
-                  : currentPlayPatternIndex,
+              currentPlayPatternIndex,
               isLooping,
+              selectedPatternIndex,
             })}
             isSelected={selectedPatternIndex === index}
             isFollowMode={isFollowMode}
