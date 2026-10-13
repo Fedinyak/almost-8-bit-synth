@@ -30,7 +30,6 @@ const PatternList = () => {
     selectedPatternIndex,
     isFollowMode,
     isLooping,
-    systemState, // ЦЕНТРАЛИЗОВАННЫЙ СТАТУС КОНЕЧНОГО АВТОМАТА
   } = playerState;
 
   const patternCountIndex = Array.from(
@@ -68,7 +67,13 @@ const PatternList = () => {
           dispatch(setPendingPattern(null));
         } else {
           dispatch(setIsLoopingTrue());
-          dispatch(setSelectedPatternIndex(index));
+
+          // ИСПРАВЛЕНО: Если мы уже находимся в режиме ручного просмотра/редактирования (!isFollowMode),
+          // то при активации лупа на другом паттерне мы НЕ переключаем экран редактирования (selectedPatternIndex).
+          // Экран остается заморожен на текущем паттерне, а новый луп просто уходит в буфер квантования звука.
+          if (isFollowMode) {
+            dispatch(setSelectedPatternIndex(index));
+          }
 
           if (isPlaying) {
             dispatch(setPendingPattern(index));
@@ -114,7 +119,6 @@ const PatternList = () => {
             isLooping,
             selectedPatternIndex,
             isFollowMode,
-            systemState, // ЦЕНТРАЛЬНЫЙ СТАТУС АВТОМАТА ПЕРЕДАН В МАТРИЦУ ИНДИКАЦИИ
           });
 
           return (
