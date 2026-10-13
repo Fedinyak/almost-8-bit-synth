@@ -15,45 +15,43 @@ let currentHardwarePattern = 0;
 
 let pendingMaxPatternCount = SEQUENCER_CONFIG.DEFAULT_PATTERN_COUNT || 3;
 let hardwareIsLooping = false;
-let pendingLoopPatternIndex = 0;
+let pendingLoopPatternIndex = null; // Изначально null, означает отсутствие отложенных прыжков
 
 const activeTracks = new Set();
 const drawingCallbacks = new Map();
 
-export const resetHardwareCounters = () => {
+export const resetHardwareCounters = (startingPattern = 0) => {
   const ctx = getNativeContext();
   if (ctx) {
     const secondsPerMeasure = transport.getSecondsPerMeasure();
     const secondsPerStep = secondsPerMeasure / 16;
-    // Инициализируем стартовое время с точным сдвигом на один шаг вперед,
-    // чтобы дать Look-Ahead планировщику запас времени на обработку первого события
     nextStepAudioTime = ctx.currentTime + secondsPerStep;
   } else {
     nextStepAudioTime = 0;
   }
   currentHardwareStep = 0;
-  currentHardwarePattern = 0;
+  currentHardwarePattern =
+    typeof startingPattern === 'number' ? startingPattern : 0;
 };
 
 export const updateHardwarePatternBounds = (count) => {
   pendingMaxPatternCount = count;
 };
 
-// БЕЗОПАСНАЯ ЗАПИСЬ: Сохраняем намерения интерфейса только в буферные переменные.
-// Аудио-поток применит их строго на границе такта (квантованно).
 export const updateHardwareLoopState = (
   isLooping,
   selectedPatternIndex,
   currentPlayPatternIndex,
+  pendingPatternIndex, // Добавляем явный пропс ожидания из Redux
 ) => {
   hardwareIsLooping = isLooping;
 
-  if (typeof selectedPatternIndex === 'number') {
+  if (typeof pendingPatternIndex === 'number') {
+    pendingLoopPatternIndex = pendingPatternIndex;
+  } else if (typeof selectedPatternIndex === 'number' && isLooping) {
     pendingLoopPatternIndex = selectedPatternIndex;
-  } else if (typeof currentPlayPatternIndex === 'number') {
-    pendingLoopPatternIndex = currentPlayPatternIndex;
   } else {
-    pendingLoopPatternIndex = 0;
+    pendingLoopPatternIndex = null;
   }
 };
 
@@ -105,14 +103,22 @@ const processHybridScheduling = (scheduleUntilAudioTime) => {
       });
     });
 
-    // 3. МАТЕМАТИЧЕСКИ ИДЕАЛЬНЫЙ ИНКРЕМЕНТ ШАГОВ И КВАНТОВАНИЕ ЛУПОВ
+    // 3. ЖЕЛЕЗНОЕ КВАНТОВАНИЕ НА ГРАНИЦЕ ТАКТА
     if (currentHardwareStep === 15) {
       currentHardwareStep = 0;
 
-      if (hardwareIsLooping) {
-        // Квантованный переход на залупанный паттерн происходит строго по окончании 15-го шага
+      // Если в очереди висит отложенный паттерн (кликнули PLAY или LOOP на другом треке)
+      if (pendingLoopPatternIndex !== null) {
         currentHardwarePattern = pendingLoopPatternIndex;
+        // Если режим лупа выключен, очищаем буфер прыжка, чтобы дальше трек шел линейно
+        if (!hardwareIsLooping) {
+          pendingLoopPatternIndex = null;
+        }
+      } else if (hardwareIsLooping) {
+        // Если луп активен, но буфер пуст, просто удерживаем текущий паттерн
+        // Ничего не делаем, паттерн остается прежним
       } else {
+        // Линейное воспроизведение по порядку 1->2->3...
         const nextPatternCandidate = currentHardwarePattern + 1;
         if (nextPatternCandidate >= pendingMaxPatternCount) {
           currentHardwarePattern = 0;
@@ -165,10 +171,10 @@ export const scheduler = {
     resetHardwareCounters();
   },
 
-  startLoop() {
+  startLoop(startingPattern = 0) {
     if (isTimerRunning()) return;
 
-    resetHardwareCounters();
+    resetHardwareCounters(startingPattern);
 
     timerId = setInterval(executeSchedulerTick, SCHEDULER_INTERVAL_MS);
   },
@@ -181,8 +187,8 @@ export const scheduler = {
     resetHardwareCounters();
   },
 
-  updateState(state) {
-    if (state === 'start') scheduler.startLoop();
+  updateState(state, startingPattern = 0) {
+    if (state === 'start') scheduler.startLoop(startingPattern);
     else if (state === 'pause') scheduler.stopLoop();
     else scheduler.stopLoop();
   },

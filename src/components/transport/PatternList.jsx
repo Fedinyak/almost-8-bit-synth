@@ -4,12 +4,17 @@ import {
   setIsLoopingFalse,
   setSelectedPatternIndex,
   setPendingPattern,
+  setCurrentPlayPatternIndex,
+  setSequencerPlayState,
   setFollowModeTrue,
   setFollowModeFalse,
 } from '../../store/playerSlice';
 import { getPatternVisualFlags } from '../../utils/patternStatusSelectors';
+import { getNativeContext } from '../../audio/core/nativeContext';
+import { scheduler } from '../../audio/core/scheduler';
 import { PatternItem } from './PatternItem';
 import { PatternControls } from './PatternControls';
+import * as Tone from 'tone';
 import './patternList.css';
 
 const PatternList = () => {
@@ -28,25 +33,56 @@ const PatternList = () => {
 
   const patternCountIndex = Array.from({ length: patternCount }, (_, i) => i);
 
-  const handlePatternAction = (type, index) => {
+  const handlePatternAction = async (type, index) => {
+    const isPlaying = sequencerPlayState === 'start';
+
     switch (type) {
       case 'PLAY':
-        dispatch(setPendingPattern(index));
+        if (isPlaying) {
+          dispatch(setIsLoopingFalse());
+          dispatch(setPendingPattern(index));
+        } else {
+          const audioContext = getNativeContext();
+          if (audioContext && audioContext.state === 'suspended') {
+            audioContext.resume().catch((err) => console.error(err));
+          }
+          if (Tone && typeof Tone.start === 'function') {
+            await Tone.start();
+          }
+
+          scheduler.updateState('start', index);
+          dispatch(setCurrentPlayPatternIndex(index));
+          dispatch(setSelectedPatternIndex(index));
+          dispatch(setSequencerPlayState('start'));
+        }
         break;
 
       case 'LOOP':
         if (isLooping && selectedPatternIndex === index) {
           dispatch(setIsLoopingFalse());
-          dispatch(setSelectedPatternIndex(false));
+          dispatch(setPendingPattern(null));
         } else {
           dispatch(setIsLoopingTrue());
           dispatch(setSelectedPatternIndex(index));
+
+          // ИСПРАВЛЕНО: Если музыка играет, мы обязательно заносим индекс
+          // целевого паттерна в буфер намерения (pendingPatternIndex),
+          // чтобы селектор флагов четко видел, что луп квантуется для ДРУГОГО паттерна!
+          if (isPlaying) {
+            dispatch(setPendingPattern(index));
+          } else {
+            dispatch(setCurrentPlayPatternIndex(index));
+          }
         }
         break;
 
       case 'SELECT':
-        dispatch(setSelectedPatternIndex(index));
-        dispatch(setFollowModeFalse());
+        if (selectedPatternIndex === index && !isFollowMode) {
+          dispatch(setFollowModeTrue());
+        } else {
+          dispatch(setSelectedPatternIndex(index));
+          dispatch(setFollowModeFalse());
+        }
         break;
 
       case 'TOGGLE_FOLLOW':
@@ -54,9 +90,6 @@ const PatternList = () => {
           dispatch(setFollowModeFalse());
         } else {
           dispatch(setFollowModeTrue());
-          // ИСПРАВЛЕНО: Принудительно сбрасываем выбранный индекс паттерна в Redux,
-          // чтобы интерфейс переключился на системный плейхед звукового движка
-          dispatch(setSelectedPatternIndex(false));
         }
         break;
 
@@ -83,8 +116,6 @@ const PatternList = () => {
               selectedPatternIndex,
               isFollowMode,
             })}
-            // ИСПРАВЛЕНО: Если активен режим следования, выбор паттерна визуально гаснет,
-            // убирая класс patten-list-btn-select с кнопки
             isSelected={!isFollowMode && selectedPatternIndex === index}
             isFollowMode={isFollowMode}
             onAction={handlePatternAction}
