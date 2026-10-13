@@ -8,7 +8,6 @@ import { noteToFrequency } from './synthMath';
 import {
   ZERO_AUDIO_AMPLITUDE,
   DEFAULT_PLAYBACK_DURATION_SEC,
-  RELEASE_RAMP_TIME_SEC,
   createInitialSynthState,
   isValidVolumeNumber,
   isValidDetuneNumber,
@@ -131,16 +130,19 @@ const createNativeMonoSynthAdapter = (presetConfig) => {
         nativeBiquad,
       );
 
+      // ИСПРАВЛЕНО: Передаем динамический state пятым аргументом в автоматизацию
       applyEnvelopeAutomations(
         outputNode.gain,
         ctxTime,
         parsedDuration,
         volumeValue,
+        state,
       );
 
       const releaseStartTime = ctxTime + parsedDuration;
       osc.start(ctxTime);
-      osc.stop(releaseStartTime + RELEASE_RAMP_TIME_SEC);
+      // ИСПРАВЛЕНО: Время остановки теперь учитывает динамический релиз из стейта вместо константы
+      osc.stop(releaseStartTime + state.releaseTime);
     },
 
     dispose() {
@@ -149,7 +151,8 @@ const createNativeMonoSynthAdapter = (presetConfig) => {
     },
   };
 
-  applySynthPropertyCompatibility(adapter);
+  // ИСПРАВЛЕНО: Передаем state вторым аргументом для маппинга динамических геттеров/сеттеров ADSR и фильтра
+  applySynthPropertyCompatibility(adapter, state);
   return adapter;
 };
 
