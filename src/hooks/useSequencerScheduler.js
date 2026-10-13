@@ -18,8 +18,8 @@ import {
   stopDrawingLoop,
 } from '../audio/core/draw';
 import {
-  updateHardwarePatternBounds,
   updateHardwareLoopState,
+  updateHardwarePatternBounds,
 } from '../audio/core/scheduler';
 
 const handleStepSync = (
@@ -91,11 +91,39 @@ export const useSequencerScheduler = () => {
   const pendingDeleteLastRef = useRef(pendingDeleteLast);
   const patternCountRef = useRef(patternCount);
 
+  // КЭШ-ЗАТВОРЫ ДЛЯ ОПТИМИЗАЦИИ МОБИЛЬНЫХ УСТРОЙСТВ:
+  // Хранят последнее физически отправленное состояние в аудио-движок
+  const lastSentIsLooping = useRef(null);
+  const lastSentLoopTarget = useRef(null);
+  const lastSentPlaybackIndex = useRef(null);
+  const lastSentPendingIndex = useRef(null);
+
+  // ОПТИМИЗИРОВАННЫЙ МОСТ: Оставляем все оригинальные реактивные зависимости,
+  // но блокируем холостые вызовы аудио-ядра с помощью быстрых сравнений в кэш-затворе.
   useEffect(() => {
     const effectiveLoopTarget = isLooping
       ? currentPlayPatternIndex
       : selectedPatternIndex;
 
+    // Проверяем: изменилось ли хоть что-то с момента последнего тика?
+    if (
+      lastSentIsLooping.current === isLooping &&
+      lastSentLoopTarget.current === effectiveLoopTarget &&
+      lastSentPlaybackIndex.current === currentPlayPatternIndex &&
+      lastSentPendingIndex.current === pendingPatternIndex
+    ) {
+      // Если стейт идентичен (холостой ход бегущего плейхеда),
+      // мы мгновенно выходим и не нагружаем аудио-поток лишней работой!
+      return;
+    }
+
+    // Запоминаем новые отправленные значения
+    lastSentIsLooping.current = isLooping;
+    lastSentLoopTarget.current = effectiveLoopTarget;
+    lastSentPlaybackIndex.current = currentPlayPatternIndex;
+    lastSentPendingIndex.current = pendingPatternIndex;
+
+    // Физический выстрел в аудио-движок происходит ТОЛЬКО при реальных изменениях
     updateHardwareLoopState(
       isLooping,
       effectiveLoopTarget,
