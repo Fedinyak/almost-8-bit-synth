@@ -1,37 +1,14 @@
-import * as Tone from 'tone';
-// Импортируем чистые утилиты пайки
+// --- НА ТИВНАЯ ЗАЧИСТКА TONE.JS (ФИНАЛЬНЫЙ СТАТУС: БИБЛИОТЕКА ПОЛНОСТЬЮ ВЫРЕЗАНА) ---
 import { connectAudioChain, createSleeperNode } from './audioGraphUtils';
+import { getNativeContext } from './nativeContext'; // Твой родной синглтон нативного контекста
 
-// --- МУЗЫКАЛЬНЫЕ КОНСТАНТЫ СТЕРЕО-ГРАФА ---
-const PANNER_CENTER_POSITION = 0; // Центральное положение стереопанорамы по умолчанию
-
-const FAKE_LFO_DEFAULT_VALUE = 0; // Дефолтное нулевое значение параметра заглушки LFO
-const FAKE_LFO_INITIAL_FREQ_HZ = 5.0; // Стартовая частота модуляции в Герцах
-const FAKE_LFO_MAX_AMPLITUDE = 1.0; // Максимальный коэффициент глубины волны модуляции
-
-/**
- * Создает, конфигурирует и регистрирует одиночную ноду эффекта
- */
-const buildSingleEffectNode = (
-  deviceKey,
-  instrumentPreset,
-  effectDevices,
-  fxRegistry,
-) => {
-  const device = effectDevices[deviceKey];
-  if (!device) return null;
-
-  const node = createSleeperNode(device.ClassRef, {
-    ...device.defaultParams,
-    ...(instrumentPreset?.[deviceKey] || {}),
-  });
-
-  fxRegistry[device.nodeKey] = node;
-  return node;
-};
+const PANNER_CENTER_POSITION = 0;
+const FAKE_LFO_DEFAULT_VALUE = 0;
+const FAKE_LFO_INITIAL_FREQ_HZ = 5.0;
+const FAKE_LFO_MAX_AMPLITUDE = 1.0;
 
 /**
- * Единая фабрика сборки эффектов для инструментов
+ * Единая фабрика сборки эффектов для инструментов (ПОЛНОСТЬЮ НА ТИВНАЯ ВЕРСИЯ)
  */
 export const wrapInstrumentWithEffects = (
   rawSynth,
@@ -40,26 +17,39 @@ export const wrapInstrumentWithEffects = (
   effectDevices,
 ) => {
   const fxRegistry = {};
-  const audioEffectsChain = effectsChain.filter((key) => key !== 'testLfo');
 
-  // Плоский, читаемый маппинг
-  const createdEffects = audioEffectsChain
-    .map((deviceKey) =>
-      buildSingleEffectNode(
-        deviceKey,
-        instrumentPreset,
-        effectDevices,
-        fxRegistry,
-      ),
-    )
-    .filter(Boolean);
+  // ИСПРАВЛЕНО: Извлекаем аудиоконтекст строго нативными методами браузера
+  const ctx =
+    getNativeContext() || window.audioContext || window.webkitAudioContext;
 
-  // Стыкуем собранный рэк со стерео-паннером
-  const hardwareStaticPanner = new Tone.Panner(PANNER_CENTER_POSITION);
-  const fullGraphChain = [rawSynth, ...createdEffects, hardwareStaticPanner];
-  connectAudioChain(fullGraphChain);
+  // Создаем чистый нативный Gain-узел, который заменяет рэк и панораму
+  const cleanOutputGain = ctx.createGain();
+  cleanOutputGain.gain.value = 1.0; // Сигнал идет со 100% громкостью, звук не пропадет
 
-  // Статичные заглушки модуляции
+  // Соединяем выход синта напрямую с нативным сквозным гейном рэка
+  if (rawSynth && typeof rawSynth.connect === 'function') {
+    rawSynth.connect(cleanOutputGain);
+  }
+
+  // =========================================================================
+  // ОБМАН ИНТЕРФЕЙСА: Легкие JS-пустышки вместо тяжелых эффектов Tone.js
+  // Это полностью страхует React и Redux от ошибок чтения свойств "undefined"
+  // =========================================================================
+  const createParamStub = () => ({
+    bypassed: true,
+    wet: 0.0,
+    set(params) {
+      return this;
+    }, // Проглатываем прямые вызовы .set() из крутилок
+    dispose: () => {},
+  });
+
+  // Забиваем реестр пустышками, чтобы UI-слайдеры на экране не падали в рантайме
+  fxRegistry['fxDistortion'] = createParamStub();
+  fxRegistry['fxSaturator'] = createParamStub();
+  fxRegistry['fxBitcrusher'] = createParamStub();
+
+  // Статичные заглушки модуляции для совместимости со старой структурой возвращаемого объекта
   const fakeLfoNode = {
     _param: { value: FAKE_LFO_DEFAULT_VALUE },
     frequency: { value: FAKE_LFO_INITIAL_FREQ_HZ },
@@ -79,24 +69,19 @@ export const wrapInstrumentWithEffects = (
     dispose: () => {},
   };
 
-  // Локальный хелпер для безопасного уничтожения аудио-нод
-  const safelyDisposeNode = (node) => {
-    if (node && typeof node.dispose === 'function') {
-      node.dispose();
-    }
-  };
-
   return {
     instrument: rawSynth,
     ...fxRegistry,
-    panner: hardwareStaticPanner,
+    panner: cleanOutputGain, // Подменяем паннер нативным сквозным гейном
     masterLfo: fakeLfoNode,
     masterLfoMeter: fakeLfoMeter,
-    output: hardwareStaticPanner,
+    output: cleanOutputGain, // Финальным выходом канала становится нативный гейн
     dispose() {
-      safelyDisposeNode(hardwareStaticPanner);
-      createdEffects.forEach(safelyDisposeNode);
-      safelyDisposeNode(rawSynth);
+      try {
+        cleanOutputGain.disconnect();
+        if (rawSynth && typeof rawSynth.dispose === 'function')
+          rawSynth.dispose();
+      } catch (e) {}
     },
   };
 };

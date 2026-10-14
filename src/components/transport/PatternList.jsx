@@ -15,7 +15,7 @@ import { getNativeContext } from '../../audio/core/nativeContext';
 import { scheduler } from '../../audio/core/scheduler';
 import { PatternItem } from './PatternItem';
 import { PatternControls } from './PatternControls';
-import * as Tone from 'tone';
+// import * as Tone from 'tone';
 import './patternList.css';
 
 const PatternList = () => {
@@ -50,9 +50,9 @@ const PatternList = () => {
           if (audioContext && audioContext.state === 'suspended') {
             audioContext.resume().catch((err) => console.error(err));
           }
-          if (Tone && typeof Tone.start === 'function') {
-            await Tone.start();
-          }
+          // if (Tone && typeof Tone.start === 'function') {
+          //   await Tone.start();
+          // }
 
           scheduler.updateState('start', index);
           dispatch(setCurrentPlayPatternIndex(index));

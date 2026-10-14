@@ -1,4 +1,4 @@
-import * as Tone from 'tone';
+// import * as Tone from 'tone';
 import {
   AUDIO_DEFAULT_ATTACK,
   AUDIO_DEFAULT_DECAY,
@@ -36,7 +36,7 @@ export const SOUND_PARAM_GROUPS = [
 export const EFFECT_DEVICES = {
   saturator: {
     nodeKey: 'fxSaturator',
-    ClassRef: Tone.Chebyshev,
+    // ClassRef: Tone.Chebyshev,
     defaultParams: { order: 3 },
     label: 'SATURATOR',
     groupKey: 'saturator',
@@ -44,7 +44,7 @@ export const EFFECT_DEVICES = {
   }, // СЛЕСАРНЫЙ САУНД-ЖИР
   crusher: {
     nodeKey: 'fxBitcrusher',
-    ClassRef: Tone.BitCrusher,
+    // ClassRef: Tone.BitCrusher,
     defaultParams: { bits: 4 },
     label: 'BITCRUSHER',
     groupKey: 'crusher',
@@ -52,7 +52,7 @@ export const EFFECT_DEVICES = {
   },
   distortion: {
     nodeKey: 'fxDistortion',
-    ClassRef: Tone.Distortion,
+    // ClassRef: Tone.Distortion,
     defaultParams: { distortion: 1.5, oversample: '4x' },
     label: 'DISTORTION',
     groupKey: 'distortion',
@@ -60,21 +60,21 @@ export const EFFECT_DEVICES = {
   },
   filter: {
     nodeKey: 'fxFilter',
-    ClassRef: Tone.Filter,
+    // ClassRef: Tone.Filter,
     defaultParams: { type: 'lowpass', frequency: 10000 },
     label: 'LOWPASS FILTER',
     groupKey: 'filter',
   },
   filterHigh: {
     nodeKey: 'fxFilterHigh',
-    ClassRef: Tone.Filter,
+    // ClassRef: Tone.Filter,
     defaultParams: { type: 'highpass', frequency: 20 },
     label: 'HIGHPASS FILTER',
     groupKey: 'filter',
   },
   chorus: {
     nodeKey: 'fxChorus',
-    ClassRef: Tone.Chorus,
+    // ClassRef: Tone.Chorus,
     defaultParams: { frequency: 1.5, delayTime: 3.5, depth: 0.7 },
     label: 'CHORUS / FLANGER',
     groupKey: 'chorus',
@@ -82,7 +82,7 @@ export const EFFECT_DEVICES = {
   }, // СТЕРЕО-ХОРУС ДЛЯ ОБЪЕМА
   delay: {
     nodeKey: 'fxDelay',
-    ClassRef: Tone.FeedbackDelay,
+    // ClassRef: Tone.FeedbackDelay,
     defaultParams: { delayTime: 0.25, feedback: 0.25 },
     label: 'DELAY',
     groupKey: 'delay',
@@ -90,7 +90,7 @@ export const EFFECT_DEVICES = {
   },
   pingpong: {
     nodeKey: 'fxPingPong',
-    ClassRef: Tone.PingPongDelay,
+    // ClassRef: Tone.PingPongDelay,
     defaultParams: { delayTime: 0.25, feedback: 0.3 },
     label: 'PING-PONG DELAY',
     groupKey: 'pingpong',
@@ -98,7 +98,7 @@ export const EFFECT_DEVICES = {
   },
   reverb: {
     nodeKey: 'fxReverb',
-    ClassRef: Tone.Reverb,
+    // ClassRef: Tone.Reverb,
     defaultParams: { roomSize: 0.7, wet: 0.3 },
     label: 'SPACE REVERB',
     groupKey: 'reverb',
@@ -106,7 +106,7 @@ export const EFFECT_DEVICES = {
   },
   panner: {
     nodeKey: 'fxPanner',
-    ClassRef: Tone.AutoPanner,
+    // ClassRef: Tone.AutoPanner,
     defaultParams: { frequency: 1.0, depth: 0.8 },
     label: 'AUTO PANNER',
     groupKey: 'panner',
@@ -114,7 +114,7 @@ export const EFFECT_DEVICES = {
   },
   phaser: {
     nodeKey: 'fxPhaser',
-    ClassRef: Tone.Phaser,
+    // ClassRef: Tone.Phaser,
     defaultParams: { frequency: 0.5, octaves: 3, baseFrequency: 350 },
     label: 'PHASER',
     groupKey: 'phaser',
@@ -122,7 +122,7 @@ export const EFFECT_DEVICES = {
   },
   tremolo: {
     nodeKey: 'fxTremolo',
-    ClassRef: Tone.Tremolo,
+    // ClassRef: Tone.Tremolo,
     defaultParams: { frequency: 5.0, depth: 0.5 },
     label: 'TREMOLO',
     groupKey: 'tremolo',
@@ -130,7 +130,7 @@ export const EFFECT_DEVICES = {
   },
   freqShifter: {
     nodeKey: 'fxFreqShifter',
-    ClassRef: Tone.FrequencyShifter,
+    // ClassRef: Tone.FrequencyShifter,
     defaultParams: { frequency: 0 },
     label: 'FREQ SHIFTER',
     groupKey: 'freqShifter',
@@ -138,7 +138,7 @@ export const EFFECT_DEVICES = {
   },
   pitchShifter: {
     nodeKey: 'fxPitchShifter',
-    ClassRef: Tone.PitchShift,
+    // ClassRef: Tone.PitchShift,
     defaultParams: { pitch: 0 },
     label: 'PITCH SHIFTER',
     groupKey: 'pitchShifter',

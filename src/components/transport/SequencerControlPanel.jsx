@@ -8,7 +8,7 @@ import {
 } from '../../store/playerSlice';
 import { getNativeContext } from '../../audio/core/nativeContext';
 import { scheduler } from '../../audio/core/scheduler'; // Импортируем шедулер для передачи стартовой точки
-import * as Tone from 'tone';
+// import * as Tone from 'tone';
 
 const SequencerControlPanel = () => {
   const dispatch = useDispatch();
@@ -32,9 +32,9 @@ const SequencerControlPanel = () => {
       });
     }
 
-    if (Tone && typeof Tone.start === 'function') {
-      await Tone.start();
-    }
+    // if (Tone && typeof Tone.start === 'function') {
+    //   await Tone.start();
+    // }
 
     // ИСПРАВЛЕНО: Перед диспатчем стейта явно синхронизируем железный счетчик
     // планировщика со звуковым индексом из стора, если прибор запускается из режима Stop

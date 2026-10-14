@@ -32,6 +32,11 @@ import {
 // --- ФАБРИКА СТРУКТУРЫ ДАННЫХ МОНОФОНИЧЕСКОГО СИНТЕЗАТОРА ---
 
 const createNativeMonoSynthAdapter = (presetConfig) => {
+  // ОТЛАДОЧНЫЙ ЛОГ №1: Фиксируем момент полного пересоздания объекта синта
+  console.warn(
+    `[🛠️ СИНТ СОЗДАН ЗАНОВО]: Фабрика сработала. Громкость пресета = ${presetConfig?.volume}`,
+  );
+
   const state = createInitialSynthState(presetConfig);
 
   const adapter = {
@@ -75,6 +80,11 @@ const createNativeMonoSynthAdapter = (presetConfig) => {
     connect(toneNode) {
       if (!toneNode) return adapter;
 
+      // ОТЛАДОЧНЫЙ ЛОГ №2: Смотрим, вызывается ли метод пайки и в каком статусе стейт
+      console.log(
+        `[🔌 МЕТОД .connect()]: Вызван. Нативная инициализация = ${state.isInitialized}`,
+      );
+
       if (isAudioEngineContextMissing(state)) {
         state.ctx = extractNativeAudioContext(toneNode);
 
@@ -88,9 +98,16 @@ const createNativeMonoSynthAdapter = (presetConfig) => {
 
         state.nativeBiquad.connect(state.outputNode);
         state.isInitialized = true;
+        console.log('   └─> [🎯 ВНУТРЕННЯЯ НАТИВНАЯ ИНИЦИАЛИЗАЦИЯ ЗАВЕРШЕНА]');
       }
 
-      routeAudioNodes(state.outputNode, toneNode);
+      // --- НА ТИВНАЯ ЗАЧИСТКА TONE.JS (ШАГ 3: ПРЯМОЙ КОННЕКТ НА ДИНАМИКИ СИНТА) ---
+      // routeAudioNodes(state.outputNode, toneNode);
+
+      if (state.outputNode && state.ctx) {
+        state.outputNode.connect(state.ctx.destination);
+      }
+
       state.isConnectedToHardware = true;
       return adapter;
     },
@@ -130,7 +147,6 @@ const createNativeMonoSynthAdapter = (presetConfig) => {
         nativeBiquad,
       );
 
-      // ИСПРАВЛЕНО: Передаем динамический state пятым аргументом в автоматизацию
       applyEnvelopeAutomations(
         outputNode.gain,
         ctxTime,
@@ -141,17 +157,18 @@ const createNativeMonoSynthAdapter = (presetConfig) => {
 
       const releaseStartTime = ctxTime + parsedDuration;
       osc.start(ctxTime);
-      // ИСПРАВЛЕНО: Время остановки теперь учитывает динамический релиз из стейта вместо константы
       osc.stop(releaseStartTime + state.releaseTime);
     },
 
     dispose() {
+      console.warn(
+        '[🗑️ DISPOSE СИНТА]: Вызван метод очистки ресурсов из памяти!',
+      );
       adapter.disconnect();
       executeFilterDisconnect(state);
     },
   };
 
-  // ИСПРАВЛЕНО: Передаем state вторым аргументом для маппинга динамических геттеров/сеттеров ADSR и фильтра
   applySynthPropertyCompatibility(adapter, state);
   return adapter;
 };

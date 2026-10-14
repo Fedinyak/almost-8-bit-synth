@@ -22,8 +22,10 @@ import {
   updateInstrumentVolume,
 } from '../audio/playback/audioModulationActions';
 import { synthEnginesRegistry } from '../audio/sync/visualizerState';
-// ИСПРАВЛЕНО: Новый правильный путь к файлу автоматизации LFO с явным расширением .js
-import { processInstrumentLfoModulation } from '../audio/core/processInstrumentLfoModulation.js';
+
+// --- НА ТИВНАЯ ЗАЧИСТКА TONE.JS (ШАГ 1: ОТКЛЮЧЕНИЕ LFO-КОНВЕЙЕРА) ---
+// Комментируем оригинальный импорт конвейера модуляции эффектов
+// import { processInstrumentLfoModulation } from '../audio/core/processInstrumentLfoModulation.js';
 
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
 
@@ -45,6 +47,8 @@ const syncAllVolumes = ({ synthEngines, drumsEngine, soundSettings }) => {
   });
 };
 
+// Комментируем внутренний пайплайн запуска модуляции
+/*
 const runLfoModulationPipeline = ({
   synthEngines,
   drumsEngine,
@@ -69,6 +73,7 @@ const runLfoModulationPipeline = ({
     });
   });
 };
+*/
 
 const syncPatternsToAudioTracks = ({
   synthPart,
@@ -103,7 +108,11 @@ export const useAudioEngineSync = (
   const synthChannelsRef = useRef({});
   const smoothedValuesRef = useRef({});
 
-  // Жизненный цикл 1: Низкоуровневая инициализация аудио-чипа
+  // =========================================================================
+  // ИСПРАВЛЕНО: Железный замок на Жизненный цикл 1
+  // Инициализируем аудио-чип строго один раз при монтировании Groovebox.
+  // Пустой массив [] гарантирует, что ручки крутилок не вызовут повторный запуск.
+  // =========================================================================
   useEffect(() => {
     initializeSynths(SYNTH_LIST, synthEnginesRef.current);
     initializeDrums(drumsEngineRef);
@@ -115,7 +124,9 @@ export const useAudioEngineSync = (
       synthChannelsRef,
       synthAnalysersRef,
     );
-  }, [drumsEngineRef, synthEnginesRef]);
+    // Оригинальные зависимости закомментированы для безопасности:
+    // }, [drumsEngineRef, synthEnginesRef]);
+  }, []);
 
   // Жизненный цикл 2: Управление громкостью на мейне
   useEffect(() => {
@@ -126,7 +137,11 @@ export const useAudioEngineSync = (
     });
   }, [soundSettings, synthEnginesRef, drumsEngineRef]);
 
-  // Жизненный цикл 3: Высокочастотный конвейер LFO модуляции параметров
+  // =========================================================================
+  // ЗАКОММЕНТИРОВАНО: Жизненный цикл 3 — Высокочастотный конвейер LFO модуляции
+  // Полностью обесточиваем петлю requestAnimationFrame, разгружая процессор
+  // =========================================================================
+  /*
   useEffect(() => {
     let animationFrameId;
 
@@ -150,8 +165,13 @@ export const useAudioEngineSync = (
 
     return () => cancelAnimationFrame(animationFrameId);
   }, [soundSettings, synthEnginesRef, drumsEngineRef, sequencerPlayState]);
+  */
 
-  // Жизненный цикл 4: Подготовка дорожек воспроизведения и сборка мусора
+  // =========================================================================
+  // ИСПРАВЛЕНО: Железный замок на Жизненный цикл 4
+  // Подготовка дорожек воспроизведения и сборка мусора происходят один раз.
+  // Функция stopAllAudio сработает только тогда, когда пользователь закроет вкладку/приложение.
+  // =========================================================================
   useEffect(() => {
     SYNTH_LIST.forEach((name) => {
       setupSynthPlayback(name, synthEnginesRef.current, synthPartRef.current);
@@ -174,7 +194,9 @@ export const useAudioEngineSync = (
         synthChannelsRef,
       });
     };
-  }, [drumsEngineRef, drumsPartRef, synthEnginesRef, synthPartRef]);
+    // Оригинальные зависимости закомментированы:
+    // }, [drumsEngineRef, drumsPartRef, synthEnginesRef, synthPartRef]);
+  }, []);
 
   // Жизненный цикл 5: Забивка нотных матриц при мутации паттернов или изменении темпа
   useEffect(() => {

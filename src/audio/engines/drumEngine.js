@@ -109,7 +109,15 @@ const createNativeDrumAdapter = (drumName, typeString, presetConfig) => {
         state.isInitialized = true;
       }
 
-      routeAudioNodes(state.outputNode, toneNode);
+      // --- НА ТИВНАЯ ЗАЧИСТКА TONE.JS (ШАГ 4: ПРЯМОЙ КОННЕКТ НА ДИНАМИКИ БАРАБАНОВ) ---
+      // Сохраняем и комментируем старую пайку библиотечного микшера драм-каналов
+      // routeAudioNodes(state.outputNode, toneNode);
+
+      // Подключаем выходную ноду гейна барабанов напрямую к физическому выходу звуковой карты
+      if (state.outputNode && state.ctx) {
+        state.outputNode.connect(state.ctx.destination);
+      }
+
       state.isConnectedToHardware = true;
       return adapter;
     },

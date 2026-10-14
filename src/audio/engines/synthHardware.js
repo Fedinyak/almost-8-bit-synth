@@ -204,6 +204,7 @@ const scheduleFallbackGate = (
 };
 
 // Публичный метод автоматизации огибающей громкости
+// Публичный метод автоматизации огибающей громкости
 export const applyEnvelopeAutomations = (
   gainParam,
   ctxTime,
@@ -212,6 +213,13 @@ export const applyEnvelopeAutomations = (
   state, // Передаем стейт
 ) => {
   const targetGain = Math.pow(10, volumeDecibels / 20);
+
+  // ОТЛАДОЧНЫЙ ЛОГ №3: Проверяем, какие именно параметры ADSR летят в нативное ядро прямо сейчас
+  if (state) {
+    console.log(
+      `[📈 ADSR TRIGGERED]: Attack = ${state.attackTime}s | Decay = ${state.decayTime}s | Sustain = ${state.sustainLevel} | Release = ${state.releaseTime}s`,
+    );
+  }
 
   try {
     scheduleAdsrEnvelope(
