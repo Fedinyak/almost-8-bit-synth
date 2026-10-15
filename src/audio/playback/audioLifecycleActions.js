@@ -1,24 +1,10 @@
-import createSynth from '../engines/synthEngine';
-import createDrums from '../engines/drumEngine';
+import { audioCore } from '../core/nativeEngineRegistry';
 import { resetDrumLevels, resetSynthAnalysers } from '../sync/visualizerState';
 
 const disposeSingleResource = (res) => {
   if (res && !res.disposed && typeof res.dispose === 'function') {
-    // ВРЕМЕННЫЙ ДЕТЕКТОР ОЧИСТКИ:
-    // const nodeName = res.constructor.name || 'AudioNode';
-    // console.log(
-    //   `[DISPOSE DETECTED]: Узел "${nodeName}" успешно удален из памяти.`,
-    // );
-
     res.dispose();
   }
-};
-
-const disposeCustomContainers = (synths) => {
-  if (!synths) return;
-  Object.values(synths).forEach((container) =>
-    disposeSingleResource(container),
-  );
 };
 
 const disposeRefRegistry = (registryRef) => {
@@ -30,63 +16,73 @@ const disposeRefRegistry = (registryRef) => {
   registryRef.current = {};
 };
 
-const disposeNativeResources = (parts, drumEngine, drumPart) => {
-  const audioResources = [
-    ...Object.values(parts || {}),
-    ...Object.values(drumEngine || {}),
-    drumPart,
-  ];
-
-  audioResources
-    .filter(Boolean)
-    .forEach((resource) => disposeSingleResource(resource));
-};
-
 export const cleanupAudioResources = ({
-  synths,
   parts,
-  drumEngine,
   drumPart,
   analysersRef,
   channelsRef,
 }) => {
-  disposeCustomContainers(synths);
+  // Мы БОЛЬШЕ НЕ ВЫЗЫВАЕМ автоматический .dispose() на инстансах инструментов,
+  // так как их память вечно и безопасно удерживается синглтоном audioCore.
 
   disposeRefRegistry(analysersRef);
   disposeRefRegistry(channelsRef);
   resetSynthAnalysers();
 
-  disposeNativeResources(parts, drumEngine, drumPart);
+  // Дорожки воспроизведения (parts) очищаем всегда, чтобы ноты в секвенсоре не накладывались друг на друга
+  if (parts) {
+    Object.values(parts).forEach(disposeSingleResource);
+  }
+  if (drumPart) {
+    disposeSingleResource(drumPart);
+  }
 };
 
+// ИСПРАВЛЕНО НАВСЕГДА: Прямой мост копирования вечных ссылок синтов
 export const initializeSynths = (synthList, enginesRef) => {
+  if (!enginesRef) return;
+  const coreSynths = audioCore.synths;
+
+  // Всеядно определяем целевой слой записи (работает и с .current, и напрямую)
+  const target =
+    enginesRef.current !== undefined ? enginesRef.current : enginesRef;
+
   synthList.forEach((synthName) => {
-    if (!enginesRef[synthName]) {
-      enginesRef[synthName] = createSynth();
+    if (!target[synthName]) {
+      target[synthName] = coreSynths[synthName];
     }
   });
 };
 
+// ИСПРАВЛЕНО НАВСЕГДА: Прямой мост копирования вечной ссылки барабанов
 export const initializeDrums = (drumsRef) => {
-  if (!drumsRef.current) {
-    drumsRef.current = createDrums();
+  if (!drumsRef) return;
+  const coreDrums = audioCore.drums;
+
+  if (drumsRef.current !== undefined) {
+    if (!drumsRef.current) {
+      drumsRef.current = coreDrums;
+    }
+  } else {
+    Object.assign(drumsRef, coreDrums);
   }
 };
 
 export const stopAllAudio = (refs) => {
   cleanupAudioResources({
-    synths: refs.synths.current,
-    parts: refs.parts.current,
-    drumEngine: refs.drumsEngine.current,
-    drumPart: refs.drumsPart.current,
+    synths: refs.synths?.current,
+    parts: refs.parts?.current,
+    drumEngine: refs.drumsEngine?.current,
+    drumPart: refs.drumsPart?.current,
     analysersRef: refs.synthAnalysersRef,
     channelsRef: refs.synthChannelsRef,
   });
 
-  refs.synths.current = {};
-  refs.parts.current = {};
-  refs.drumsEngine.current = null;
-  refs.drumsPart.current = null;
+  // Пусть React на своем UI-слое очищает временные локальные ссылки хука
+  if (refs.synths?.current) refs.synths.current = {};
+  if (refs.parts?.current) refs.parts.current = {};
+  if (refs.drumsEngine?.current) refs.drumsEngine.current = null;
+  if (refs.drumsPart?.current) refs.drumsPart.current = null;
 
   resetDrumLevels();
 };
@@ -106,7 +102,16 @@ export const buildAndConnectInstrumentChannel = (
 
   connectToMixer(synthInstance, channel, analyser);
 
-  channelsRegistry[instrumentName] = channel;
-  analysersRegistry[instrumentName] = analyser;
-  globalVisualizerState[instrumentName] = analyser;
+  const channels =
+    channelsRegistry?.current !== undefined
+      ? channelsRegistry.current
+      : channelsRegistry;
+  const analysers =
+    analysersRegistry?.current !== undefined
+      ? analysersRegistry.current
+      : analysersRegistry;
+
+  if (channels) channels[instrumentName] = channel;
+  if (analysers) analysers[instrumentName] = analyser;
+  if (globalVisualizerState) globalVisualizerState[instrumentName] = analyser;
 };

@@ -1,5 +1,5 @@
 // --- НАВЕДЕНИЕ ПОЛНОГО НАТИВНОГО ПОРЯДКА (TONE.JS ВЫРЕЗАН ИЗ МИКШЕРА) ---
-// import * as Tone from 'tone'; // Оставляем только для Volume/Analyser, пока они не переписаны
+// import * as Tone from 'tone';
 
 import { checkBypassCondition } from '../../utils/audioMathUtils';
 import { synthAnalysers } from '../sync/visualizerState';
@@ -46,6 +46,10 @@ class NativeVolumeAdapter {
         // Переводим децибелы слайдера в линейный гейн Web Audio API
         const linearGain = Math.pow(10, dbValue / 20);
         const now = getNativeContext().currentTime;
+
+        // ЗАЩИТА: Не спамим нативный аудио-параметр, если значение идентично
+        if (Math.abs(this._param.value - linearGain) < 0.0001) return;
+
         this._param.setValueAtTime(linearGain, now);
       },
     };
@@ -55,7 +59,6 @@ class NativeVolumeAdapter {
     });
   }
 
-  // Заглушка-мост для предотвращения падения audioEngineTriggers.js
   toDestination() {
     if (this.nativeGain) {
       this.nativeGain.connect(getNativeContext().destination);
@@ -83,20 +86,13 @@ class NativeVolumeAdapter {
   }
 }
 
-// СТАРАЯ ВЕРСИЯ TONE.JS:
-// export const createAudioChannel = () => new Tone.Volume();
-// НОВАЯ НА ТИВНАЯ ВЕРСИЯ:
 export const createAudioChannel = () => new NativeVolumeAdapter();
 
-// СТАРАЯ ВЕРСИЯ TONE.JS:
-// export const createAudioAnalyser = () => new Tone.Analyser({ type: ANALYSER_TYPE, size: ANALYSER_SIZE });
-// НОВАЯ НА ТИВНАЯ ВЕРСИЯ:
 export const createAudioAnalyser = () => {
   const ctx = getNativeContext();
   const analyser = ctx.createAnalyser();
   analyser.fftSize = ANALYSER_SIZE;
 
-  // Добавляем метод-пустышку для совместимости с роутингом
   analyser.toDestination = function () {
     return this;
   };
@@ -136,11 +132,29 @@ const nativeRampTo = (paramNode, targetValue, duration = 0.05) => {
     const nativeParam = paramNode._param || paramNode.input || paramNode;
 
     if (nativeParam && typeof nativeParam.setValueAtTime === 'function') {
+      // =========================================================================
+      // ИСПРАВЛЕНО НАВСЕГДА: Железный замок от паразитного спама cancelScheduledValues!
+      // Если целевое значение параметра уже равно текущему (с точностью до погрешности),
+      // мы мгновенно выходим. Это на 100% защищает ADSR-огибающие играющего синта от
+      // стирания и затыкания звука при кручении ручек на панели барабанов.
+      // =========================================================================
+      if (Math.abs(nativeParam.value - targetValue) < 0.0001) {
+        return;
+      }
+
+      // Диагностический индикатор реальной, обоснованной мутации параметра
+      console.log(
+        `[🔊 RAMPER МУТИРОВАЛ ПАРАМЕТР]: Целевое значение =`,
+        targetValue,
+      );
+
       nativeParam.cancelScheduledValues(now);
       nativeParam.setValueAtTime(nativeParam.value, now);
       nativeParam.linearRampToValueAtTime(targetValue, now + duration);
     } else {
-      paramNode.value = targetValue;
+      if (paramNode.value !== targetValue) {
+        paramNode.value = targetValue;
+      }
     }
   } catch (e) {
     try {
@@ -162,8 +176,9 @@ const updateMetalSynthEnvelope = (instrument, attack, decay) => {
   if (typeof instrument.set === 'function') {
     instrument.set({ envelope: { attack, decay } });
   } else if (instrument.envelope) {
-    instrument.envelope.attack = attack;
-    instrument.envelope.decay = decay;
+    if (instrument.envelope.attack !== attack)
+      instrument.envelope.attack = attack;
+    if (instrument.envelope.decay !== decay) instrument.envelope.decay = decay;
   }
 };
 
@@ -177,10 +192,13 @@ const updateStandardSynthEnvelope = (
   if (instrument.envelope?.set) {
     instrument.envelope.set({ attack, decay, sustain, release });
   } else if (instrument.envelope) {
-    instrument.envelope.attack = attack;
-    instrument.envelope.decay = decay;
-    instrument.envelope.sustain = sustain;
-    instrument.envelope.release = release;
+    if (instrument.envelope.attack !== attack)
+      instrument.envelope.attack = attack;
+    if (instrument.envelope.decay !== decay) instrument.envelope.decay = decay;
+    if (instrument.envelope.sustain !== sustain)
+      instrument.envelope.sustain = sustain;
+    if (instrument.envelope.release !== release)
+      instrument.envelope.release = release;
   }
 };
 
@@ -188,9 +206,11 @@ const updatePercussiveSynthEnvelope = (instrument, attack, decay, release) => {
   if (instrument.envelope?.set) {
     instrument.envelope.set({ attack, decay, release });
   } else if (instrument.envelope) {
-    instrument.envelope.attack = attack;
-    instrument.envelope.decay = decay;
-    instrument.envelope.release = release;
+    if (instrument.envelope.attack !== attack)
+      instrument.envelope.attack = attack;
+    if (instrument.envelope.decay !== decay) instrument.envelope.decay = decay;
+    if (instrument.envelope.release !== release)
+      instrument.envelope.release = release;
   }
 };
 
@@ -203,7 +223,9 @@ export const updateInstrumentEnvelope = (instrument, settings) => {
   const release = settings.release ?? AUDIO_DEFAULT_RELEASE;
 
   if (settings.synthGlide !== undefined && instrument.name !== 'MetalSynth') {
-    instrument.portamento = settings.synthGlide;
+    if (instrument.portamento !== settings.synthGlide) {
+      instrument.portamento = settings.synthGlide;
+    }
   }
 
   if (settings.detune !== undefined && instrument.detune) {
@@ -215,7 +237,9 @@ export const updateInstrumentEnvelope = (instrument, settings) => {
   }
 
   if (settings.filterEnvOctaves !== undefined && instrument.filterEnvelope) {
-    instrument.filterEnvelope.octaves = settings.filterEnvOctaves;
+    if (instrument.filterEnvelope.octaves !== settings.filterEnvOctaves) {
+      instrument.filterEnvelope.octaves = settings.filterEnvOctaves;
+    }
   }
 
   if (instrument.name === 'MetalSynth') {
@@ -270,7 +294,7 @@ export const updateEffectParam = (fxNode, targetParam, value) => {
     if (typeof fxNode.set === 'function') {
       fxNode.set({ wet: value });
     } else {
-      fxNode.wet = value;
+      if (fxNode.wet !== value) fxNode.wet = value;
     }
     return;
   }
@@ -294,19 +318,17 @@ export const updateEffectParam = (fxNode, targetParam, value) => {
     const dict = TEXT_PARAM_DICTIONARIES[paramConfig.dictionaryKey];
     if (dict && dict.audioValues[value] !== undefined) {
       finalValue = dict.audioValues[value];
-
       if (typeof fxNode.set === 'function') {
         fxNode.set({ [targetParam]: finalValue });
       } else {
-        fxNode[targetParam] = finalValue;
+        if (fxNode[targetParam] !== finalValue)
+          fxNode[targetParam] = finalValue;
       }
       return;
     }
   }
-
   const paramNode = fxNode[targetParam];
   if (paramNode === undefined) return;
-
   if (
     paramNode &&
     (paramNode._param ||
@@ -315,21 +337,17 @@ export const updateEffectParam = (fxNode, targetParam, value) => {
   ) {
     if (paramNode.maxValue === 0 || fxNode.bypassed) {
       try {
-        paramNode.value = finalValue;
+        if (paramNode.value !== finalValue) paramNode.value = finalValue;
       } catch (e) {}
       return;
     }
-
-    // Крутим ручки параметров эффектов нативно
     nativeRampTo(paramNode, finalValue, 0.05);
     return;
   }
-
   try {
-    fxNode[targetParam] = finalValue;
+    if (fxNode[targetParam] !== finalValue) fxNode[targetParam] = finalValue;
   } catch (e) {}
 };
-
 export const logBypassTransition = (
   label,
   synthName,
@@ -338,17 +356,17 @@ export const logBypassTransition = (
 ) => {
   if (shouldBypass && !isCurrentlyBypassed) {
     console.log(
-      `[⚡ BYPASS ON]: Эффект "${label}" для ${synthName} усыплен. ЦП отдыхает.`,
+      `[⚡ BYPASS ON]: Эффект "${label}" для ${synthName} усыплен. ЦП отдыхает.,`,
     );
   } else if (!shouldBypass && isCurrentlyBypassed) {
     console.log(
-      `[🔊 BYPASS OFF]: Эффект "${label}" для ${synthName} проснулся.`,
+      `[🔊 BYPASS OFF]: Эффект "${label}" для ${synthName} проснулся.,`,
     );
   }
 };
 export const toggleNodeBypass = (fxNode, shouldBypass, label, synthName) => {
   logBypassTransition(label, synthName, shouldBypass, fxNode.bypassed);
-  fxNode.bypassed = shouldBypass;
+  if (fxNode.bypassed !== shouldBypass) fxNode.bypassed = shouldBypass;
 };
 const isValidEffectNode = (fxNode, liveValue) => {
   return (

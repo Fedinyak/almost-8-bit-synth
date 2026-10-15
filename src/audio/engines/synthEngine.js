@@ -80,6 +80,16 @@ const createNativeMonoSynthAdapter = (presetConfig) => {
     connect(toneNode) {
       if (!toneNode) return adapter;
 
+      // =========================================================================
+      // ДИАГНОСТИЧЕСКАЯ ЛОВУШКА ДЛЯ ПРОВЕРКИ МИКРО-ПЕРЕКОММУТАЦИИ ГРАФА
+      // Выводим предупреждение и стек вызовов при каждом обращении к методу .connect()
+      // Это покажет, дергает ли система кабели синта при кручении ручек барабана.
+      // =========================================================================
+      console.warn(
+        `[🔌 АУДИОКАБЕЛЬ СИНТА ПЕРЕПОДКЛЮЧЕН]: Метод .connect() вызван рантаймом. Нативная инициализация = ${state.isInitialized}`,
+      );
+      console.trace();
+
       // ОТЛАДОЧНЫЙ ЛОГ №2: Смотрим, вызывается ли метод пайки и в каком статусе стейт
       console.log(
         `[🔌 МЕТОД .connect()]: Вызван. Нативная инициализация = ${state.isInitialized}`,
@@ -177,6 +187,12 @@ const createNativeMonoSynthAdapter = (presetConfig) => {
 
 const createSynth = (synthName) => {
   const presetConfig = SYNTH_PRESETS[synthName] || {};
+
+  console.warn(
+    `[🚨 ДЕТЕКТОР КРАША]: Метод createSynth ФИЗИЧЕСКИ ВЫЗВАН для инструмента: "${synthName}"! Пресет громкости: ${presetConfig?.volume}`,
+  );
+  console.trace();
+
   const rawSynth = createNativeMonoSynthAdapter(presetConfig);
 
   return wrapInstrumentWithEffects(
