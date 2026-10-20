@@ -18,10 +18,15 @@ export function PlaybackTrack(onStepAction) {
 
       const stepIndexInMeasure = parseInt(parts, 10) || 0;
 
-      track.patternsMap[measureIndex][stepIndexInMeasure] = {
+      // Инициализируем массив для шага, если его нет, чтобы избежать затирания данных
+      if (!track.patternsMap[measureIndex][stepIndexInMeasure]) {
+        track.patternsMap[measureIndex][stepIndexInMeasure] = [];
+      }
+
+      track.patternsMap[measureIndex][stepIndexInMeasure].push({
         data: noteData,
         phaseOffset,
-      };
+      });
     },
 
     addNoteToTick(absoluteTick, noteData, phaseOffset = 0) {
@@ -32,10 +37,15 @@ export function PlaybackTrack(onStepAction) {
         track.patternsMap[measureIndex] = {};
       }
 
-      track.patternsMap[measureIndex][stepIndexInMeasure] = {
+      // Инициализируем массив для шага, если его нет, чтобы избежать затирания данных
+      if (!track.patternsMap[measureIndex][stepIndexInMeasure]) {
+        track.patternsMap[measureIndex][stepIndexInMeasure] = [];
+      }
+
+      track.patternsMap[measureIndex][stepIndexInMeasure].push({
         data: noteData,
         phaseOffset,
-      };
+      });
     },
 
     setLoopDuration(numberOfMeasures) {},
@@ -52,10 +62,19 @@ export function PlaybackTrack(onStepAction) {
       const activeMeasure = track.patternsMap[currentHardwarePattern];
       if (!activeMeasure) return; // Пропускаем пустые такты без спама ошибками в консоль
 
-      const noteCell = activeMeasure[stepIndexInPattern];
-      if (!noteCell) return;
+      const cellData = activeMeasure[stepIndexInPattern];
+      if (!cellData) return;
 
-      onStepAction(exactAudioTime + noteCell.phaseOffset, noteCell.data);
+      // Если в ячейке массив (полифония / одновременные барабаны), итерируемся по нему
+      if (Array.isArray(cellData)) {
+        for (let i = 0; i < cellData.length; i++) {
+          const noteCell = cellData[i];
+          onStepAction(exactAudioTime + noteCell.phaseOffset, noteCell.data);
+        }
+      } else {
+        // Защитный фоллбэк на случай, если где-то в памяти остался старый одиночный объект
+        onStepAction(exactAudioTime + cellData.phaseOffset, cellData.data);
+      }
     },
 
     processSchedule() {},

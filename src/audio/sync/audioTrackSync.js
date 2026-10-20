@@ -101,10 +101,16 @@ export const syncInstrumentPatternsToTrack = (track, instrumentData) => {
       if (!temporaryContainer.patternsMap[measureIndex]) {
         temporaryContainer.patternsMap[measureIndex] = {};
       }
-      temporaryContainer.patternsMap[measureIndex][stepIndexInMeasure] = {
+
+      // Для синтов тоже инициализируем массив, чтобы поддерживать полифонию/аккорды на одном шаге
+      if (!temporaryContainer.patternsMap[measureIndex][stepIndexInMeasure]) {
+        temporaryContainer.patternsMap[measureIndex][stepIndexInMeasure] = [];
+      }
+
+      temporaryContainer.patternsMap[measureIndex][stepIndexInMeasure].push({
         data: noteData,
         phaseOffset,
-      };
+      });
     },
   };
 
@@ -136,10 +142,16 @@ export const syncDrumPatternsToTrack = (track, drumsData, drumNoteMap) => {
       if (!temporaryContainer.patternsMap[measureIndex]) {
         temporaryContainer.patternsMap[measureIndex] = {};
       }
-      temporaryContainer.patternsMap[measureIndex][stepIndexInMeasure] = {
+
+      // Инициализируем массив для шага барабанов, предотвращая затирание разных инструментов
+      if (!temporaryContainer.patternsMap[measureIndex][stepIndexInMeasure]) {
+        temporaryContainer.patternsMap[measureIndex][stepIndexInMeasure] = [];
+      }
+
+      temporaryContainer.patternsMap[measureIndex][stepIndexInMeasure].push({
         data: noteData,
         phaseOffset,
-      };
+      });
     },
   };
 
