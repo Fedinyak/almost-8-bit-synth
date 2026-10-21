@@ -1,6 +1,51 @@
 import { getNativeContext } from '../audio/core/nativeContext';
 // Живой нативный темп прямо из ядра
 import { getCurrentEngineBpm } from '../audio/core/audioEngineCore';
+import { SEQUENCER_CONFIG } from '../constants/sequencerConfig';
+
+const SIXTEENTH_STEPS_PER_BEAT = 4;
+const VALID_TIME_COORDINATES_COUNT = 3;
+
+/**
+ * Получает количество шагов в одном паттерне из конфигурации
+ */
+export const getStepsPerPattern = () => SEQUENCER_CONFIG.SEQUENCER_STEP || 16;
+
+/**
+ * Вычисляет индекс паттерна (такта) на основе абсолютного тика
+ */
+export const calculateMeasureIndex = (absoluteTick) =>
+  Math.floor(absoluteTick / getStepsPerPattern());
+
+/**
+ * Вычисляет индекс шага внутри паттерна на основе абсолютного тика
+ */
+export const calculateStepIndexInMeasure = (absoluteTick) =>
+  absoluteTick % getStepsPerPattern();
+
+/**
+ * Рассчитывает сквозной абсолютный тик по координатам долей и микрошагов
+ */
+export const calculateAbsoluteTick = (measureIndex, beats, sixteenths) => {
+  const stepInPattern = beats * SIXTEENTH_STEPS_PER_BEAT + sixteenths;
+  return measureIndex * getStepsPerPattern() + stepInPattern;
+};
+
+/**
+ * Парсит трекерную строку формата 'такт:доля:микрошаг' в сквозной абсолютный тик
+ */
+export const parseSynthTimeToAbsoluteTick = (timeStr, measureIndex) => {
+  const timeCoordinates = timeStr.split(':');
+
+  if (timeCoordinates.length !== VALID_TIME_COORDINATES_COUNT) {
+    return measureIndex * getStepsPerPattern();
+  }
+
+  const beats = parseInt(timeCoordinates[1], 10) || 0;
+  const sixteenths = parseInt(timeCoordinates[2], 10) || 0;
+
+  return calculateAbsoluteTick(measureIndex, beats, sixteenths);
+};
 
 export const microTimingOffset = (drumIndex) => {
   const DRUM_PHASE_OFFSET = 0.001;

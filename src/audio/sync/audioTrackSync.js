@@ -1,76 +1,126 @@
 import { PlaybackTrack } from '../core/playbackTrack';
 import { processDrumPlaybackHit, playSynthNote } from './audioEngineTriggers';
+import { scheduler } from '../core/scheduler';
+import {
+  getStepsPerPattern,
+  calculateMeasureIndex,
+  calculateStepIndexInMeasure,
+  parseSynthTimeToAbsoluteTick,
+} from '../../utils/audioMathUtils';
 
-// --- МУЗЫКАЛЬНЫЕ КОНСТАНТЫ СЕТКИ СЕКВЕНСОРА ---
+// --- ВНУТРЕННИЕ СИСТЕМНЫЕ КОНСТАНТЫ ---
 const ACTIVE_HIT_MARKER = 1;
 const DRUM_PHASE_OFFSET_STEP = 0.001;
-const STEPS_IN_MEASURE = 16;
 
-// --- ЛОКАЛЬНЫЕ ПРЕДИКАТЫ И ВАЛИДАТОРЫ ---
+// --- ВАЛИДАТОРЫ И ПРЕДИКАТЫ ---
 const isTrackMissing = (track) => !track;
 const isPatternDataInvalid = (data) => !data || !Array.isArray(data.patterns);
 const isStepInactive = (hitValue) => hitValue !== ACTIVE_HIT_MARKER;
-const isNoteMissingInGrid = (item) => !item || !item.note;
+const isNoteMissing = (item) => !item || !item.note;
 
-/**
- * НАСТОЯЩИЙ ИСПРАВЛЕННЫЙ ПАРСЕР: Из строки '0:1:2' собирает точный шаг внутри такта (beats * 4 + sixteenths)
- */
-const parseSynthTimeToAbsoluteTick = (timeStr, measureIndex) => {
-  const parts = timeStr.split(':');
-  if (parts.length !== 3) return measureIndex * STEPS_IN_MEASURE;
+// --- МЕНЕДЖМЕНТ СТРУКТУРЫ ДАННЫХ И ЖИЗНЕННОГО ЦИКЛА ---
 
-  // Строка '0:1:2' -> parts[0] = такт, parts[1] = доля (0-3), parts[2] = микрошаг (0-3)
-  const beats = parseInt(parts[1], 10) || 0;
-  const sixteenths = parseInt(parts[2], 10) || 0;
-
-  // В одной доле всегда ровно 4 шестнадцатых шага
-  const stepInPattern = beats * 4 + sixteenths;
-
-  // Возвращаем сквозной индекс шага на глобальном таймлайне проекта
-  return measureIndex * STEPS_IN_MEASURE + stepInPattern;
+const ensureContainerStepArray = (patternsMap, measureIndex, stepIndex) => {
+  if (!patternsMap[measureIndex]) {
+    patternsMap[measureIndex] = {};
+  }
+  if (!patternsMap[measureIndex][stepIndex]) {
+    patternsMap[measureIndex][stepIndex] = [];
+  }
 };
 
-// --- ВНУТРЕННИЕ КОНВЕЙЕРЫ СИНХРОНИЗАЦИИ ШАГОВ ---
+const createTemporaryPatternContainer = () => {
+  const container = {
+    patternsMap: {},
+    addNoteToTick(absoluteTick, noteData, phaseOffset) {
+      const measureIndex = calculateMeasureIndex(absoluteTick);
+      const stepIndexInMeasure = calculateStepIndexInMeasure(absoluteTick);
+      const eventPayload = { data: noteData, phaseOffset };
 
-const syncDrumTrackSteps = (
+      ensureContainerStepArray(
+        container.patternsMap,
+        measureIndex,
+        stepIndexInMeasure,
+      );
+      container.patternsMap[measureIndex][stepIndexInMeasure].push(
+        eventPayload,
+      );
+    },
+  };
+  return container;
+};
+
+const bindTrackLifecycleToScheduler = (track) => {
+  scheduler.registerTrack(track);
+
+  const originalDispose = track.dispose;
+  track.dispose = () => {
+    scheduler.unregisterTrack(track);
+    originalDispose();
+  };
+};
+
+// --- КОНВЕЙЕРЫ ИТЕРАЦИИ ПАТТЕРНОВ (БЕЗ ALLOCATION) ---
+
+const processSingleDrumTrackSteps = (
   track,
   trackSteps,
   measureIndex,
   drumIndex,
   note,
 ) => {
-  if (!Array.isArray(trackSteps)) return;
+  const totalSteps = trackSteps.length;
+  const stepsPerPattern = getStepsPerPattern();
 
-  trackSteps.forEach((isHit, stepIndex) => {
-    if (isStepInactive(isHit)) return;
+  for (let stepIndex = 0; stepIndex < totalSteps; stepIndex++) {
+    if (isStepInactive(trackSteps[stepIndex])) continue;
 
     const phaseOffset = drumIndex * DRUM_PHASE_OFFSET_STEP;
-    const absoluteTick = measureIndex * STEPS_IN_MEASURE + stepIndex;
+    const absoluteTick = measureIndex * stepsPerPattern + stepIndex;
 
     track.addNoteToTick(absoluteTick, { note, drumIndex }, phaseOffset);
-  });
+  }
 };
 
-const syncMeasureDrums = (track, drumsInMeasure, measureIndex, drumNoteMap) => {
-  Object.entries(drumsInMeasure).forEach(
-    ([drumName, trackSteps], drumIndex) => {
-      const note = drumNoteMap[drumName];
-      if (isNoteMissingInGrid({ note })) return;
+const processMeasureDrumsGroup = (
+  track,
+  drumsInMeasure,
+  measureIndex,
+  drumNoteMap,
+) => {
+  const drumEntries = Object.entries(drumsInMeasure);
+  const entriesCount = drumEntries.length;
 
-      syncDrumTrackSteps(track, trackSteps, measureIndex, drumIndex, note);
-    },
-  );
+  for (let drumIndex = 0; drumIndex < entriesCount; drumIndex++) {
+    const [drumName] = drumEntries[drumIndex];
+    const trackSteps = drumsInMeasure[drumName];
+    const note = drumNoteMap[drumName];
+
+    if (isNoteMissing({ note })) continue;
+    if (!Array.isArray(trackSteps)) continue;
+
+    processSingleDrumTrackSteps(
+      track,
+      trackSteps,
+      measureIndex,
+      drumIndex,
+      note,
+    );
+  }
 };
 
-// --- ПУБЛИЧНЫЙ API СИНХРОНИЗАЦИИ СТЕЙТА И ЖЕЛЕЗА ---
+// --- ПУБЛИЧНЫЙ API СИНХРОНИЗАЦИИ ---
 
 export const setupSynthPlayback = (synthName, enginesRef, tracksRef) => {
   if (tracksRef[synthName]) return;
 
-  tracksRef[synthName] = PlaybackTrack((time, noteData) => {
+  const track = PlaybackTrack((time, noteData) => {
     const engine = enginesRef[synthName];
     if (engine) playSynthNote(engine, time, noteData);
   });
+
+  bindTrackLifecycleToScheduler(track);
+  tracksRef[synthName] = track;
 };
 
 export const setupDrumsPlayback = (
@@ -81,89 +131,59 @@ export const setupDrumsPlayback = (
 ) => {
   if (drumsTrackRef.current) return;
 
-  drumsTrackRef.current = PlaybackTrack((time, noteData) => {
+  const track = PlaybackTrack((time, noteData) => {
     const engine = drumsEngineRef.current;
-    if (!engine) return;
-
-    processDrumPlaybackHit(time, noteData, engine, drumNoteMap, release);
+    if (engine)
+      processDrumPlaybackHit(time, noteData, engine, drumNoteMap, release);
   });
+
+  bindTrackLifecycleToScheduler(track);
+  drumsTrackRef.current = track;
 };
 
 export const syncInstrumentPatternsToTrack = (track, instrumentData) => {
   if (isTrackMissing(track) || isPatternDataInvalid(instrumentData)) return;
 
-  const temporaryContainer = {
-    patternsMap: {},
-    addNoteToTick(absoluteTick, noteData, phaseOffset) {
-      const measureIndex = Math.floor(absoluteTick / 16);
-      const stepIndexInMeasure = absoluteTick % 16;
+  const container = createTemporaryPatternContainer();
+  const measuresCount = instrumentData.patterns.length;
 
-      if (!temporaryContainer.patternsMap[measureIndex]) {
-        temporaryContainer.patternsMap[measureIndex] = {};
-      }
+  for (let measureIndex = 0; measureIndex < measuresCount; measureIndex++) {
+    const patternGrid = instrumentData.patterns[measureIndex];
+    if (!Array.isArray(patternGrid)) continue;
 
-      // Для синтов тоже инициализируем массив, чтобы поддерживать полифонию/аккорды на одном шаге
-      if (!temporaryContainer.patternsMap[measureIndex][stepIndexInMeasure]) {
-        temporaryContainer.patternsMap[measureIndex][stepIndexInMeasure] = [];
-      }
+    const gridLength = patternGrid.length;
+    for (let itemIndex = 0; itemIndex < gridLength; itemIndex++) {
+      const item = patternGrid[itemIndex];
+      if (isNoteMissing(item)) continue;
 
-      temporaryContainer.patternsMap[measureIndex][stepIndexInMeasure].push({
-        data: noteData,
-        phaseOffset,
-      });
-    },
-  };
+      const absoluteTick = parseSynthTimeToAbsoluteTick(
+        item.time,
+        measureIndex,
+      );
+      container.addNoteToTick(absoluteTick, item);
+    }
+  }
 
-  instrumentData.patterns.forEach((patternGrid, measureIndex) => {
-    patternGrid
-      .filter((item) => !isNoteMissingInGrid(item))
-      .forEach((item) => {
-        const absoluteTick = parseSynthTimeToAbsoluteTick(
-          item.time,
-          measureIndex,
-        );
-        temporaryContainer.addNoteToTick(absoluteTick, item);
-      });
-  });
-
-  // Атомарно подменяем матрицу синтов
-  track.patternsMap = temporaryContainer.patternsMap;
+  track.patternsMap = container.patternsMap;
 };
 
 export const syncDrumPatternsToTrack = (track, drumsData, drumNoteMap) => {
   if (isTrackMissing(track) || isPatternDataInvalid(drumsData)) return;
 
-  const temporaryContainer = {
-    patternsMap: {},
-    addNoteToTick(absoluteTick, noteData, phaseOffset) {
-      const measureIndex = Math.floor(absoluteTick / 16);
-      const stepIndexInMeasure = absoluteTick % 16;
+  const container = createTemporaryPatternContainer();
+  const measuresCount = drumsData.patterns.length;
 
-      if (!temporaryContainer.patternsMap[measureIndex]) {
-        temporaryContainer.patternsMap[measureIndex] = {};
-      }
+  for (let measureIndex = 0; measureIndex < measuresCount; measureIndex++) {
+    const drumsInMeasure = drumsData.patterns[measureIndex];
+    if (!drumsInMeasure) continue;
 
-      // Инициализируем массив для шага барабанов, предотвращая затирание разных инструментов
-      if (!temporaryContainer.patternsMap[measureIndex][stepIndexInMeasure]) {
-        temporaryContainer.patternsMap[measureIndex][stepIndexInMeasure] = [];
-      }
-
-      temporaryContainer.patternsMap[measureIndex][stepIndexInMeasure].push({
-        data: noteData,
-        phaseOffset,
-      });
-    },
-  };
-
-  drumsData.patterns.forEach((drumsInMeasure, measureIndex) => {
-    syncMeasureDrums(
-      temporaryContainer,
+    processMeasureDrumsGroup(
+      container,
       drumsInMeasure,
       measureIndex,
       drumNoteMap,
     );
-  });
+  }
 
-  // Атомарно подменяем карту барабанов
-  track.patternsMap = temporaryContainer.patternsMap;
+  track.patternsMap = container.patternsMap;
 };

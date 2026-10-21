@@ -1,4 +1,78 @@
-import { scheduler } from './scheduler';
+import { SEQUENCER_CONFIG } from '../../constants/sequencerConfig';
+
+// --- ЧИСТЫЕ ДОМЕННЫЕ ВЫЧИСЛЕНИЯ (МАТЕМАТИКА СЕКВЕНСОРА) ---
+
+const getStepsPerPattern = () => SEQUENCER_CONFIG.SEQUENCER_STEP;
+
+const calculateMeasureIndex = (absoluteTick) =>
+  Math.floor(absoluteTick / getStepsPerPattern());
+
+const calculateStepIndexInMeasure = (absoluteTick) =>
+  absoluteTick % getStepsPerPattern();
+
+const parseFirstTimeCoordinate = (timeValue) => {
+  const timeCoordinates = timeValue.split(':');
+  const baseRadix = 10;
+  return parseInt(timeCoordinates, baseRadix) || 0;
+};
+
+// --- ВНУТРЕННИЕ ПРЕДИКАТЫ (ПРОВЕРКИ СОСТОЯНИЯ) ---
+
+const isInvalidTimeFormat = (timeValue) => {
+  const expectedPartsCount = 3;
+  return timeValue.split(':').length !== expectedPartsCount;
+};
+
+const isMeasureEmpty = (patternsMap, measureIndex) =>
+  !patternsMap[measureIndex];
+
+const isStepEmpty = (patternsMap, measureIndex, stepIndex) =>
+  !patternsMap[measureIndex][stepIndex];
+
+// --- АБСТРАКЦИИ РАБОТЫ СО СТРУКТУРОЙ ДАННЫХ ---
+
+const initializeMeasureStructure = (patternsMap, measureIndex) => {
+  if (isMeasureEmpty(patternsMap, measureIndex)) {
+    patternsMap[measureIndex] = {};
+  }
+};
+
+const initializeStepStructure = (patternsMap, measureIndex, stepIndex) => {
+  if (isStepEmpty(patternsMap, measureIndex, stepIndex)) {
+    patternsMap[measureIndex][stepIndex] = [];
+  }
+};
+
+const createStepEventContainer = (patternsMap, measureIndex, stepIndex) => {
+  initializeMeasureStructure(patternsMap, measureIndex);
+  initializeStepStructure(patternsMap, measureIndex, stepIndex);
+};
+
+const pushEventToMap = (patternsMap, measureIndex, stepIndex, eventData) => {
+  createStepEventContainer(patternsMap, measureIndex, stepIndex);
+  patternsMap[measureIndex][stepIndex].push(eventData);
+};
+
+const getEventCellData = (patternsMap, measureIndex, stepIndex) => {
+  if (isMeasureEmpty(patternsMap, measureIndex)) return null;
+  return patternsMap[measureIndex][stepIndex] || null;
+};
+
+// --- ВЫСОКОПРОИЗВОДИТЕЛЬНЫЕ СИСТЕМНЫЕ ИТЕНРАТОРЫ (DSP ZONE) ---
+
+const executeStepActions = (cellData, exactAudioTime, onStepAction) => {
+  if (Array.isArray(cellData)) {
+    const cellSize = cellData.length;
+    for (let i = 0; i < cellSize; i++) {
+      const noteCell = cellData[i];
+      onStepAction(exactAudioTime + noteCell.phaseOffset, noteCell.data);
+    }
+  } else {
+    onStepAction(exactAudioTime + cellData.phaseOffset, cellData.data);
+  }
+};
+
+// --- ФАБРИКА ДОРОЖКИ ВОСПРОИЗВЕДЕНИЯ ---
 
 export function PlaybackTrack(onStepAction) {
   const track = {
@@ -9,82 +83,56 @@ export function PlaybackTrack(onStepAction) {
     },
 
     add(musicalTimeValue, measureIndex, noteData, phaseOffset = 0) {
-      if (!track.patternsMap[measureIndex]) {
-        track.patternsMap[measureIndex] = {};
-      }
+      if (isInvalidTimeFormat(musicalTimeValue)) return;
 
-      const parts = musicalTimeValue.split(':');
-      if (parts.length !== 3) return;
+      const stepIndexInMeasure = parseFirstTimeCoordinate(musicalTimeValue);
+      const eventPayload = { data: noteData, phaseOffset };
 
-      const stepIndexInMeasure = parseInt(parts, 10) || 0;
-
-      // Инициализируем массив для шага, если его нет, чтобы избежать затирания данных
-      if (!track.patternsMap[measureIndex][stepIndexInMeasure]) {
-        track.patternsMap[measureIndex][stepIndexInMeasure] = [];
-      }
-
-      track.patternsMap[measureIndex][stepIndexInMeasure].push({
-        data: noteData,
-        phaseOffset,
-      });
+      pushEventToMap(
+        track.patternsMap,
+        measureIndex,
+        stepIndexInMeasure,
+        eventPayload,
+      );
     },
 
     addNoteToTick(absoluteTick, noteData, phaseOffset = 0) {
-      const measureIndex = Math.floor(absoluteTick / 16);
-      const stepIndexInMeasure = absoluteTick % 16;
+      const measureIndex = calculateMeasureIndex(absoluteTick);
+      const stepIndexInMeasure = calculateStepIndexInMeasure(absoluteTick);
+      const eventPayload = { data: noteData, phaseOffset };
 
-      if (!track.patternsMap[measureIndex]) {
-        track.patternsMap[measureIndex] = {};
-      }
-
-      // Инициализируем массив для шага, если его нет, чтобы избежать затирания данных
-      if (!track.patternsMap[measureIndex][stepIndexInMeasure]) {
-        track.patternsMap[measureIndex][stepIndexInMeasure] = [];
-      }
-
-      track.patternsMap[measureIndex][stepIndexInMeasure].push({
-        data: noteData,
-        phaseOffset,
-      });
+      pushEventToMap(
+        track.patternsMap,
+        measureIndex,
+        stepIndexInMeasure,
+        eventPayload,
+      );
     },
 
     setLoopDuration(numberOfMeasures) {},
     applyHardwareLoopEnd(count) {},
 
-    /**
-     * АППАРАТНЫЙ ВЫСТРЕЛ ЗВУКА: Возвращает легальную тишину, если такт временно пуст в момент создания
-     */
     processAudioStep(
       exactAudioTime,
       stepIndexInPattern,
       currentHardwarePattern,
     ) {
-      const activeMeasure = track.patternsMap[currentHardwarePattern];
-      if (!activeMeasure) return; // Пропускаем пустые такты без спама ошибками в консоль
-
-      const cellData = activeMeasure[stepIndexInPattern];
+      const cellData = getEventCellData(
+        track.patternsMap,
+        currentHardwarePattern,
+        stepIndexInPattern,
+      );
       if (!cellData) return;
 
-      // Если в ячейке массив (полифония / одновременные барабаны), итерируемся по нему
-      if (Array.isArray(cellData)) {
-        for (let i = 0; i < cellData.length; i++) {
-          const noteCell = cellData[i];
-          onStepAction(exactAudioTime + noteCell.phaseOffset, noteCell.data);
-        }
-      } else {
-        // Защитный фоллбэк на случай, если где-то в памяти остался старый одиночный объект
-        onStepAction(exactAudioTime + cellData.phaseOffset, cellData.data);
-      }
+      executeStepActions(cellData, exactAudioTime, onStepAction);
     },
 
     processSchedule() {},
 
     dispose() {
-      scheduler.unregisterTrack(track);
       track.patternsMap = {};
     },
   };
 
-  scheduler.registerTrack(track);
   return track;
 }
