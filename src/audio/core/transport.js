@@ -1,74 +1,80 @@
 import { SEQUENCER_CONFIG } from '../../constants/sequencerConfig';
+import { getStepsPerPattern } from '../../utils/audioMathUtils';
 
 // --- МУЗЫКАЛЬНЫЕ КОНСТАНТЫ СИСТЕМЫ ---
 const SECONDS_IN_MINUTE = 60;
-const STEPS_PER_BEAT = 4; // Четыре 16-х шага в одной четверти
+const STEPS_PER_BEAT = 4;
 
-let isPlaying = false;
-let currentBpm = SEQUENCER_CONFIG.DEFAULT_BPM || 120;
+// --- ВНУТРЕННИЙ МУТАБЕЛЬНЫЙ СТЕЙТ ТРАНСПОРТА ---
+let isPlayingState = false;
+let currentBpmValue = SEQUENCER_CONFIG.DEFAULT_BPM || 120;
 
-// НАСТОЯЩИЙ PLAYHEAD: Сквозная позиция плеера в музыкальных тиках (16-х шагах)
-let playheadTicks = 0;
+// --- ЧИСТЫЕ МАТЕМАТИЧЕСКИЕ ВЫЧИСЛЕНИЯ (PURE FUNCTIONS) ---
+
+/**
+ * Вычисляет длительность одного музыкального тика (16-го шага) в физических секундах
+ */
+const calculateSecondsPerTick = (bpm) => {
+  const secondsPerBeat = SECONDS_IN_MINUTE / bpm;
+  return secondsPerBeat / STEPS_PER_BEAT;
+};
+
+/**
+ * Вычисляет полную длительность одного музыкального такта (паттерна) в физических секундах
+ */
+const calculateSecondsPerMeasure = (bpm) =>
+  calculateSecondsPerTick(bpm) * getStepsPerPattern();
+
+// --- ПУБЛИЧНЫЙ API МОДУЛЯ ТРАНСПОРТА (FACADE) ---
 
 export const transport = {
   get bpm() {
-    return currentBpm;
+    return currentBpmValue;
   },
   set bpm(value) {
-    currentBpm = value;
+    currentBpmValue = value;
   },
 
   get isPlaying() {
-    return isPlaying;
-  },
-
-  // Геттер и сеттер для Playhead курсора в тиках
-  get ticks() {
-    return playheadTicks;
-  },
-  set ticks(value) {
-    playheadTicks = value;
+    return isPlayingState;
   },
 
   /**
-   * МАТЕМАТИКА PPQ: Вычисляет точную длительность одного 16-го шага (импульса) в физических секундах
+   * Возвращает точную длительность одного 16-го шага в физических секундах на основе текущего темпа
    */
   getSecondsPerTick() {
-    const secondsPerBeat = SECONDS_IN_MINUTE / currentBpm;
-    return secondsPerBeat / STEPS_PER_BEAT;
+    return calculateSecondsPerTick(currentBpmValue);
   },
 
   /**
-   * Вычисляет длительность одного музыкального такта (16 шагов) в секундах
+   * Возвращает длительность одного полного паттерна в физических секундах на основе текущего темпа
    */
   getSecondsPerMeasure() {
-    return transport.getSecondsPerTick() * 16;
+    return calculateSecondsPerMeasure(currentBpmValue);
   },
 
   start() {
-    isPlaying = true;
+    isPlayingState = true;
   },
 
   pause() {
-    isPlaying = false;
+    isPlayingState = false;
   },
 
   stop() {
-    isPlaying = false;
-    playheadTicks = 0; // Полный физический сброс Playhead в начало ленты нот
+    isPlayingState = false;
   },
 
+  /**
+   * Декларативная диспетчеризация состояния воспроизведения из Redux UI слоя
+   */
   setPlayState(state) {
-    switch (state) {
-      case 'start':
-        transport.start();
-        break;
-      case 'pause':
-        transport.pause();
-        break;
-      default:
-        transport.stop();
-        break;
+    if (state === 'start') {
+      transport.start();
+    } else if (state === 'pause') {
+      transport.pause();
+    } else {
+      transport.stop();
     }
   },
 };
