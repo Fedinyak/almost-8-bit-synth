@@ -4,15 +4,12 @@ import {
   EFFECT_DEVICES,
   DRUM_TYPE_MAP,
 } from '../../constants/soundParamsConfig';
-import { wrapInstrumentWithEffects } from '../../audio/core/audioEngineCore';
-import { synthesisMembraneDrum, synthesisNoiseDrum } from './drumSynthesis';
+import { wrapInstrumentWithEffects } from '../core/audioEngineCore';
 import {
-  ZERO_AUDIO_AMPLITUDE,
   dbToLinearGain,
   isValidVolumeNumber,
   isNodeMissing,
   createInitialDrumState,
-  routeAudioNodes,
   applyVolumePropertyCompatibility,
   calculateTimelineTimes,
   createDrumSignalChain,
@@ -24,50 +21,19 @@ import {
   isAudioEngineContextMissing,
   canDisconnectFromHardware,
 } from './drumHardware';
-
-// --- НАСТРОЙКИ ТИПОВ СИНТЕЗА (INSTRUMENT TYPES) ---
-const SYNTH_TYPE_MEMBRANE = 'MembraneSynth';
+import {
+  hasDisposeMethod,
+  updateHardwareDrumVolume,
+  executeHardwareDisconnect,
+  dispatchDrumSynthesis,
+} from './drumEngineModel';
 
 // --- ДЕФОЛТНЫЕ НАСТРОЙКИ ОГИБАЮЩЕЙ (ENVELOPE FALLBACKS) ---
 const DEFAULT_ENVELOPE_ATTACK_SEC = 0.005;
 const DEFAULT_ENVELOPE_DECAY_SEC = 0.1;
 const DEFAULT_ENVELOPE_RELEASE_SEC = 0.3;
 
-// --- ЛОКАЛЬНЫЕ ВСПОМОГАТЕЛЬНЫЕ ПРЕДИКАТЫ ---
-
-const hasDisposeMethod = (container) =>
-  container && typeof container.dispose === 'function';
-
-const safelyDisposeContainer = (container) => {
-  if (hasDisposeMethod(container)) {
-    container.dispose();
-  }
-};
-
-// --- ВЫНЕСЕННЫЕ ФУНКЦИИ УПРАВЛЕНИЯ НА ТЕКУЩЕМ ШАГЕ ---
-
-// Сохранение ссылки на текущий гейн-параметр для плавного гашения щелчков на следующем шаге
-const captureLastGainParam = (state, drumGain) => {
-  state.lastGainParam = drumGain.gain;
-};
-
-// Низкоуровневое отключение аудио-узлов от системного микшера с деструктуризацией аргументов
-const executeHardwareDisconnect = (state, { outputNode }) => {
-  try {
-    outputNode.disconnect();
-    state.isConnectedToHardware = false;
-  } catch (e) {}
-};
-
-// Обновление физической громкости на аудио-ноде барабана
-const updateHardwareDrumVolume = ({ outputNode, ctx }, decibelsValue) => {
-  outputNode.gain.setValueAtTime(
-    dbToLinearGain(decibelsValue),
-    ctx.currentTime,
-  );
-};
-
-// --- ФАБРИКА СТРУКТУРЫ ДАННЫХ БАРАБАНА ---
+// --- ФАБРИКА СТРУКТУРЫ ДАННЫХ БАРАБАНА (INTERNAL SYNTH CORE) ---
 
 const createNativeDrumAdapter = (drumName, typeString, presetConfig) => {
   const state = createInitialDrumState(presetConfig);
@@ -99,34 +65,23 @@ const createNativeDrumAdapter = (drumName, typeString, presetConfig) => {
       }
     },
 
-    connect(toneNode) {
-      if (isNodeMissing(toneNode)) return adapter;
-
+    /**
+     * Внутренняя низкоуровневая коммутация: теперь подключается СТРОГО к pannerNode своего рэка
+     */
+    connectInternal(pannerNode) {
       if (isAudioEngineContextMissing(state)) {
-        state.ctx = extractNativeAudioContext(toneNode);
+        state.ctx = extractNativeAudioContext(pannerNode);
         state.outputNode = state.ctx.createGain();
         state.outputNode.gain.value = dbToLinearGain(state.volumeValue);
         state.isInitialized = true;
       }
 
-      // --- НА ТИВНАЯ ЗАЧИСТКА TONE.JS (ШАГ 4: ПРЯМОЙ КОННЕКТ НА ДИНАМИКИ БАРАБАНОВ) ---
-      // Сохраняем и комментируем старую пайку библиотечного микшера драм-каналов
-      // routeAudioNodes(state.outputNode, toneNode);
-
-      // Подключаем выходную ноду гейна барабанов напрямую к физическому выходу звуковой карты
-      if (state.outputNode && state.ctx) {
-        state.outputNode.connect(state.ctx.destination);
+      if (state.outputNode) {
+        state.outputNode.connect(pannerNode);
       }
 
       state.isConnectedToHardware = true;
-      return adapter;
-    },
-
-    disconnect() {
-      if (canDisconnectFromHardware(state)) {
-        executeHardwareDisconnect(state, state);
-      }
-      return adapter;
+      return state;
     },
 
     triggerAttackRelease(noteOrDuration, duration, time) {
@@ -150,7 +105,7 @@ const createNativeDrumAdapter = (drumName, typeString, presetConfig) => {
         ctxTime,
       );
 
-      captureLastGainParam(state, drumGain);
+      state.lastGainParam = drumGain.gain;
 
       applyGainEnvelope(
         drumGain.gain,
@@ -160,25 +115,22 @@ const createNativeDrumAdapter = (drumName, typeString, presetConfig) => {
         dbToLinearGain(state.volumeValue),
       );
 
-      const isMembrane = typeString === SYNTH_TYPE_MEMBRANE;
-      if (isMembrane) {
-        synthesisMembraneDrum(ctx, drumGain, ctxTime, totalDrumDuration);
-        return;
-      }
-
-      synthesisNoiseDrum(ctx, drumGain, drumName, ctxTime, totalDrumDuration);
-    },
-
-    dispose() {
-      adapter.disconnect();
+      dispatchDrumSynthesis(
+        typeString,
+        ctx,
+        drumGain,
+        drumName,
+        ctxTime,
+        totalDrumDuration,
+      );
     },
   };
 
   applyVolumePropertyCompatibility(adapter);
-  return adapter;
+  return { adapter, state };
 };
 
-// --- ВЫНЕСЕННЫЕ ДЕКЛАРАТИВНЫЕ СБОРЩИКИ РЭКОВ (КОНВЕЙЕРЫ) ---
+// --- ВЫНЕСЕННЫЕ ДЕКЛАРАТИВНЫЕ СБОРЩИКИ РЭКОВ (HARDWARE ROUTER) ---
 
 const wrapDrumInEffectsRack = (drumName, rawSynth) => {
   const instrumentPreset = DRUM_PRESETS[drumName] || {};
@@ -190,28 +142,91 @@ const wrapDrumInEffectsRack = (drumName, rawSynth) => {
   );
 };
 
+/**
+ * Собирает полноценную независимую канальную линейку (Channel Strip) для одного барабана
+ */
 const assembleSingleRackInstrument = (drumName, typeString) => {
   const presetConfig = DRUM_PRESETS[drumName] || {};
-  const rawSynth = createNativeDrumAdapter(drumName, typeString, presetConfig);
 
-  return wrapDrumInEffectsRack(drumName, rawSynth);
+  // 1. Создаем внутренний движок синтеза и его изолированный стейт
+  const { adapter, state } = createNativeDrumAdapter(
+    drumName,
+    typeString,
+    presetConfig,
+  );
+
+  // 2. Оборачиваем во внешний рэк эффектов
+  const rack = wrapDrumInEffectsRack(drumName, adapter);
+
+  // 3. Коммутируем внутренний синтезатор со входом рэка (pannerNode) строго один раз
+  adapter.connectInternal(rack.panner);
+
+  // 4. Проксируем методы управления звуком наружу на уровень рэка, создавая чистый инкапсулированный фасад
+  rack.drumName = adapter.drumName;
+  rack.typeString = adapter.typeString;
+  rack.envelope = adapter.envelope;
+  rack.getVolume = () => adapter.getVolume();
+  rack.setVolume = (val) => adapter.setVolume(val);
+  rack.triggerAttackRelease = (note, dur, time) =>
+    adapter.triggerAttackRelease(note, dur, time);
+
+  // 5. Переопределяем внешние методы коммутации, чтобы они управляли ФИНАЛЬНЫМ ВЫХОДОМ рэка, а не ядром синта
+  rack.connect = (toneNode) => {
+    if (isNodeMissing(toneNode)) return rack;
+    if (rack.output) {
+      rack.output.connect(toneNode);
+    }
+    return rack;
+  };
+
+  rack.disconnect = () => {
+    if (canDisconnectFromHardware(state)) {
+      executeHardwareDisconnect(state);
+    }
+    if (rack.output) {
+      try {
+        rack.output.disconnect();
+      } catch (e) {}
+    }
+    return rack;
+  };
+
+  rack.dispose = () => {
+    rack.disconnect();
+    if (typeof adapter.dispose === 'function') {
+      adapter.dispose();
+    }
+  };
+
+  return rack;
 };
 
 const buildRackFromTypeMap = (typeMap) => {
   const rack = {};
+  const entries = Object.entries(typeMap);
+  const totalEntries = entries.length;
 
-  Object.entries(typeMap).forEach(([drumName, typeString]) => {
+  for (let i = 0; i < totalEntries; i++) {
+    const [drumName, typeString] = entries[i];
     rack[drumName] = assembleSingleRackInstrument(drumName, typeString);
-  });
+  }
 
   return rack;
 };
 
 const disposeAllRackContainers = (wrappedDrums) => {
-  Object.values(wrappedDrums).forEach(safelyDisposeContainer);
+  const containers = Object.values(wrappedDrums);
+  const totalContainers = containers.length;
+
+  for (let i = 0; i < totalContainers; i++) {
+    const container = containers[i];
+    if (hasDisposeMethod(container)) {
+      container.dispose();
+    }
+  }
 };
 
-// --- ПУБЛИЧНЫЙ СТАРТОВЫЙ МЕТОД ---
+// --- ГЛАВНЫЙ СЛУЖЕБНЫЙ МЕТОД ФАБРИКИ ---
 
 const createDrums = () => {
   const wrappedDrums = buildRackFromTypeMap(DRUM_TYPE_MAP);
