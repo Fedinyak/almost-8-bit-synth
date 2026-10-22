@@ -20,59 +20,63 @@ export const ALL_ENGINES = [
   'metalSynth',
 ];
 
+/**
+ * ОПТИМИЗИРОВАННЫЕ ПРЕСЕТЫ ГРОМКОСТИ УДАРНЫХ (STUDIO BALANCED)
+ * Значения подняты для обеспечения пробивного панча и правильного RMS-баланса микса.
+ */
 export const RAW_DRUM_PRESETS = {
   kick: {
     engineType: 'membraneSynth',
-    volume: -10,
+    volume: -6, // Буст для плотного кача внизу
     attack: 0.005,
     decay: 0.12,
     release: 0.3,
   },
   snare: {
     engineType: 'noiseSynth',
-    volume: -12,
+    volume: -8, // Поднято, чтобы пробивал сквозь плотные лиды синтов
     attack: 0.005,
     decay: 0.1,
     release: 0.3,
   },
   hiHat: {
     engineType: 'metalSynth',
-    volume: -12,
+    volume: -10,
     attack: 0.005,
     decay: 0.05,
     release: 0.3,
   },
   hiHatClose: {
     engineType: 'metalSynth',
-    volume: -12,
+    volume: -9, // Оптимизированный баланс закрытого хэта
     attack: 0.005,
     decay: 0.04,
     release: 0.3,
   },
   hiHatOpen: {
     engineType: 'metalSynth',
-    volume: -10,
+    volume: -7, // Поднято для яркого хвоста открытого хэта
     attack: 0.005,
     decay: 0.3,
     release: 0.3,
   },
   crash: {
     engineType: 'metalSynth',
-    volume: -8,
+    volume: -6, // Выверенный пиковый уровень для акцентов краша
     attack: 0.01,
     decay: 1.5,
     release: 0.3,
   },
   ride: {
     engineType: 'metalSynth',
-    volume: -10,
+    volume: -8,
     attack: 0.001,
     decay: 0.8,
     release: 0.3,
   },
   tom: {
     engineType: 'membraneSynth',
-    volume: -12,
+    volume: -8, // Буст для плотного тона томов
     pitchDecay: 0.08,
     octaves: 4,
     attack: 0.005,
