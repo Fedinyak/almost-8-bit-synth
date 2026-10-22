@@ -1,9 +1,6 @@
 import { SEQUENCER_CONFIG } from '../../constants/sequencerConfig';
+import { SECONDS_IN_MINUTE, STEPS_PER_BEAT } from '../../constants/constants';
 import { getStepsPerPattern } from '../../utils/audioMathUtils';
-
-// --- МУЗЫКАЛЬНЫЕ КОНСТАНТЫ СИСТЕМЫ ---
-const SECONDS_IN_MINUTE = 60;
-const STEPS_PER_BEAT = 4;
 
 // --- ВНУТРЕННИЙ МУТАБЕЛЬНЫЙ СТЕЙТ ТРАНСПОРТА ---
 let isPlayingState = false;
