@@ -1,88 +1,92 @@
 import createSynth from '../engines/synthEngine';
 import createDrums from '../engines/drumEngine';
+import { SYNTH_LIST } from '../../constants/constants';
+import { buildVirtualHardwareRegistry } from './effectsRackStubs';
 
-// Постоянный список инструментов твоего грувбокса
-const SYNTH_NAMES = ['synth1', 'synth2'];
+// --- ВНУТРЕННЕЕ ИЗОЛИРОВАННОЕ СОСТОЯНИЕ МОДУЛЯ ---
+let synthsRegistry = {};
+let drumsRegistry = null;
+let isInitialized = false;
 
-// Легковесные JS-пустышки, которые «проглатывают» команды слайдеров из Redux/UI
-const createEffectStub = () => ({
-  bypassed: true,
-  wet: 0.0,
-  set() {
-    return this;
-  },
-  dispose() {},
-});
+// --- ВНУТРЕННИЕ ПРЕДИКАТЫ И ВАЛИДАТОРЫ ---
+const hasDisposeMethod = (node) => node && typeof node.dispose === 'function';
+
+// --- ЧИСТЫЕ ФУНКЦИОНАЛЬНЫЕ СБОРЩИКИ (PURE FP CONSTRUCTORS) ---
 
 /**
- * БЕССМЕРТНОЕ АУДИО-ЯДРО (АНАЛОГ ГЛОБАЛЬНОЙ ПАМЯТИ)
- * Ноды создаются строго ОДИН РАЗ при первом обращении.
- * Им абсолютно плевать на re-render, unmount или очистку рефов в React.
+ * Инициализирует инстанс конкретного синтезатора и маскирует его UI-заглушками
  */
-class NativeEngineRegistry {
-  constructor() {
-    this._synths = {};
-    this._drums = null;
-    this._isInitialized = false;
+const buildSingleSynth = (synthName) => {
+  const synthInstance = createSynth(synthName);
+  const virtualFxRegistry = buildVirtualHardwareRegistry();
+
+  return Object.assign(synthInstance, virtualFxRegistry);
+};
+
+/**
+ * Декларативно собирает полную карту синтезаторов на основе глобального списка констант
+ */
+const buildSynthsMap = (synthNamesList) => {
+  const synthsMap = {};
+  const totalSynths = synthNamesList.length;
+
+  for (let i = 0; i < totalSynths; i++) {
+    const name = synthNamesList[i];
+    synthsMap[name] = buildSingleSynth(name);
   }
 
-  ensureInitialized() {
-    if (this._isInitialized) return;
+  return synthsMap;
+};
 
-    console.warn(
-      '[🎹 NATIVE CORE]: Создание бессмертных нативных аудио-инстансов...',
-    );
+// --- СИСТЕМНЫЕ ОПЕРАЦИИ ОЧИСТКИ ПАМЯТИ ---
 
-    // 1. Инициализируем синты один раз в жизни
-    SYNTH_NAMES.forEach((name) => {
-      const synthInstance = createSynth(name);
-
-      // Маскируем инстанс пустышками, чтобы слайдеры интерфейса не падали с ошибкой "undefined"
-      synthInstance.fxSaturator = createEffectStub();
-      synthInstance.fxBitcrusher = createEffectStub();
-      synthInstance.fxDistortion = createEffectStub();
-
-      this._synths[name] = synthInstance;
-    });
-
-    // 2. Инициализируем барабаны один раз в жизни
-    this._drums = createDrums();
-
-    this._isInitialized = true;
-    console.warn(
-      '[🎯 NATIVE CORE]: Звуковой поток успешно изолирован в глобальной JS-памяти.',
-    );
+const safelyDisposeNode = (node) => {
+  if (hasDisposeMethod(node)) {
+    node.dispose();
   }
+};
 
+const disposeAllSynthsInRegistry = (registry) => {
+  const synthInstances = Object.values(registry);
+  const totalSynths = synthInstances.length;
+
+  for (let i = 0; i < totalSynths; i++) {
+    safelyDisposeNode(synthInstances[i]);
+  }
+};
+
+// --- ОРКЕСТРАЦИЯ ЖИЗНЕННОГО ЦИКЛА ЯДРА ---
+
+const ensureInitialized = () => {
+  if (isInitialized) return;
+
+  synthsRegistry = buildSynthsMap(SYNTH_LIST);
+  drumsRegistry = createDrums();
+  isInitialized = true;
+};
+
+// --- ПУБЛИЧНЫЙ API АУДИО-ПРОВОДНИКА (FACADE) ---
+
+export const audioCore = {
   get synths() {
-    this.ensureInitialized();
-    return this._synths;
-  }
+    ensureInitialized();
+    return synthsRegistry;
+  },
 
   get drums() {
-    this.ensureInitialized();
-    return this._drums;
-  }
+    ensureInitialized();
+    return drumsRegistry;
+  },
 
   /**
-   * Тотальный сброс памяти — сработает только если пользователь реально закроет вкладку
+   * Тотальный сброс памяти — выгрузка нативных аудио-узлов из ОЗУ
    */
   forceDisposeAll() {
-    console.error('[🧹 NATIVE CORE GC]: Выгрузка нод из оперативной памяти...');
+    disposeAllSynthsInRegistry(synthsRegistry);
+    safelyDisposeNode(drumsRegistry);
 
-    Object.values(this._synths).forEach((synth) => {
-      if (synth && typeof synth.dispose === 'function') synth.dispose();
-    });
-
-    if (this._drums && typeof this._drums.dispose === 'function') {
-      this._drums.dispose();
-    }
-
-    this._synths = {};
-    this._drums = null;
-    this._isInitialized = false;
-  }
-}
-
-// Экспортируем синглтон — единый неизменяемый аудио-проводник приложения
-export const audioCore = new NativeEngineRegistry();
+    synthsRegistry = {};
+    drumsRegistry = null;
+    isInitialized = false;
+  },
+};
