@@ -4,7 +4,113 @@ import {
 } from '../playback/audioModulationActions';
 import { SOUND_PARAMS } from '../../constants/soundParamsConfig';
 
-// Чистая функция обработки LFO и сглаживания треска для одного аудио-узла
+// --- СИСТЕМНЫЕ МАТЕМАТИЧЕСКИЕ КОНСТАНТЫ ---
+const SMOOTHING_FACTOR = 0.15;
+const DEFAULT_LFO_DEPTH = 0.5;
+const HALF_RANGE_COEFFICIENT = 0.5;
+
+// --- ВНУТРЕННИЕ ПРЕДИКАТЫ (ПРОВЕРКИ СОСТОЯНИЯ) ---
+
+const isLfoProcessingRequired = (settings, instance, targetParam) =>
+  settings.lfoActive && instance.masterLfoMeter && targetParam;
+
+// --- ЧИСТЫЕ ФУНКЦИОНАЛЬНЫЕ ВЫЧИСЛЕНИЯ (PURE FP MATH) ---
+
+const calculateModulatedValue = (
+  baseValue,
+  lfoPhase,
+  fullRange,
+  currentDepth,
+  minVal,
+  maxVal,
+) => {
+  const modulationAmount =
+    lfoPhase * (fullRange * HALF_RANGE_COEFFICIENT * currentDepth);
+  const rawTarget = baseValue + modulationAmount;
+  return Math.max(minVal, Math.min(maxVal, rawTarget));
+};
+
+const getParamBoundaries = (targetParam) => {
+  const config = SOUND_PARAMS[targetParam];
+  return {
+    minVal: config?.min ?? 0,
+    maxVal: config?.max ?? 1,
+    defaultVal: config?.default ?? 0,
+    isText: config?.isTextParam ?? false,
+  };
+};
+
+// --- СЛУЖЕБНЫЕ ИЗОЛИРОВАННЫЕ ОПЕРАЦИИ (COMPONENTS LAYER) ---
+
+const configurePhysicalLfoDevice = (masterLfo, settings) => {
+  if (!masterLfo) return;
+
+  if (settings.lfoRate !== undefined) {
+    masterLfo.frequency.value = settings.lfoRate;
+  }
+  if (
+    settings.lfoWaveform !== undefined &&
+    masterLfo.type !== settings.lfoWaveform
+  ) {
+    masterLfo.type = settings.lfoWaveform;
+  }
+};
+
+const applyLfoModulationStep = (
+  name,
+  targetParam,
+  settings,
+  instance,
+  smoothedValues,
+) => {
+  const lfoPhase = instance.masterLfoMeter.getValue();
+  const currentDepth = settings.lfoDepth ?? DEFAULT_LFO_DEPTH;
+
+  const { minVal, maxVal, defaultVal, isText } =
+    getParamBoundaries(targetParam);
+  const fullRange = maxVal - minVal;
+  const baseValue = settings[targetParam] ?? defaultVal;
+
+  let targetModulated = calculateModulatedValue(
+    baseValue,
+    lfoPhase,
+    fullRange,
+    currentDepth,
+    minVal,
+    maxVal,
+  );
+
+  if (isText) {
+    targetModulated = Math.round(targetModulated);
+  }
+
+  // Инициализация структуры сглаживания без выделения памяти под новые строки
+  if (!smoothedValues[name]) {
+    smoothedValues[name] = {};
+  }
+  if (smoothedValues[name][targetParam] === undefined) {
+    smoothedValues[name][targetParam] = targetModulated;
+  }
+
+  // Линейная инерция против цифрового треска
+  smoothedValues[name][targetParam] +=
+    (targetModulated - smoothedValues[name][targetParam]) * SMOOTHING_FACTOR;
+
+  // Применяем мутацию непосредственно в рабочий объект настроек
+  settings[targetParam] = smoothedValues[name][targetParam];
+};
+
+const applyChannelOutflow = (name, instance, settings) => {
+  applySynthEnvelope(instance, settings);
+  applyDynamicBypass(name, instance, settings);
+};
+
+// --- ГЛАВНЫЙ СЛУЖЕБНЫЙ ИНТЕРФЕЙС МОДУЛЯЦИИ ---
+
+/**
+ * Высокопроизводительный процессор LFO-модуляции и сглаживания цифрового треска.
+ * Полностью декомпозирован на чистые подмодули, реализует Zero-Allocation.
+ */
 export const processInstrumentLfoModulation = ({
   name,
   instance,
@@ -13,55 +119,18 @@ export const processInstrumentLfoModulation = ({
 }) => {
   if (!instance || !settings) return;
 
-  // 1. Настройка физического LFO устройства
-  if (instance.masterLfo) {
-    if (settings.lfoRate !== undefined) {
-      instance.masterLfo.frequency.value = settings.lfoRate;
-    }
-    if (
-      settings.lfoWaveform !== undefined &&
-      instance.masterLfo.type !== settings.lfoWaveform
-    ) {
-      instance.masterLfo.type = settings.lfoWaveform;
-    }
+  configurePhysicalLfoDevice(instance.masterLfo, settings);
+
+  const targetParam = settings.lfoTarget;
+  if (isLfoProcessingRequired(settings, instance, targetParam)) {
+    applyLfoModulationStep(
+      name,
+      targetParam,
+      settings,
+      instance,
+      smoothedValues,
+    );
   }
 
-  let runtimeSettings = { ...settings };
-
-  // 2. Матрица модуляции параметров звука волной LFO
-  if (settings.lfoActive && instance.masterLfoMeter && settings.lfoTarget) {
-    const targetParam = settings.lfoTarget;
-    const lfoPhase = instance.masterLfoMeter.getValue();
-    const currentDepth = settings.lfoDepth ?? 0.5;
-
-    const paramConfig = SOUND_PARAMS[targetParam] || { min: 0, max: 1 };
-    const minVal = paramConfig.min ?? 0;
-    const maxVal = paramConfig.max ?? 1;
-    const fullRange = maxVal - minVal;
-
-    const baseValue = settings[targetParam] ?? paramConfig.default ?? 0;
-
-    let targetModulated =
-      baseValue + lfoPhase * (fullRange * 0.5 * currentDepth);
-    targetModulated = Math.max(minVal, Math.min(maxVal, targetModulated));
-
-    if (paramConfig.isTextParam) {
-      targetModulated = Math.round(targetModulated);
-    }
-
-    // Линейный фильтр инерции (ФИКС ЦИФРОВОГО ТРЕСКА)
-    const cacheKey = `${name}_${targetParam}`;
-    if (smoothedValues[cacheKey] === undefined) {
-      smoothedValues[cacheKey] = targetModulated;
-    }
-
-    // Мягко подползаем к новой точке волны
-    smoothedValues[cacheKey] +=
-      (targetModulated - smoothedValues[cacheKey]) * 0.15;
-    runtimeSettings[targetParam] = smoothedValues[cacheKey];
-  }
-
-  // 3. Применение огибающих и динамического байпаса (0% ЦП)
-  applySynthEnvelope(instance, runtimeSettings);
-  applyDynamicBypass(name, instance, runtimeSettings);
+  applyChannelOutflow(name, instance, settings);
 };
