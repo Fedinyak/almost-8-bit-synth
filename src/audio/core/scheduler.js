@@ -20,10 +20,14 @@ export const updateHardwarePatternBounds = (count) => {
   schedulerPlayhead.setMaxPatterns(count);
 };
 
+/**
+ * ВОССТАНОВЛЕН ПОЗИЦИОННЫЙ ПОРЯДОК: Префикс '_' глушит ESLint.
+ * Сигнатура полностью совместима со старым вызовом в хуках, прыжки паттернов спасены.
+ */
 export const updateHardwareLoopState = (
   isLooping,
   selectedPatternIndex,
-  currentPlayPatternIndex,
+  _currentPlayPatternIndex,
   pendingPatternIndex,
 ) => {
   schedulerPlayhead.setLoopState(
