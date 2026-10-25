@@ -6,76 +6,83 @@ import {
 } from '../../utils/audioMathUtils';
 import { getNativeContext } from './nativeContext';
 
+// --- САМОДОКУМЕНТИРОВАННЫЕ ПРЕДИКАТЫ И ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
+const isNodeMissing = (node) => !node;
+const canConnect = (destination) =>
+  destination && typeof destination.connect === 'function';
+
 /**
- * АДАПТЕР НАТИВНОГО ОБЪЕМА (VOLUME): Полная замена Tone.Volume
- * Защищает от краша метод .toDestination() в audioEngineTriggers и маскирует AudioParam под интерфейс
+ * Чистая утилита извлечения точки входа для нативной коммутации узлов
  */
-class NativeVolumeAdapter {
-  constructor() {
-    const ctx = getNativeContext();
-    this.nativeGain = ctx.createGain();
-    this.input = this.nativeGain;
-    this.output = this.nativeGain;
-    this._bypassed = false;
+const extractDestinationNode = (target) => {
+  if (isNodeMissing(target)) return null;
+  return target.input || target._gainNode || target;
+};
 
-    // Эмуляция структуры .volume.value для плавного Ramper'а и слайдеров UI
-    this._volumeParamWrapper = {
-      _param: this.nativeGain.gain,
-      _parent: this,
-      get value() {
-        return linearGainToDb(this._param.value);
-      },
-      set value(dbValue) {
-        const linearGain = dbToLinearGain(dbValue);
-        const now = getNativeContext().currentTime;
+/**
+ * Декларативная фабрика создания независимого аудио-канала (Channel Strip)
+ */
+export const createAudioChannel = () => {
+  const ctx = getNativeContext();
+  const nativeGain = ctx.createGain();
 
-        if (!isParamChangeSignificant(this._param.value, linearGain)) return;
+  const getVolume = () => linearGainToDb(nativeGain.gain.value);
 
-        this._param.setValueAtTime(linearGain, now);
-      },
-    };
+  const setVolume = (dbValue) => {
+    const linearGain = dbToLinearGain(dbValue);
+    const now = ctx.currentTime;
 
-    Object.defineProperty(this, 'volume', {
-      get: () => this._volumeParamWrapper,
-    });
-  }
+    if (!isParamChangeSignificant(nativeGain.gain.value, linearGain)) return;
 
-  toDestination() {
-    if (this.nativeGain) {
-      this.nativeGain.connect(getNativeContext().destination);
-    }
-    return this;
-  }
+    nativeGain.gain.setValueAtTime(linearGain, now);
+  };
 
-  connect(target) {
-    const destination = target?.input || target?._gainNode || target;
-    if (destination && typeof destination.connect === 'function') {
-      this.nativeGain.connect(destination);
-    } else if (destination) {
-      this.nativeGain.connect(destination);
+  const toDestination = () => {
+    nativeGain.connect(ctx.destination);
+    return channelFacade;
+  };
+
+  const connect = (target) => {
+    const destination = extractDestinationNode(target);
+    if (canConnect(destination)) {
+      nativeGain.connect(destination);
     }
     return target;
-  }
+  };
 
-  disconnect() {
-    this.nativeGain.disconnect();
-    return this;
-  }
+  const disconnect = () => {
+    nativeGain.disconnect();
+    return channelFacade;
+  };
 
-  dispose() {
-    this.disconnect();
-  }
-}
+  const dispose = () => {
+    disconnect();
+  };
 
-export const createAudioChannel = () => new NativeVolumeAdapter();
+  // Чистый полиморфный интерфейс-фасад (Полностью совпадает с контрактом барабанов)
+  const channelFacade = {
+    input: nativeGain,
+    output: nativeGain,
+    getVolume,
+    setVolume,
+    toDestination,
+    connect,
+    disconnect,
+    dispose,
+  };
 
+  return channelFacade;
+};
+
+/**
+ * Декларативная фабрика создания аудио-анализатора спектра
+ */
 export const createAudioAnalyser = () => {
   const ctx = getNativeContext();
   const analyser = ctx.createAnalyser();
   analyser.fftSize = ANALYSER_SIZE;
 
-  analyser.toDestination = function () {
-    return this;
-  };
+  analyser.toDestination = () => analyser;
+
   return analyser;
 };
