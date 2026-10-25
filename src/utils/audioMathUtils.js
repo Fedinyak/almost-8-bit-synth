@@ -7,12 +7,34 @@ const SIXTEENTH_STEPS_PER_BEAT = 4;
 const VALID_TIME_COORDINATES_COUNT = 3;
 const SECONDS_IN_MINUTE = 60;
 
+const DB_CONVERSION_BASE = 10;
+const DB_CONVERSION_DIVISER = 20;
+const PARAM_MUTATION_EPSILON = 0.0001;
+
 // --- ПРЕДИКАТЫ СОСТОЯНИЯ ДЛЯ КВАНТОВАНИЯ ПЛЕЙХЕДА ---
 const isLastStepOfPattern = (stepIndex) =>
   stepIndex === getStepsPerPattern() - 1;
 const hasPendingJump = (jumpIndex) => jumpIndex !== null;
 const isPatternOutOfBound = (patternIndex, maxCount) =>
   patternIndex >= maxCount;
+
+/**
+ * Переводит децибелы слайдера в линейный гейн Web Audio API
+ */
+export const dbToLinearGain = (dbValue) =>
+  Math.pow(DB_CONVERSION_BASE, dbValue / DB_CONVERSION_DIVISER);
+
+/**
+ * Конвертирует линейное усиление обратно в децибелы для UI
+ */
+export const linearGainToDb = (linearGain) =>
+  linearGain > 0 ? DB_CONVERSION_DIVISER * Math.log10(linearGain) : -Infinity;
+
+/**
+ * Проверяет, является ли изменение параметра значительным (защита от спама)
+ */
+export const isParamChangeSignificant = (currentValue, targetValue) =>
+  Math.abs(currentValue - targetValue) >= PARAM_MUTATION_EPSILON;
 
 /**
  * Получает количество шагов в одном паттерне из конфигурации

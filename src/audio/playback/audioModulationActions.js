@@ -1,6 +1,3 @@
-// --- НАВЕДЕНИЕ ПОЛНОГО НАТИВНОГО ПОРЯДКА (TONE.JS ВЫРЕЗАН ИЗ МИКШЕРА) ---
-// import * as Tone from 'tone';
-
 import { checkBypassCondition } from '../../utils/audioMathUtils';
 import { synthAnalysers } from '../sync/visualizerState';
 import {
@@ -9,8 +6,6 @@ import {
   TEXT_PARAM_DICTIONARIES,
 } from '../../constants/soundParamsConfig';
 import {
-  ANALYSER_TYPE,
-  ANALYSER_SIZE,
   AUDIO_DEFAULT_VOLUME,
   AUDIO_DEFAULT_ATTACK,
   AUDIO_DEFAULT_DECAY,
@@ -19,85 +14,11 @@ import {
 } from '../../constants/audioEngineConfig';
 import { buildAndConnectInstrumentChannel } from './audioLifecycleActions';
 import { connectSynthToMixer } from './audioPlaybackActions';
-import { getNativeContext } from '../core/nativeContext';
-
-/**
- * АДАПТЕР НАТИВНОГО ОБЪЕМА (VOLUME): Полная замена Tone.Volume
- * Защищает от краша метод .toDestination() в audioEngineTriggers и маскирует AudioParam под интерфейс
- */
-class NativeVolumeAdapter {
-  constructor() {
-    const ctx = getNativeContext();
-    this.nativeGain = ctx.createGain();
-    this.input = this.nativeGain;
-    this.output = this.nativeGain;
-    this._bypassed = false;
-
-    // Эмуляция структуры .volume.value для плавного Ramper'а и слайдеров UI
-    this._volumeParamWrapper = {
-      _param: this.nativeGain.gain,
-      _parent: this,
-      get value() {
-        // Конвертируем линейное усиление обратно в децибелы для UI
-        const currentGain = this._param.value;
-        return currentGain > 0 ? 20 * Math.log10(currentGain) : -Infinity;
-      },
-      set value(dbValue) {
-        // Переводим децибелы слайдера в линейный гейн Web Audio API
-        const linearGain = Math.pow(10, dbValue / 20);
-        const now = getNativeContext().currentTime;
-
-        // ЗАЩИТА: Не спамим нативный аудио-параметр, если значение идентично
-        if (Math.abs(this._param.value - linearGain) < 0.0001) return;
-
-        this._param.setValueAtTime(linearGain, now);
-      },
-    };
-
-    Object.defineProperty(this, 'volume', {
-      get: () => this._volumeParamWrapper,
-    });
-  }
-
-  toDestination() {
-    if (this.nativeGain) {
-      this.nativeGain.connect(getNativeContext().destination);
-    }
-    return this;
-  }
-
-  connect(target) {
-    const destination = target?.input || target?._gainNode || target;
-    if (destination && typeof destination.connect === 'function') {
-      this.nativeGain.connect(destination);
-    } else if (destination) {
-      this.nativeGain.connect(destination);
-    }
-    return target;
-  }
-
-  disconnect() {
-    this.nativeGain.disconnect();
-    return this;
-  }
-
-  dispose() {
-    this.disconnect();
-  }
-}
-
-export const createAudioChannel = () => new NativeVolumeAdapter();
-
-export const createAudioAnalyser = () => {
-  const ctx = getNativeContext();
-  const analyser = ctx.createAnalyser();
-  analyser.fftSize = ANALYSER_SIZE;
-
-  analyser.toDestination = function () {
-    return this;
-  };
-  return analyser;
-};
+import {
+  createAudioChannel,
+  createAudioAnalyser,
+} from '../core/nativeChannels';
+import { nativeRampTo } from '../core/audioGraphUtils';
 
 export const initializeAudioRouting = (
   synthList,
@@ -122,52 +43,13 @@ export const initializeAudioRouting = (
   });
 };
 
-// Вспомогательная утилита для НАДРОДНОГО плавного изменения любого AudioParam (Замена .rampTo)
-const nativeRampTo = (paramNode, targetValue, duration = 0.05) => {
-  if (!paramNode) return;
-  const ctx = getNativeContext();
-  const now = ctx.currentTime;
-
-  try {
-    const nativeParam = paramNode._param || paramNode.input || paramNode;
-
-    if (nativeParam && typeof nativeParam.setValueAtTime === 'function') {
-      // =========================================================================
-      // ИСПРАВЛЕНО НАВСЕГДА: Железный замок от паразитного спама cancelScheduledValues!
-      // Если целевое значение параметра уже равно текущему (с точностью до погрешности),
-      // мы мгновенно выходим. Это на 100% защищает ADSR-огибающие играющего синта от
-      // стирания и затыкания звука при кручении ручек на панели барабанов.
-      // =========================================================================
-      if (Math.abs(nativeParam.value - targetValue) < 0.0001) {
-        return;
-      }
-
-      // Диагностический индикатор реальной, обоснованной мутации параметра
-      console.log(
-        `[🔊 RAMPER МУТИРОВАЛ ПАРАМЕТР]: Целевое значение =`,
-        targetValue,
-      );
-
-      nativeParam.cancelScheduledValues(now);
-      nativeParam.setValueAtTime(nativeParam.value, now);
-      nativeParam.linearRampToValueAtTime(targetValue, now + duration);
-    } else {
-      if (paramNode.value !== targetValue) {
-        paramNode.value = targetValue;
-      }
-    }
-  } catch (e) {
-    try {
-      paramNode.value = targetValue;
-    } catch (err) {
-      paramNode = targetValue;
-    }
-  }
-};
-
 export const updateInstrumentVolume = (instrument, volumeValue) => {
-  if (instrument?.volume) {
-    const targetVolume = volumeValue ?? AUDIO_DEFAULT_VOLUME;
+  if (!instrument) return;
+  const targetVolume = volumeValue ?? AUDIO_DEFAULT_VOLUME;
+
+  if (typeof instrument.setVolume === 'function') {
+    instrument.setVolume(targetVolume);
+  } else if (instrument.volume) {
     nativeRampTo(instrument.volume, targetVolume, 0.05);
   }
 };
@@ -348,6 +230,7 @@ export const updateEffectParam = (fxNode, targetParam, value) => {
     if (fxNode[targetParam] !== finalValue) fxNode[targetParam] = finalValue;
   } catch (e) {}
 };
+
 export const logBypassTransition = (
   label,
   synthName,
@@ -364,15 +247,18 @@ export const logBypassTransition = (
     );
   }
 };
+
 export const toggleNodeBypass = (fxNode, shouldBypass, label, synthName) => {
   logBypassTransition(label, synthName, shouldBypass, fxNode.bypassed);
   if (fxNode.bypassed !== shouldBypass) fxNode.bypassed = shouldBypass;
 };
+
 const isValidEffectNode = (fxNode, liveValue) => {
   return (
     fxNode && (typeof liveValue === 'number' || typeof liveValue === 'string')
   );
 };
+
 const applyEffectSettings = (
   fxNode,
   liveValue,
@@ -412,6 +298,7 @@ const applyEffectSettings = (
     toggleNodeBypass(fxNode, shouldBypass, wetParamConfig.label, synthName);
   }
 };
+
 export const applyDynamicBypass = (synthName, synthInstance, settings) => {
   Object.entries(SOUND_PARAMS)
     .filter(([_, paramConfig]) => paramConfig.isEffect && paramConfig.nodeKey)
