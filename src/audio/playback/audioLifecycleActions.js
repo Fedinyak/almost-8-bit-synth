@@ -1,51 +1,64 @@
+import { DRUM_KIT_LIST } from '../../constants/constants';
 import { audioCore } from '../core/nativeEngineRegistry';
-import { resetDrumLevels, resetSynthAnalysers } from '../sync/visualizerState';
+import { synthAnalysers } from '../sync/visualizerState';
+import {
+  createAudioChannel,
+  createAudioAnalyser,
+} from '../core/nativeChannels';
+import { connectSynthToMixer } from './audioPlaybackActions';
 
-const disposeSingleResource = (res) => {
-  if (res && !res.disposed && typeof res.dispose === 'function') {
-    res.dispose();
+// Декларативный реэкспорт логики очистки для сохранения архитектурных контрактов приложения
+export { cleanupAudioResources, stopAllAudio } from './audioCleanupActions';
+
+// --- САМОДОКУМЕНТИРОВАННЫЕ FP ПРЕДИКАТЫ ---
+const isMissing = (target) => !target;
+const hasRefStructure = (ref) => ref && ref.current !== undefined;
+const isRoutingAlreadySetup = (synthInstance, currentAnalyser) =>
+  isMissing(synthInstance) || !isMissing(currentAnalyser);
+
+/**
+ * Извлекает чистый объект данных независимо от того, передан Ref или обычный объект
+ */
+const extractTargetRegistry = (refOrObj) => {
+  if (isMissing(refOrObj)) return null;
+  return hasRefStructure(refOrObj) ? refOrObj.current : refOrObj;
+};
+
+/**
+ * Чистая утилита для записи аудио-ноды в реестр без иф-лестниц
+ */
+const writeToRegistry = (registry, name, audioNode) => {
+  if (registry) {
+    registry[name] = audioNode;
   }
 };
 
-const disposeRefRegistry = (registryRef) => {
-  if (!registryRef?.current) return;
+/**
+ * Декларативная привязка вечного ядра ударных к переданному контейнеру на основе констант
+ * Полностью уничтожает хардкод и автоматически масштабируется при добавлении новых барабанов
+ */
+const bindDrumsToContainer = (drumsContainer, coreDrums) => {
+  if (hasRefStructure(drumsContainer)) {
+    if (!drumsContainer.current) {
+      drumsContainer.current = coreDrums;
+    }
+    return;
+  }
 
-  Object.values(registryRef.current).forEach((resource) =>
-    disposeSingleResource(resource),
-  );
-  registryRef.current = {};
+  // Декларативный FP-перебор константного списка вместо ручного копирования строк
+  DRUM_KIT_LIST.forEach((drumName) => {
+    writeToRegistry(drumsContainer, drumName, coreDrums[drumName]);
+  });
 };
 
-export const cleanupAudioResources = ({
-  parts,
-  drumPart,
-  analysersRef,
-  channelsRef,
-}) => {
-  // Мы БОЛЬШЕ НЕ ВЫЗЫВАЕМ автоматический .dispose() на инстансах инструментов,
-  // так как их память вечно и безопасно удерживается синглтоном audioCore.
-
-  disposeRefRegistry(analysersRef);
-  disposeRefRegistry(channelsRef);
-  resetSynthAnalysers();
-
-  // Дорожки воспроизведения (parts) очищаем всегда, чтобы ноты в секвенсоре не накладывались друг на друга
-  if (parts) {
-    Object.values(parts).forEach(disposeSingleResource);
-  }
-  if (drumPart) {
-    disposeSingleResource(drumPart);
-  }
-};
-
-// ИСПРАВЛЕНО НАВСЕГДА: Прямой мост копирования вечных ссылок синтов
+/**
+ * Инициализирует синтезаторы, копируя ссылки из глобального реестра ядра
+ */
 export const initializeSynths = (synthList, enginesRef) => {
-  if (!enginesRef) return;
-  const coreSynths = audioCore.synths;
+  if (isMissing(enginesRef)) return;
 
-  // Всеядно определяем целевой слой записи (работает и с .current, и напрямую)
-  const target =
-    enginesRef.current !== undefined ? enginesRef.current : enginesRef;
+  const target = extractTargetRegistry(enginesRef);
+  const coreSynths = audioCore.synths;
 
   synthList.forEach((synthName) => {
     if (!target[synthName]) {
@@ -54,64 +67,65 @@ export const initializeSynths = (synthList, enginesRef) => {
   });
 };
 
-// ИСПРАВЛЕНО НАВСЕГДА: Прямой мост копирования вечной ссылки барабанов
+/**
+ * Инициализирует барабанный модуль, привязывая его к вечной ссылке ядра
+ */
 export const initializeDrums = (drumsRef) => {
-  if (!drumsRef) return;
-  const coreDrums = audioCore.drums;
-
-  if (drumsRef.current !== undefined) {
-    if (!drumsRef.current) {
-      drumsRef.current = coreDrums;
-    }
-  } else {
-    Object.assign(drumsRef, coreDrums);
-  }
+  if (isMissing(drumsRef)) return;
+  bindDrumsToContainer(drumsRef, audioCore.drums);
 };
 
-export const stopAllAudio = (refs) => {
-  cleanupAudioResources({
-    synths: refs.synths?.current,
-    parts: refs.parts?.current,
-    drumEngine: refs.drumsEngine?.current,
-    drumPart: refs.drumsPart?.current,
-    analysersRef: refs.synthAnalysersRef,
-    channelsRef: refs.synthChannelsRef,
-  });
-
-  // Пусть React на своем UI-слое очищает временные локальные ссылки хука
-  if (refs.synths?.current) refs.synths.current = {};
-  if (refs.parts?.current) refs.parts.current = {};
-  if (refs.drumsEngine?.current) refs.drumsEngine.current = null;
-  if (refs.drumsPart?.current) refs.drumsPart.current = null;
-
-  resetDrumLevels();
-};
-
+/**
+ * Декларативно собирает и коммутирует канальную линейку для одного инструмента
+ */
 export const buildAndConnectInstrumentChannel = (
   synthInstance,
   instrumentName,
   channelsRegistry,
   analysersRegistry,
-  globalVisualizerState,
-  createChannel,
-  createAnalyser,
-  connectToMixer,
 ) => {
-  const channel = createChannel();
-  const analyser = createAnalyser();
+  const channel = createAudioChannel();
+  const analyser = createAudioAnalyser();
 
-  connectToMixer(synthInstance, channel, analyser);
+  connectSynthToMixer(synthInstance, channel, analyser);
 
-  const channels =
-    channelsRegistry?.current !== undefined
-      ? channelsRegistry.current
-      : channelsRegistry;
-  const analysers =
-    analysersRegistry?.current !== undefined
-      ? analysersRegistry.current
-      : analysersRegistry;
+  // Линейная, самодокументированная запись в реестры
+  writeToRegistry(
+    extractTargetRegistry(channelsRegistry),
+    instrumentName,
+    channel,
+  );
+  writeToRegistry(
+    extractTargetRegistry(analysersRegistry),
+    instrumentName,
+    analyser,
+  );
+  writeToRegistry(synthAnalysers, instrumentName, analyser);
+};
 
-  if (channels) channels[instrumentName] = channel;
-  if (analysers) analysers[instrumentName] = analyser;
-  if (globalVisualizerState) globalVisualizerState[instrumentName] = analyser;
+/**
+ * Инициализация и сборка маршрутов микшера при старте приложения
+ */
+export const initializeAudioRouting = (
+  synthList,
+  enginesRef,
+  channelsRef,
+  analysersRef,
+) => {
+  const engines = extractTargetRegistry(enginesRef);
+  const analysers = extractTargetRegistry(analysersRef);
+
+  synthList.forEach((name) => {
+    const synthInstance = engines?.[name];
+    const currentAnalyser = analysers?.[name];
+
+    if (isRoutingAlreadySetup(synthInstance, currentAnalyser)) return;
+
+    buildAndConnectInstrumentChannel(
+      synthInstance,
+      name,
+      channelsRef,
+      analysersRef,
+    );
+  });
 };

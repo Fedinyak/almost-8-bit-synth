@@ -1,14 +1,7 @@
-import { synthAnalysers } from '../sync/visualizerState';
 import { AUDIO_DEFAULT_VOLUME } from '../../constants/audioEngineConfig';
-import { buildAndConnectInstrumentChannel } from './audioLifecycleActions';
-import { connectSynthToMixer } from './audioPlaybackActions';
-import {
-  createAudioChannel,
-  createAudioAnalyser,
-} from '../core/nativeChannels';
 import { nativeRampTo } from '../core/audioGraphUtils';
 
-// Реэкспорт декомпозированных модулей, чтобы не сломать внешние импорты в хуках и слайсах
+// Декларативный реэкспорт доменных модулей для сохранения внешних контрактов
 export {
   updateInstrumentEnvelope,
   applySynthEnvelope,
@@ -20,37 +13,27 @@ export {
   applyDynamicBypass,
 } from './effectModulationActions';
 
+// Реэкспорт инициализации маршрутов из жизненного цикла, чтобы хук синхронизации не падал
+export { initializeAudioRouting } from './audioLifecycleActions';
+
+// --- КОНСТАНТЫ ПАРАМЕТРОВ МОДУЛЯЦИИ ---
 const RAMP_DURATION_SEC = 0.05;
+
+// --- САМОДОКУМЕНТИРОВАННЫЕ FP ПРЕДИКАТЫ ---
 const isMissing = (target) => !target;
+const hasNativeVolumeControl = (instrument) =>
+  instrument && typeof instrument.setVolume === 'function';
 
-export const initializeAudioRouting = (
-  synthList,
-  enginesRef,
-  channelsRef,
-  analysersRef,
-) => {
-  synthList.forEach((name) => {
-    const synthInstance = enginesRef.current[name];
-    if (isMissing(synthInstance) || analysersRef.current[name]) return;
-
-    buildAndConnectInstrumentChannel(
-      synthInstance,
-      name,
-      channelsRef.current,
-      analysersRef.current,
-      synthAnalysers,
-      createAudioChannel,
-      createAudioAnalyser,
-      connectSynthToMixer,
-    );
-  });
-};
-
+/**
+ * Декларативное управление громкостью инстанса (Полиморфный VCA-интерфейс)
+ * Занимается строго применением mix-баланса, скрывая детали реализации приборов
+ */
 export const updateInstrumentVolume = (instrument, volumeValue) => {
   if (isMissing(instrument)) return;
+
   const targetVolume = volumeValue ?? AUDIO_DEFAULT_VOLUME;
 
-  if (typeof instrument.setVolume === 'function') {
+  if (hasNativeVolumeControl(instrument)) {
     instrument.setVolume(targetVolume);
     return;
   }
