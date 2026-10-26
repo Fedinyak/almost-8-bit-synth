@@ -2,9 +2,23 @@ import { createSlice } from '@reduxjs/toolkit';
 import { SEQUENCER_CONFIG } from '../constants/sequencerConfig';
 import { SYNTH_LIST } from '../constants/constants';
 
+// --- СТАТИЧЕСКИЕ ПЕРЕЧИСЛЕНИЯ (LOOKUP ENUMS): ЕДИНЫЙ ИСТОЧНИК ПРАВДЫ ДЛЯ ВСЕГО ДВИЖКА ---
+export const PLAYBACK_STATES = {
+  START: 'start',
+  STOP: 'stop',
+  PAUSE: 'pause',
+};
+
+export const PATTERN_ACTION_TYPES = {
+  PLAY: 'PLAY',
+  LOOP: 'LOOP',
+  SELECT: 'SELECT',
+  TOGGLE_FOLLOW: 'TOGGLE_FOLLOW',
+};
+
 const initialState = {
   bpm: SEQUENCER_CONFIG.DEFAULT_BPM,
-  sequencerPlayState: 'stop',
+  sequencerPlayState: PLAYBACK_STATES.STOP,
   isLooping: false,
   totalSteps: SEQUENCER_CONFIG.TOTAL_STEPS,
   sequencerStep: SEQUENCER_CONFIG.SEQUENCER_STEP,
@@ -70,7 +84,7 @@ export const playerSlice = createSlice({
     setPendingPattern: (state, action) => {
       state.pendingPatternIndex = action.payload;
       if (
-        state.sequencerPlayState === 'start' &&
+        state.sequencerPlayState === PLAYBACK_STATES.START &&
         state.currentPlayPatternIndex === action.payload
       ) {
         state.currentPlayPatternIndex = null;
@@ -119,7 +133,7 @@ export const playerSlice = createSlice({
       if (state.patternCount <= SEQUENCER_CONFIG.MIN_PATTERN_COUNT) return;
       const lastPatternIndex = state.patternCount - 1;
 
-      if (state.sequencerPlayState === 'stop') {
+      if (state.sequencerPlayState === PLAYBACK_STATES.STOP) {
         state.patternCount -= 1;
         safelyAdjustPlayBounds(state);
         state.shouldDropPatternDataInstantly = true;
@@ -131,7 +145,7 @@ export const playerSlice = createSlice({
         return;
       }
 
-      if (state.sequencerPlayState === 'pause') {
+      if (state.sequencerPlayState === PLAYBACK_STATES.PAUSE) {
         if (state.currentPlayPatternIndex === lastPatternIndex) {
           state.currentPlayPatternIndex =
             SEQUENCER_CONFIG.INITIAL_PATTERN_INDEX;
@@ -143,7 +157,7 @@ export const playerSlice = createSlice({
         return;
       }
 
-      if (state.sequencerPlayState === 'start') {
+      if (state.sequencerPlayState === PLAYBACK_STATES.START) {
         if (state.currentPlayPatternIndex === lastPatternIndex) {
           state.pendingDeleteLast = true;
         } else {
@@ -183,18 +197,5 @@ export const {
   requestRemoveLastPattern,
   clearEngineControlSignals,
 } = playerSlice.actions;
-
-// --- СТАТИЧЕСКИЕ ПЕРЕЧИСЛЕНИЯ (LOOKUP ENUMS): ЕДИНЫЙ ИСТОЧНИК ПРАВДЫ ДЛЯ ВСЕГО ДВИЖКА ---
-export const PLAYBACK_STATES = {
-  START: 'start',
-  STOP: 'stop',
-};
-
-export const PATTERN_ACTION_TYPES = {
-  PLAY: 'PLAY',
-  LOOP: 'LOOP',
-  SELECT: 'SELECT',
-  TOGGLE_FOLLOW: 'TOGGLE_FOLLOW',
-};
 
 export default playerSlice.reducer;

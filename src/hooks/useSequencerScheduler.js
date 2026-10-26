@@ -1,69 +1,49 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import {
-  clearPendingPattern,
-  setCurrentPlayPatternIndex,
-  setCurrentStep,
-  decrementPatternCountSync,
-  clearPendingDeleteLastPattern,
-} from '../store/playerSlice';
-import { backupAndDropPatternData } from '../store/patternsSlice';
-import {
-  STEPS_IN_MEASURE,
-  STEP_DURATION_NOTATION,
-} from '../constants/constants';
-import {
-  scheduleFrame,
-  startDrawingLoop,
-  stopDrawingLoop,
-} from '../audio/core/draw';
+import { STEP_DURATION_NOTATION } from '../constants/constants';
+import { startDrawingLoop, stopDrawingLoop } from '../audio/core/draw';
 import {
   updateHardwareLoopState,
   updateHardwarePatternBounds,
 } from '../audio/core/scheduler';
+import {
+  isHardwareStateUnchanged,
+  handleStepSync,
+} from '../audio/core/schedulerUtils';
+import { PLAYBACK_STATES } from '../store/playerSlice';
 
-const handleStepSync = (
-  time,
-  stepInPattern,
-  currentHardwarePattern,
-  pendingPatternRef,
-  dispatch,
-  pendingDeleteLastRef,
-  patternCountRef,
+// --- САМОДОКУМЕНТИРОВАННЫЕ FP ПРЕДИКАТЫ ---
+const isPlaying = (state) => state === PLAYBACK_STATES.START;
+
+// --- СЛУЖЕБНЫЕ МЕТОДЫ СБОРКИ ДАННЫХ ДЛЯ СНИЖЕНИЯ НАГРУЗКИ ---
+
+const calculateEffectiveLoopTarget = (
+  isLooping,
+  currentPlayIndex,
+  selectedIndex,
 ) => {
-  const totalPatternsCount = patternCountRef.current || 1;
-  let nextPlayPatternIndex = currentHardwarePattern;
+  return isLooping ? currentPlayIndex : selectedIndex;
+};
 
-  if (stepInPattern === 15) {
-    const pendingPattern = pendingPatternRef.current;
-    const shouldDeleteLast = pendingDeleteLastRef.current;
+const captureHardwareState = (
+  isLooping,
+  effectiveLoopTarget,
+  currentPlayPatternIndex,
+  pendingPatternIndex,
+) => {
+  return {
+    isLooping,
+    effectiveLoopTarget,
+    currentPlayPatternIndex,
+    pendingPatternIndex,
+  };
+};
 
-    if (shouldDeleteLast) {
-      scheduleFrame(time, () => {
-        const lastIndex = totalPatternsCount - 1;
-        dispatch(backupAndDropPatternData(lastIndex));
-        dispatch(decrementPatternCountSync());
-        dispatch(clearPendingDeleteLastPattern());
-      });
-    }
-
-    if (pendingPattern !== null) {
-      nextPlayPatternIndex = pendingPattern;
-      scheduleFrame(time, () => {
-        dispatch(setCurrentPlayPatternIndex(nextPlayPatternIndex));
-        dispatch(setCurrentStep(nextPlayPatternIndex * STEPS_IN_MEASURE));
-        dispatch(clearPendingPattern());
-      });
-      return;
-    }
-  }
-
-  scheduleFrame(time, () => {
-    const targetGlobalStep =
-      nextPlayPatternIndex * STEPS_IN_MEASURE + stepInPattern;
-    dispatch(setCurrentStep(targetGlobalStep));
-    dispatch(setCurrentPlayPatternIndex(nextPlayPatternIndex));
-  });
+const commitCacheValues = (cache, state) => {
+  cache.isLooping.current = state.isLooping;
+  cache.loopTarget.current = state.effectiveLoopTarget;
+  cache.playbackIndex.current = state.currentPlayPatternIndex;
+  cache.pendingIndex.current = state.pendingPatternIndex;
 };
 
 export const useSequencerScheduler = () => {
@@ -98,30 +78,41 @@ export const useSequencerScheduler = () => {
   const lastSentPlaybackIndex = useRef(null);
   const lastSentPendingIndex = useRef(null);
 
+  const hardwareCache = useMemo(
+    () => ({
+      isLooping: lastSentIsLooping,
+      loopTarget: lastSentLoopTarget,
+      playbackIndex: lastSentPlaybackIndex,
+      pendingIndex: lastSentPendingIndex,
+    }),
+    [],
+  );
+
   // ОПТИМИЗИРОВАННЫЙ МОСТ: Оставляем все оригинальные реактивные зависимости,
   // но блокируем холостые вызовы аудио-ядра с помощью быстрых сравнений в кэш-затворе.
   useEffect(() => {
-    const effectiveLoopTarget = isLooping
-      ? currentPlayPatternIndex
-      : selectedPatternIndex;
+    const effectiveLoopTarget = calculateEffectiveLoopTarget(
+      isLooping,
+      currentPlayPatternIndex,
+      selectedPatternIndex,
+    );
+
+    const currentHardwareState = captureHardwareState(
+      isLooping,
+      effectiveLoopTarget,
+      currentPlayPatternIndex,
+      pendingPatternIndex,
+    );
 
     // Проверяем: изменилось ли хоть что-то с момента последнего тика?
-    if (
-      lastSentIsLooping.current === isLooping &&
-      lastSentLoopTarget.current === effectiveLoopTarget &&
-      lastSentPlaybackIndex.current === currentPlayPatternIndex &&
-      lastSentPendingIndex.current === pendingPatternIndex
-    ) {
+    if (isHardwareStateUnchanged(hardwareCache, currentHardwareState)) {
       // Если стейт идентичен (холостой ход бегущего плейхеда),
       // мы мгновенно выходим и не нагружаем аудио-поток лишней работой!
       return;
     }
 
     // Запоминаем новые отправленные значения
-    lastSentIsLooping.current = isLooping;
-    lastSentLoopTarget.current = effectiveLoopTarget;
-    lastSentPlaybackIndex.current = currentPlayPatternIndex;
-    lastSentPendingIndex.current = pendingPatternIndex;
+    commitCacheValues(hardwareCache, currentHardwareState);
 
     // Физический выстрел в аудио-движок происходит ТОЛЬКО при реальных изменениях
     updateHardwareLoopState(
@@ -135,6 +126,7 @@ export const useSequencerScheduler = () => {
     selectedPatternIndex,
     currentPlayPatternIndex,
     pendingPatternIndex,
+    hardwareCache,
   ]);
 
   useEffect(() => {
@@ -151,7 +143,7 @@ export const useSequencerScheduler = () => {
   }, [pendingDeleteLast]);
 
   useEffect(() => {
-    if (sequencerPlayState !== 'start') return;
+    if (!isPlaying(sequencerPlayState)) return;
 
     const drawingProcess = startDrawingLoop(
       (time, hardwareStep, hardwarePattern) =>
