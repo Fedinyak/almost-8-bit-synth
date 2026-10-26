@@ -1,6 +1,13 @@
 export const ANALYSER_TYPE = 'waveform';
 export const ANALYSER_SIZE = 32;
 
+// --- НАСТРОЙКИ ПАРАМЕТРОВ АВТОМАТИЗАЦИИ И ЭФФЕКТОВ ---
+export const WET_PARAM_KEY = 'wet';
+export const NATIVE_VALUE_KEY = 'value';
+export const EFFECT_STARTED_STATE = 'started';
+export const BYPASS_WET_VALUE = 0;
+
+// --- ДЕФОЛТНЫЕ СТУДИЙНЫЕ ЗНАЧЕНИЯ ---
 export const AUDIO_DEFAULT_ATTACK = 0.005;
 export const AUDIO_DEFAULT_DECAY = 0.1;
 export const AUDIO_DEFAULT_SUSTAIN = 0.3;
@@ -8,6 +15,7 @@ export const AUDIO_DEFAULT_RELEASE = 0.3;
 export const AUDIO_DEFAULT_VOLUME = -12;
 export const AUDIO_DEFAULT_CUTOFF = 10000;
 
+// --- ДИАПАЗОНЫ ОРГАНОВ УПРАВЛЕНИЯ UI ---
 export const RANGE_VOLUME_DB = { min: -60, max: 0, step: 1 };
 export const RANGE_TIME_ADR = { min: 0.01, max: 3.0, step: 0.01 };
 export const RANGE_MIX_WET = { min: 0.0, max: 1.0, step: 0.05 };
