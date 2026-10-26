@@ -1,4 +1,39 @@
-// utils/patternStatusSelectors.js
+import { PLAYBACK_STATES } from '../store/playerSlice';
+
+// --- САМОДОКУМЕНТИРОВАННЫЕ FP ПРЕДИКАТЫ ---
+const isPlayingState = (state) => state === PLAYBACK_STATES.START;
+const isCurrentPatternPlaying = (currentPlayIndex, index) =>
+  currentPlayIndex === index;
+const isPatternPendingTransition = (pendingIndex, index) =>
+  pendingIndex === index;
+
+const isNoPendingOrTargetingSelf = (pendingIndex, index) => {
+  return pendingIndex === null || pendingIndex === index;
+};
+
+const isPatternSelectedOrFallbackFirst = (selectedIndex, index) => {
+  return selectedIndex === index || (selectedIndex === false && index === 0);
+};
+
+// --- ВЫЧИСЛЕНИЕ СПЛОШНОГО ГОРЕНИЯ КНОПКИ LOOP ---
+const calculateLoopActiveStatus = ({
+  isPlaying,
+  isLooping,
+  isActivePlayback,
+  pendingPatternIndex,
+  selectedPatternIndex,
+  index,
+}) => {
+  if (!isLooping) return false;
+
+  if (isPlaying) {
+    return (
+      isActivePlayback && isNoPendingOrTargetingSelf(pendingPatternIndex, index)
+    );
+  }
+
+  return isPatternSelectedOrFallbackFirst(selectedPatternIndex, index);
+};
 
 /**
  * КРИСТАЛЬНАЯ МАТРИЦА ИНДИКАЦИИ НА ОСНОВЕ ФИЗИЧЕСКИХ КООРДИНАТ ПЛЕЕРА
@@ -15,13 +50,19 @@ export const getPatternVisualFlags = ({
   selectedPatternIndex,
   isFollowMode,
 }) => {
-  const isPlaying = sequencerPlayState === 'start';
+  const isPlaying = isPlayingState(sequencerPlayState);
 
   // Железные маркеры физического состояния звукового движка
-  const isActivePlayback = currentPlayPatternIndex === index;
+  const isActivePlayback = isCurrentPatternPlaying(
+    currentPlayPatternIndex,
+    index,
+  );
 
   // Маркер намерения: совпадает ли индекс этой кнопки с тем, куда нажал пользователь
-  const isTargetPending = pendingPatternIndex === index;
+  const isTargetPending = isPatternPendingTransition(
+    pendingPatternIndex,
+    index,
+  );
 
   // --- 1. РАСЧЕТ ИНДИКАЦИИ КНОПКИ PLAY (▶) ---
   // Мигает строго тогда, когда идет обычный квантованный переход, и луп выключен
@@ -40,13 +81,14 @@ export const getPatternVisualFlags = ({
   // который реально звучит из колонок (isActivePlayback). И только если в очереди
   // квантования не висит чужой отложенный прыжок (pendingPatternIndex === null || pendingPatternIndex === index).
   // Это полностью блокирует ложное загорание синей кнопки на 1-м или 2-м паттерне во время ожидания 3-го!
-  const isLoopActive =
-    isLooping &&
-    (isPlaying
-      ? isActivePlayback &&
-        (pendingPatternIndex === null || pendingPatternIndex === index)
-      : selectedPatternIndex === index ||
-        (selectedPatternIndex === false && index === 0));
+  const isLoopActive = calculateLoopActiveStatus({
+    isPlaying,
+    isLooping,
+    isActivePlayback,
+    pendingPatternIndex,
+    selectedPatternIndex,
+    index,
+  });
 
   return {
     isPlayWaiting,
