@@ -7,7 +7,7 @@ import {
   setActiveNote,
 } from '../../../../store/noteSlice.js';
 // import playSound from "../../utils/playSound";
-import { synthEnginesRegistry } from '../../../../audio/sync/visualizerState.js';
+import { synthEnginesRegistry } from '../../../../audio/timeline/sync/visualizerState.js';
 import noteAndKeyMap from '../../../../constants/noteAndKeyMap.js';
 import getNote from '../../../../utils/getNote.js';
 import Key from './Key.jsx';

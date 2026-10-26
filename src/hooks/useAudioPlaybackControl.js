@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { transport } from '../audio/core/transport';
-import { scheduler } from '../audio/core/scheduler'; // Импортируем наше нативное ядро часов
+import { transport } from '../audio/timeline/transport';
+import { scheduler } from '../audio/timeline/scheduler'; // Импортируем наше нативное ядро часов
 
 export const useAudioPlaybackControl = () => {
   const bpm = useSelector((state) => state.player.bpm);

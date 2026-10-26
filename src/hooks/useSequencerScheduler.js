@@ -1,15 +1,15 @@
 import { useEffect, useRef, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { STEP_DURATION_NOTATION } from '../constants/constants';
-import { startDrawingLoop, stopDrawingLoop } from '../audio/core/draw';
+import { startDrawingLoop, stopDrawingLoop } from '../audio/timeline/draw';
 import {
   updateHardwareLoopState,
   updateHardwarePatternBounds,
-} from '../audio/core/scheduler';
+} from '../audio/timeline/scheduler';
 import {
   isHardwareStateUnchanged,
   handleStepSync,
-} from '../audio/core/schedulerUtils';
+} from '../audio/timeline/schedulerUtils';
 import { PLAYBACK_STATES } from '../store/playerSlice';
 
 // --- САМОДОКУМЕНТИРОВАННЫЕ FP ПРЕДИКАТЫ ---

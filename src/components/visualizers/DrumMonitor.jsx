@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { drumLevels } from '../../audio/sync/visualizerState'; // Импортируем нашу изолированную линейную память
+import { drumLevels } from '../../audio/timeline/sync/visualizerState'; // Импортируем нашу изолированную линейную память
 
 // === КОНФИГУРАЦИЯ ВИЗУАЛИЗАТОРА ===
 const CONFIG = {

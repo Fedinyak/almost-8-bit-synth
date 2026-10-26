@@ -6,8 +6,8 @@ import {
   setIsLoopingTrue,
   setSequencerPlayState,
 } from '../../store/playerSlice';
-import { getNativeContext } from '../../audio/core/nativeContext';
-import { scheduler } from '../../audio/core/scheduler'; // Импортируем шедулер для передачи стартовой точки
+import { getNativeContext } from '../../audio/context/nativeContext';
+import { scheduler } from '../../audio/timeline/scheduler'; // Импортируем шедулер для передачи стартовой точки
 // import * as Tone from 'tone';
 
 const SequencerControlPanel = () => {

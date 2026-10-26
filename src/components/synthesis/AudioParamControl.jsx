@@ -2,7 +2,7 @@ import React from 'react';
 import { useDispatch } from 'react-redux';
 import { updateSynthParam } from '../../store/soundSettingsSlice';
 import { TEXT_PARAM_DICTIONARIES } from '../../constants/soundParamsConfig';
-import { synthEnginesRegistry } from '../../audio/sync/visualizerState';
+import { synthEnginesRegistry } from '../../audio/timeline/sync/visualizerState';
 
 export const AudioParamControl = ({
   synthName,

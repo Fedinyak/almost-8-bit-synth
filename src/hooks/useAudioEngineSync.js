@@ -10,17 +10,17 @@ import {
   initializeDrums,
   initializeSynths,
   stopAllAudio,
-} from '../audio/playback/audioLifecycleActions';
+} from '../audio/context/audioLifecycleActions';
 import {
   setupDrumsPlayback,
   setupSynthPlayback,
   syncPatternsToAudioTracks,
-} from '../audio/playback/audioPlaybackActions';
+} from '../audio/bridge/audioPlaybackActions';
 import {
   initializeAudioRouting,
   syncAllVolumes,
-} from '../audio/playback/audioModulationActions';
-import { synthEnginesRegistry } from '../audio/sync/visualizerState';
+} from '../audio/bridge/audioModulationActions';
+import { synthEnginesRegistry } from '../audio/timeline/sync/visualizerState';
 
 // --- НА ТИВНАЯ ЗАЧИСТКА TONE.JS (ШАГ 1: ОТКЛЮЧЕНИЕ LFO-КОНВЕЙЕРА) ---
 // Комментируем оригинальный импорт конвейера модуляции эффектов

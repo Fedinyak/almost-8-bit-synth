@@ -11,8 +11,8 @@ import {
   setFollowModeFalse,
 } from '../../store/playerSlice';
 import { getPatternVisualFlags } from '../../utils/patternStatusSelectors';
-import { getNativeContext } from '../../audio/core/nativeContext';
-import { scheduler } from '../../audio/core/scheduler';
+import { getNativeContext } from '../../audio/context/nativeContext';
+import { scheduler } from '../../audio/timeline/scheduler';
 import { PatternItem } from './PatternItem';
 import { PatternControls } from './PatternControls';
 // import * as Tone from 'tone';

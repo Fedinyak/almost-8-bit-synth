@@ -1,6 +1,6 @@
-import { getNativeContext } from '../audio/core/nativeContext';
+import { getNativeContext } from '../audio/context/nativeContext';
 // Живой нативный темп прямо из ядра
-import { getCurrentEngineBpm } from '../audio/core/audioEngineCore';
+import { getCurrentEngineBpm } from '../audio/bridge/audioEngineCore';
 import { SEQUENCER_CONFIG } from '../constants/sequencerConfig';
 
 const SIXTEENTH_STEPS_PER_BEAT = 4;

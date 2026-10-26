@@ -3,7 +3,7 @@ import React from 'react';
 import { useDispatch } from 'react-redux';
 import { incrementPatternCount } from '../../store/playerSlice';
 import { addPatternData } from '../../store/patternsSlice';
-import { executeRemoveLastPatternRequest } from '../../audio/playback/audioPlaybackActions';
+import { executeRemoveLastPatternRequest } from '../../audio/bridge/audioPlaybackActions';
 
 export const PatternControls = () => {
   const dispatch = useDispatch();
