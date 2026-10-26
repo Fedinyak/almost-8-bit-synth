@@ -14,12 +14,11 @@ import {
 import {
   setupDrumsPlayback,
   setupSynthPlayback,
-  syncDrumPatternsToTrack,
-  syncInstrumentPatternsToTrack,
+  syncPatternsToAudioTracks,
 } from '../audio/playback/audioPlaybackActions';
 import {
   initializeAudioRouting,
-  updateInstrumentVolume,
+  syncAllVolumes,
 } from '../audio/playback/audioModulationActions';
 import { synthEnginesRegistry } from '../audio/sync/visualizerState';
 
@@ -28,24 +27,6 @@ import { synthEnginesRegistry } from '../audio/sync/visualizerState';
 // import { processInstrumentLfoModulation } from '../audio/core/processInstrumentLfoModulation.js';
 
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
-
-const syncAllVolumes = ({ synthEngines, drumsEngine, soundSettings }) => {
-  SYNTH_LIST.forEach((name) => {
-    const synthInstance = synthEngines[name];
-    const settings = soundSettings[name];
-    if (synthInstance?.instrument && settings?.volume !== undefined) {
-      updateInstrumentVolume(synthInstance.instrument, settings.volume);
-    }
-  });
-
-  DRUM_KIT_LIST.forEach((name) => {
-    const drumInstance = drumsEngine?.[name];
-    const settings = soundSettings[name];
-    if (drumInstance?.instrument && settings?.volume !== undefined) {
-      updateInstrumentVolume(drumInstance.instrument, settings.volume);
-    }
-  });
-};
 
 // Комментируем внутренний пайплайн запуска модуляции
 /*
@@ -74,19 +55,6 @@ const runLfoModulationPipeline = ({
   });
 };
 */
-
-const syncPatternsToAudioTracks = ({
-  synthPart,
-  drumsPart,
-  synthData,
-  drumsList,
-}) => {
-  SYNTH_LIST.forEach((synthName) => {
-    syncInstrumentPatternsToTrack(synthPart[synthName], synthData[synthName]);
-  });
-
-  syncDrumPatternsToTrack(drumsPart, drumsList, drumNoteMap);
-};
 
 export const useAudioEngineSync = (
   synthEnginesRef,
@@ -134,6 +102,8 @@ export const useAudioEngineSync = (
       synthEngines: synthEnginesRef.current,
       drumsEngine: drumsEngineRef.current,
       soundSettings,
+      SYNTH_LIST,
+      DRUM_KIT_LIST,
     });
   }, [soundSettings, synthEnginesRef, drumsEngineRef]);
 
@@ -205,6 +175,8 @@ export const useAudioEngineSync = (
       drumsPart: drumsPartRef.current,
       synthData,
       drumsList,
+      SYNTH_LIST,
+      drumNoteMap,
     });
   }, [synthData, drumsList, drumsPartRef, synthPartRef, bpm]);
 };

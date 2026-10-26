@@ -51,3 +51,21 @@ export const syncDrumPatternsToTrack = (track, drumsData, drumNoteMap) => {
 
   track.patternsMap = nextPatternsMap;
 };
+
+/**
+ * Агрегирующий конвейер синхронизации всех паттернов проекта
+ */
+export const syncPatternsToAudioTracks = ({
+  synthPart,
+  drumsPart,
+  synthData,
+  drumsList,
+  SYNTH_LIST,
+  drumNoteMap,
+}) => {
+  SYNTH_LIST.forEach((synthName) => {
+    syncInstrumentPatternsToTrack(synthPart[synthName], synthData[synthName]);
+  });
+
+  syncDrumPatternsToTrack(drumsPart, drumsList, drumNoteMap);
+};
