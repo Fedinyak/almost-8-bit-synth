@@ -3,6 +3,8 @@ import { STEPS_IN_MEASURE } from '../../constants/constants';
 import { SEQUENCER_CONFIG } from '../../constants/sequencerConfig';
 import { backupAndDropPatternData } from '../../store/patternsSlice';
 import {
+  PLAYBACK_STATES,
+  PATTERN_ACTION_TYPES,
   setPendingPattern,
   setIsLoopingFalse,
   setIsLoopingTrue,
@@ -16,32 +18,37 @@ import {
   clearEngineControlSignals,
 } from '../../store/playerSlice';
 
+const isPlayState = (state) => state === PLAYBACK_STATES.START;
+const isStopState = (state) => state === PLAYBACK_STATES.STOP;
+const isMinPatternLimit = (count) =>
+  count <= SEQUENCER_CONFIG.MIN_PATTERN_COUNT;
+const hasSignalsToClear = (hasData, needsRewind) => hasData || needsRewind;
+
 export const executePatternPlaybackTrigger =
   (index) => (dispatch, getState) => {
     const { player } = getState();
-    const { sequencerPlayState } = player;
 
-    if (sequencerPlayState === 'start') {
+    if (isPlayState(player.sequencerPlayState)) {
       dispatch(setPendingPattern(index));
       dispatch(setIsLoopingFalse());
+      return;
     }
 
-    if (sequencerPlayState === 'stop') {
+    if (isStopState(player.sequencerPlayState)) {
       setEnginePosition(index);
       dispatch(setCurrentPlayPatternIndex(index));
       dispatch(setCurrentStep(index * STEPS_IN_MEASURE));
       dispatch(setIsLoopingFalse());
-      dispatch(setSequencerPlayState('start'));
+      dispatch(setSequencerPlayState(PLAYBACK_STATES.START));
     }
   };
 
 export const executeRemoveLastPatternRequest = () => (dispatch, getState) => {
   const { player: initialPlayer } = getState();
 
-  if (initialPlayer.patternCount <= SEQUENCER_CONFIG.MIN_PATTERN_COUNT) return;
+  if (isMinPatternLimit(initialPlayer.patternCount)) return;
 
   const lastPatternIndex = initialPlayer.patternCount - 1;
-
   dispatch(requestRemoveLastPattern());
 
   const updatedPlayer = getState().player;
@@ -56,25 +63,25 @@ export const executeRemoveLastPatternRequest = () => (dispatch, getState) => {
     setEnginePosition(SEQUENCER_CONFIG.TRACK_START_POSITION);
   }
 
-  if (hasDataToDrop || needsEngineRewind) {
+  if (hasSignalsToClear(hasDataToDrop, needsEngineRewind)) {
     dispatch(clearEngineControlSignals());
   }
 };
 
 export const dispatchPatternAction = (type, index) => (dispatch) => {
   switch (type) {
-    case 'PLAY':
+    case PATTERN_ACTION_TYPES.PLAY:
       dispatch(executePatternPlaybackTrigger(index));
       break;
-    case 'LOOP':
+    case PATTERN_ACTION_TYPES.LOOP:
       dispatch(setPendingPattern(index));
       dispatch(setIsLoopingTrue());
       break;
-    case 'SELECT':
+    case PATTERN_ACTION_TYPES.SELECT:
       dispatch(setSelectedPatternIndex(index));
       dispatch(setFollowModeFalse());
       break;
-    case 'TOGGLE_FOLLOW':
+    case PATTERN_ACTION_TYPES.TOGGLE_FOLLOW:
       dispatch(setFollowModeTrue());
       dispatch(setSelectedPatternIndex(false));
       break;

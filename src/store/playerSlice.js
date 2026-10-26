@@ -67,10 +67,6 @@ export const playerSlice = createSlice({
       state.isFollowMode = false;
     },
 
-    // ИСПРАВЛЕНО: Пробиваем блокировку рендеринга React Toolkit.
-    // Если пользователь нажимает PLAY на паттерне, который уже воспроизводится,
-    // мы временно сбрасываем текущий звуковой индекс, чтобы заставить мост
-    // гарантированно передать команду перезапуска такта в аудио-ядро.
     setPendingPattern: (state, action) => {
       state.pendingPatternIndex = action.payload;
       if (
@@ -187,5 +183,18 @@ export const {
   requestRemoveLastPattern,
   clearEngineControlSignals,
 } = playerSlice.actions;
+
+// --- СТАТИЧЕСКИЕ ПЕРЕЧИСЛЕНИЯ (LOOKUP ENUMS): ЕДИНЫЙ ИСТОЧНИК ПРАВДЫ ДЛЯ ВСЕГО ДВИЖКА ---
+export const PLAYBACK_STATES = {
+  START: 'start',
+  STOP: 'stop',
+};
+
+export const PATTERN_ACTION_TYPES = {
+  PLAY: 'PLAY',
+  LOOP: 'LOOP',
+  SELECT: 'SELECT',
+  TOGGLE_FOLLOW: 'TOGGLE_FOLLOW',
+};
 
 export default playerSlice.reducer;
