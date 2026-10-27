@@ -7,6 +7,11 @@ export const NATIVE_VALUE_KEY = 'value';
 export const EFFECT_STARTED_STATE = 'started';
 export const BYPASS_WET_VALUE = 0;
 
+// --- СТАНДАРТНЫЕ ФОРМЫ ВОЛН (OSCILLATOR TYPES) ---
+export const WAVEFORM_SQUARE = 'square';
+export const WAVEFORM_SAWTOOTH = 'sawtooth';
+export const WAVEFORM_TRIANGLE = 'triangle';
+
 // --- ДЕФОЛТНЫЕ СТУДИЙНЫЕ ЗНАЧЕНИЯ ---
 export const AUDIO_DEFAULT_ATTACK = 0.005;
 export const AUDIO_DEFAULT_DECAY = 0.1;
