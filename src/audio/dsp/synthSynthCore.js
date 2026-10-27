@@ -10,8 +10,6 @@ import {
   isAudioEngineContextMissing,
   shouldUpdateActiveAudioHardware,
   getOscillatorType,
-  dbToLinearGain,
-  ZERO_AUDIO_AMPLITUDE,
   DEFAULT_PLAYBACK_DURATION_SEC,
   DEFAULT_LOG_GAIN_DECIBELS,
   DEFAULT_FILTER_CUTOFF_HZ,
@@ -25,6 +23,7 @@ import {
   createInitialSynthState,
   updateHardwareSynthVolume,
   executeFilterDisconnect,
+  assembleNativeSynthGraph,
 } from './synthEngineModel';
 import {
   applyOscillatorParameters,
@@ -40,6 +39,9 @@ const SYNTH_DEFAULTS = {
   DEFAULT_RELEASE_RAMP_TIME_SEC,
   DEFAULT_SUSTAIN_GAIN_MULTIPLIER,
 };
+
+const hasValidDuration = (duration) =>
+  typeof duration === 'number' && duration > 0;
 
 export const createNativeMonoSynthAdapter = (presetConfig) => {
   console.warn(
@@ -91,21 +93,13 @@ export const createNativeMonoSynthAdapter = (presetConfig) => {
       if (isAudioEngineContextMissing(state)) {
         state.ctx = extractNativeAudioContext(pannerNode);
 
-        state.outputNode = state.ctx.createGain();
-        state.outputNode.gain.value = dbToLinearGain(state.volumeValue);
+        // Декларативно запрашиваем готовую сборку графа
+        const nativeGraph = assembleNativeSynthGraph(state, pannerNode);
 
-        state.nativeBiquad = state.ctx.createBiquadFilter();
-        state.nativeBiquad.type = 'lowpass';
-        state.nativeBiquad.frequency.value = state.filterCutoffValue;
-        state.nativeBiquad.Q.value = state.filterQValue;
-
-        state.nativeBiquad.connect(state.outputNode);
+        state.outputNode = nativeGraph.outputNode;
+        state.nativeBiquad = nativeGraph.nativeBiquad;
         state.isInitialized = true;
-        console.log('   └─> [🎯 ВНУТРЕННЯЯ НАТИВНАЯ ИНИЦИАЛИЗАЦИЯ ЗАВЕРШЕНА]');
-      }
-
-      if (state.outputNode) {
-        state.outputNode.connect(pannerNode);
+        console.log('   └─> [ВНУТРЕННЯЯ НАТИВНАЯ ИНИЦИАЛИЗАЦИЯ ЗАВЕРШЕНА]');
       }
 
       state.isConnectedToHardware = true;
@@ -113,38 +107,28 @@ export const createNativeMonoSynthAdapter = (presetConfig) => {
     },
 
     triggerAttackRelease(note, duration, time) {
-      const {
-        isInitialized,
-        ctx,
-        nativeBiquad,
-        outputNode,
-        detuneValue,
-        volumeValue,
-      } = state;
+      if (!isSynthReadyForPlayback(state.isInitialized, state.ctx)) return;
+      ensureAudioContextIsActive(state.ctx);
 
-      if (!isSynthReadyForPlayback(isInitialized, ctx)) return;
-      ensureAudioContextIsActive(ctx);
+      const ctxTime = calculateTimelineTimes(state.ctx, time);
+      const parsedDuration = hasValidDuration(duration)
+        ? duration
+        : DEFAULT_PLAYBACK_DURATION_SEC;
 
-      const ctxTime = calculateTimelineTimes(ctx, time);
-      const parsedDuration =
-        typeof duration === 'number' && duration > 0
-          ? duration
-          : DEFAULT_PLAYBACK_DURATION_SEC;
-
-      const osc = ctx.createOscillator();
+      const osc = state.ctx.createOscillator();
       applyOscillatorParameters(
         osc,
         adapter.oscillatorType,
         noteToFrequency(note),
-        detuneValue,
-        nativeBiquad,
+        state.detuneValue,
+        state.nativeBiquad,
       );
 
       applyEnvelopeAutomations(
-        outputNode.gain,
+        state.outputNode.gain,
         ctxTime,
         parsedDuration,
-        volumeValue,
+        state.volumeValue,
         state,
         SYNTH_DEFAULTS,
       );
@@ -155,9 +139,7 @@ export const createNativeMonoSynthAdapter = (presetConfig) => {
     },
 
     dispose() {
-      console.warn(
-        '[🗑️ DISPOSE СИНТА]: Вызван метод очистки ресурсов из памяти!',
-      );
+      console.warn('[DISPOSE СИНТА]: Вызван метод очистки ресурсов из памяти!');
       executeFilterDisconnect(state);
     },
   };

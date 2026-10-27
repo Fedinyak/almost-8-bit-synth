@@ -1,4 +1,8 @@
-import { dbToLinearGain, isNodeMissing } from './synthHardware';
+import {
+  dbToLinearGain,
+  isNodeMissing,
+  FILTER_TYPE_LOWPASS,
+} from './synthHardware';
 
 export const hasDisposeMethod = (container) =>
   container && typeof container.dispose === 'function';
@@ -67,3 +71,21 @@ export const createInitialSynthState = (presetConfig, defaults) => ({
   outputNode: null,
   nativeBiquad: null,
 });
+
+/**
+ * Изолированная сборка низкоуровневого аудиографа (устранение процедурной сложности)
+ */
+export const assembleNativeSynthGraph = (state, pannerNode) => {
+  const outputNode = state.ctx.createGain();
+  outputNode.gain.value = dbToLinearGain(state.volumeValue);
+
+  const nativeBiquad = state.ctx.createBiquadFilter();
+  nativeBiquad.type = FILTER_TYPE_LOWPASS;
+  nativeBiquad.frequency.value = state.filterCutoffValue;
+  nativeBiquad.Q.value = state.filterQValue;
+
+  nativeBiquad.connect(outputNode);
+  outputNode.connect(pannerNode);
+
+  return { outputNode, nativeBiquad };
+};

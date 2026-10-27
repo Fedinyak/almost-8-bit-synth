@@ -17,6 +17,8 @@ export {
 // --- СИСТЕМНЫЕ ЗВУКОВЫЕ КОНСТАНТЫ ---
 export const ZERO_AUDIO_AMPLITUDE = 0;
 
+export const FILTER_TYPE_LOWPASS = 'lowpass';
+
 export const DEFAULT_LOG_GAIN_DECIBELS = AUDIO_DEFAULT_VOLUME;
 export const DEFAULT_FILTER_CUTOFF_HZ = AUDIO_DEFAULT_CUTOFF;
 export const DEFAULT_FILTER_Q_VALUE = 1.0;
@@ -32,7 +34,7 @@ const DB_CONVERSION_DIVISER = 20;
 
 const CONTEXT_SUSPENDED_STATE = 'suspended';
 
-// --- СЕМАНТИЧЕСКИЕ ПРЕДИКАТЫ И ВАЛИДАТОРЫ (СНИЖЕНИЕ КОГНИТИВНОЙ НАГРУЗКИ) ---
+// --- СЕМАНТИЧЕСКИЕ ПРЕДИКАТЫ И ВАЛИДАТОРЫ ---
 
 export const isNodeMissing = (node) => !node;
 
