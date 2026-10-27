@@ -6,6 +6,9 @@ import {
 
 const SIGNAL_MAX_AMPLITUDE = 1.0;
 
+// Начальное состояние панорамы по умолчанию — ровно по充ентру (0.0)
+const INITIAL_PANNER_CENTER_VALUE = 0.0;
+
 // --- ВНУТРЕННИЕ ПРЕДИКАТЫ И ВАЛИДАТОРЫ ---
 const hasConnectMethod = (node) => node && typeof node.connect === 'function';
 const hasDisconnectMethod = (node) =>
@@ -18,6 +21,13 @@ const initializeGainNode = (ctx) => {
   const gainNode = ctx.createGain();
   gainNode.gain.value = SIGNAL_MAX_AMPLITUDE;
   return gainNode;
+};
+
+// Инициализируем панировщик в центральном положении
+const initializePannerNode = (ctx) => {
+  const pannerNode = ctx.createStereoPanner();
+  pannerNode.pan.value = INITIAL_PANNER_CENTER_VALUE;
+  return pannerNode;
 };
 
 const establishAudioConnection = (source, target) => {
@@ -69,21 +79,29 @@ export const wrapInstrumentWithEffects = (
   const ctx = getNativeContext();
   if (!ctx) return null;
 
-  // 1. Инициализируем обязательные системные узлы канала
-  const pannerNode = initializeGainNode(ctx);
+  // 1. Инициализируем обязательные системные узлы канала в дефолтных значениях
+  const pannerNode = initializePannerNode(ctx);
   const outputGainNode = initializeGainNode(ctx);
 
-  // 2. Собираем виртуальный слой совместимости с UI/Redux
+  // 2. Собираем внутренности рэка: Панорама -> Выходной гейн громкости рэка
+  const hardwareRoutingPipeline = [pannerNode, outputGainNode];
+  connectAudioChainPipeline(hardwareRoutingPipeline);
+
+  // ЖЕЛЕЗНАЯ КОММУТАЦИЯ: Гарантируем, что выход рэка всегда подключен к колонкам
+  outputGainNode.connect(ctx.destination);
+
+  // 3. Безопасно коммутируем источник звука на вход панорамы рэка
+  if (rawSynth && typeof rawSynth.connectInternal === 'function') {
+    // Если это адаптер барабана, отдаем ему ноду панорамы для внутренней коммутации его GainNode
+    rawSynth.connectInternal(pannerNode);
+  } else if (hasConnectMethod(rawSynth)) {
+    // Если это синт (нативный аудио-узел), подключаем его напрямую ко входу панорамы рэка
+    rawSynth.connect(pannerNode);
+  }
+
+  // 4. Собираем виртуальный слой совместимости с UI/Redux
   const virtualFxRegistry = buildVirtualHardwareRegistry();
   const virtualModulation = buildVirtualModulationStubs();
-
-  // 3. Динамически выстраиваем массив для сквозной коммутации аудиографа.
-  // Так как реальных эффектов еще нет, их роль патч-кордов временно выполняют panner и output.
-  // Но структура уже готова принять массив реальных FX между ними!
-  const hardwareRoutingPipeline = [rawSynth, pannerNode, outputGainNode];
-
-  // 4. Декларативно запускаем конвейер соединения узлов
-  connectAudioChainPipeline(hardwareRoutingPipeline);
 
   // 5. Формируем финальный унифицированный паспорт аудио-канала
   return {

@@ -18,16 +18,29 @@ export { initializeAudioRouting } from '../context/audioLifecycleActions';
 
 // --- КОНСТАНТЫ ПАРАМЕТРОВ МОДУЛЯЦИИ ---
 const RAMP_DURATION_SEC = 0.05;
+const DEFAULT_PAN_CENTER_VALUE = 0.0;
 
 // --- САМОДОКУМЕНТИРОВАННЫЕ FP ПРЕДИКАТЫ ---
 const isMissing = (target) => !target;
-const hasNativeVolumeControl = (instrument) =>
-  instrument && typeof instrument.setVolume === 'function';
 
-/**
- * Декларативное управление громкостью инстанса (Полиморфный VCA-интерфейс)
- * Занимается строго применением mix-баланса, скрывая детали реализации приборов
- */
+const hasNativeVolumeControl = (instrument) =>
+  !!(instrument && typeof instrument.setVolume === 'function');
+
+const hasAudioInstance = (instance) => !!instance?.instrument;
+
+const hasDefinedVolume = (settings) =>
+  !!(settings && settings.volume !== undefined);
+
+const hasDefinedPan = (settings) => !!(settings && settings.pan !== undefined);
+
+const isTargetVolumeValid = (instance, settings) =>
+  hasAudioInstance(instance) && hasDefinedVolume(settings);
+
+const isTargetPanValid = (instance, settings) =>
+  !!(instance && instance.panner && hasDefinedPan(settings));
+
+// --- ДЕКЛАРАТИВНЫЕ ПОДФУНКЦИИ ОБРАБОТКИ СИГНАЛА ---
+
 export const updateInstrumentVolume = (instrument, volumeValue) => {
   if (isMissing(instrument)) return;
 
@@ -43,19 +56,17 @@ export const updateInstrumentVolume = (instrument, volumeValue) => {
   }
 };
 
-const hasAudioInstrument = (instance) => {
-  return Boolean(instance?.instrument);
-};
+export const updateInstrumentPan = (pannerNode, panValue) => {
+  if (isMissing(pannerNode)) return;
 
-const hasDefinedVolume = (settings) => {
-  return settings?.volume !== undefined;
-};
+  const targetPan = panValue ?? DEFAULT_PAN_CENTER_VALUE;
 
-const isTargetVolumeValid = (instance, settings) => {
-  return hasAudioInstrument(instance) && hasDefinedVolume(settings);
-};
+  // Извлекаем нативный аудиопараметр .pan, если нам передали сам узел StereoPannerNode
+  const targetParam = pannerNode.pan || pannerNode;
 
-// --- ДЕКЛАРАТИВНЫЕ ПОДФУНКЦИИ ОБРАБОТКИ СИГНАЛА ---
+  // Плавно изменяем панораму на нативном StereoPannerNode рэка
+  nativeRampTo(targetParam, targetPan, RAMP_DURATION_SEC);
+};
 
 const updateVolumeTrack = (instance, settings) => {
   if (isTargetVolumeValid(instance, settings)) {
@@ -63,21 +74,53 @@ const updateVolumeTrack = (instance, settings) => {
   }
 };
 
-const syncSynthVolumes = (synthEngines, soundSettings, SYNTH_LIST) => {
-  SYNTH_LIST.forEach((name) => {
+const updatePanTrack = (instance, settings) => {
+  if (isTargetPanValid(instance, settings)) {
+    updateInstrumentPan(instance.panner, settings.pan);
+  }
+};
+
+const syncSynthVolumes = (synthEngines, soundSettings, synthList) => {
+  const total = synthList.length;
+  for (let i = 0; i < total; i++) {
+    const name = synthList[i];
     const synthInstance = synthEngines[name];
     const settings = soundSettings[name];
     updateVolumeTrack(synthInstance, settings);
-  });
+  }
 };
 
-const syncDrumVolumes = (drumsEngine, soundSettings, DRUM_KIT_LIST) => {
-  DRUM_KIT_LIST.forEach((name) => {
+const syncDrumVolumes = (drumsEngine, soundSettings, drumKitList) => {
+  const total = drumKitList.length;
+  for (let i = 0; i < total; i++) {
+    const name = drumKitList[i];
     const drumInstance = drumsEngine?.[name];
     const settings = soundSettings[name];
     updateVolumeTrack(drumInstance, settings);
-  });
+  }
 };
+
+const syncSynthPans = (synthEngines, soundSettings, synthList) => {
+  const total = synthList.length;
+  for (let i = 0; i < total; i++) {
+    const name = synthList[i];
+    const synthInstance = synthEngines[name];
+    const settings = soundSettings[name];
+    updatePanTrack(synthInstance, settings);
+  }
+};
+
+const syncDrumPans = (drumsEngine, soundSettings, drumKitList) => {
+  const total = drumKitList.length;
+  for (let i = 0; i < total; i++) {
+    const name = drumKitList[i];
+    const drumInstance = drumsEngine?.[name];
+    const settings = soundSettings[name];
+    updatePanTrack(drumInstance, settings);
+  }
+};
+
+// --- АГРЕГИРУЮЩИЕ КОНВЕЙЕРЫ СИНХРОНИЗАЦИИ ---
 
 /**
  * Агрегирующий конвейер синхронизации уровней громкости всех инструментов
@@ -91,4 +134,18 @@ export const syncAllVolumes = ({
 }) => {
   syncSynthVolumes(synthEngines, soundSettings, SYNTH_LIST);
   syncDrumVolumes(drumsEngine, soundSettings, DRUM_KIT_LIST);
+};
+
+/**
+ * Агрегирующий конвейер синхронизации стерео-панорамы всех каналов рэка
+ */
+export const syncAllPans = ({
+  synthEngines,
+  drumsEngine,
+  soundSettings,
+  SYNTH_LIST,
+  DRUM_KIT_LIST,
+}) => {
+  syncSynthPans(synthEngines, soundSettings, SYNTH_LIST);
+  syncDrumPans(drumsEngine, soundSettings, DRUM_KIT_LIST);
 };

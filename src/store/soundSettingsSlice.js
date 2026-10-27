@@ -1,22 +1,34 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { DRUM_PRESETS, SYNTH_PRESETS } from '../constants/soundParamsConfig';
+import {
+  LFO_DEFAULT_PAN_VALUE,
+  LFO_DEFAULT_ACTIVE_STATE,
+  LFO_DEFAULT_RATE_HZ,
+  LFO_DEFAULT_DEPTH_MULTIPLIER,
+  LFO_DEFAULT_WAVEFORM,
+  LFO_DEFAULT_TARGET_PARAM,
+} from '../constants/audioEngineConfig';
 
 const preprocessedSynths = {};
 
-// Накатываем структуру LFO с заряженной по умолчанию слышимой глубиной модуляции
-Object.entries({ ...DRUM_PRESETS, ...SYNTH_PRESETS }).forEach(
-  ([name, config]) => {
-    preprocessedSynths[name] = {
-      ...config,
-      pan: 0.0,
-      lfoActive: false,
-      lfoRate: 5.0,
-      lfoDepth: 0.5, // По умолчанию выставлено +50%, чтобы кач был сразу слышен при нажатии ON
-      lfoWaveform: 'sine',
-      lfoTarget: 'filterLowpassCutoff',
-    };
-  },
-);
+const allInstrumentsPayload = { ...DRUM_PRESETS, ...SYNTH_PRESETS };
+const instrumentEntries = Object.entries(allInstrumentsPayload);
+const totalInstruments = instrumentEntries.length;
+
+// Накатываем структуру LFO с заряженной по умолчанию слышимой глубиной модуляции из конфига
+for (let i = 0; i < totalInstruments; i++) {
+  const [name, config] = instrumentEntries[i];
+
+  preprocessedSynths[name] = {
+    ...config,
+    pan: LFO_DEFAULT_PAN_VALUE,
+    lfoActive: LFO_DEFAULT_ACTIVE_STATE,
+    lfoRate: LFO_DEFAULT_RATE_HZ,
+    lfoDepth: LFO_DEFAULT_DEPTH_MULTIPLIER,
+    lfoWaveform: LFO_DEFAULT_WAVEFORM,
+    lfoTarget: LFO_DEFAULT_TARGET_PARAM,
+  };
+}
 
 const initialState = {
   synths: preprocessedSynths,

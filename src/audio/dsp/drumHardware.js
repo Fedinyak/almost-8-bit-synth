@@ -93,11 +93,6 @@ export const calculateTimelineTimes = (ctx, requestedTime, attack, decay) => {
 
 const assembleGainSignalChain = (ctx, drumGain, outputNode) => {
   drumGain.connect(outputNode);
-
-  const debugGain = ctx.createGain();
-  debugGain.gain.value = DRUM_DEBUG_DESTINATION_GAIN;
-  drumGain.connect(debugGain);
-  debugGain.connect(ctx.destination);
 };
 
 export const createDrumSignalChain = (

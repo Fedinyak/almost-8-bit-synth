@@ -40,6 +40,14 @@ export const RANGE_TIME_ADR = { min: 0.01, max: 3.0, step: 0.01 };
 export const RANGE_MIX_WET = { min: 0.0, max: 1.0, step: 0.05 };
 export const RANGE_FILTER_HZ = { min: 20, max: 10000, step: 10 };
 
+// --- ДЕФОЛТНЫЕ ПАРАМЕТРЫ СИСТЕМЫ МОДУЛЯЦИИ LFO ---
+export const LFO_DEFAULT_PAN_VALUE = 0.0;
+export const LFO_DEFAULT_ACTIVE_STATE = false;
+export const LFO_DEFAULT_RATE_HZ = 5.0;
+export const LFO_DEFAULT_DEPTH_MULTIPLIER = 0.5;
+export const LFO_DEFAULT_WAVEFORM = 'sine';
+export const LFO_DEFAULT_TARGET_PARAM = 'filterLowpassCutoff';
+
 export const ALL_ENGINES = [
   'monoSynth',
   'membraneSynth',
