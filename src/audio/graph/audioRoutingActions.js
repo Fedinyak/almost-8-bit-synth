@@ -1,11 +1,12 @@
 import { synthAnalysers } from '../timeline/sync/visualizerState';
 import { createAudioChannel, createAudioAnalyser } from './nativeChannels';
 import { connectSynthToMixer } from '../bridge/audioPlaybackActions';
+import { DRUM_KIT_LIST } from '../../constants/constants';
 
 const isMissing = (target) => !target;
 const hasRefStructure = (ref) => ref && ref.current !== undefined;
-const isRoutingAlreadySetup = (synthInstance, currentAnalyser) =>
-  isMissing(synthInstance) || !isMissing(currentAnalyser);
+const isRoutingAlreadySetup = (instance, currentAnalyser) =>
+  isMissing(instance) || !isMissing(currentAnalyser);
 
 const extractTargetRegistry = (refOrObj) => {
   if (isMissing(refOrObj)) return null;
@@ -19,7 +20,7 @@ export const writeToRegistry = (registry, name, audioNode) => {
 };
 
 export const buildAndConnectInstrumentChannel = (
-  synthInstance,
+  instrumentInstance,
   instrumentName,
   channelsRegistry,
   analysersRegistry,
@@ -27,7 +28,7 @@ export const buildAndConnectInstrumentChannel = (
   const channel = createAudioChannel();
   const analyser = createAudioAnalyser();
 
-  connectSynthToMixer(synthInstance, channel, analyser);
+  connectSynthToMixer(instrumentInstance, channel, analyser);
 
   writeToRegistry(
     extractTargetRegistry(channelsRegistry),
@@ -47,10 +48,13 @@ export const initializeAudioRouting = (
   enginesRef,
   channelsRef,
   analysersRef,
+  drumsEngineRef,
 ) => {
   const engines = extractTargetRegistry(enginesRef);
+  const drumsEngine = extractTargetRegistry(drumsEngineRef) || engines;
   const analysers = extractTargetRegistry(analysersRef);
 
+  // 1. Коммутируем в микшер все синтезаторы
   synthList.forEach((name) => {
     const synthInstance = engines?.[name];
     const currentAnalyser = analysers?.[name];
@@ -59,6 +63,21 @@ export const initializeAudioRouting = (
 
     buildAndConnectInstrumentChannel(
       synthInstance,
+      name,
+      channelsRef,
+      analysersRef,
+    );
+  });
+
+  // 2. Коммутируем в микшер все дорожки драм-машины (Симметричный профессиональный роутинг)
+  DRUM_KIT_LIST.forEach((name) => {
+    const drumInstance = drumsEngine?.[name];
+    const currentAnalyser = analysers?.[name];
+
+    if (isRoutingAlreadySetup(drumInstance, currentAnalyser)) return;
+
+    buildAndConnectInstrumentChannel(
+      drumInstance,
       name,
       channelsRef,
       analysersRef,

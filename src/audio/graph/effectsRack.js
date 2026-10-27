@@ -3,24 +3,17 @@ import {
   buildVirtualHardwareRegistry,
   buildVirtualModulationStubs,
 } from './effectsRackStubs';
-import {
-  ROUTING_STRATEGY_NATIVE,
-  ROUTING_STRATEGY_ADAPTER,
-  SIGNAL_MAX_AMPLITUDE,
-  INITIAL_PANNER_CENTER_VALUE,
-} from '../../constants/audioEngineConfig';
 
-// --- СЕМАНТИЧЕСКИЕ ПРЕДИКАТЫ И ВАЛИДАТОРЫ ДЛЯ СНИЖЕНИЯ КОГНИТИВНОЙ НАГРУЗКИ ---
+const SIGNAL_MAX_AMPLITUDE = 1.0;
+const INITIAL_PANNER_CENTER_VALUE = 0.0;
+
+// --- ВНУТРЕННИЕ ПРЕДИКАТЫ И ВАЛИДАТОРЫ ---
 const isContextMissing = (ctx) => !ctx;
 const isNativeNodeConnectable = (node) =>
   node && typeof node.connect === 'function';
 const hasDisconnectMethod = (node) =>
   node && typeof node.disconnect === 'function';
 const hasDisposeMethod = (node) => node && typeof node.dispose === 'function';
-const isAdapterRoutingStrategy = (strategy) =>
-  strategy === ROUTING_STRATEGY_ADAPTER;
-const isNativeRoutingStrategy = (strategy) =>
-  strategy === ROUTING_STRATEGY_NATIVE;
 
 // --- ИНФРАСТРУКТУРНЫЕ ОПЕРАЦИИ НАД УЗЛАМИ ---
 
@@ -54,17 +47,10 @@ const safelyDisposeNode = (node) => {
   }
 };
 
-/**
- * Декларативно извлекает финальную точку назначения сигнала, защищая от пустых ссылок
- */
-const resolveAudioTargetDestination = (ctx, customDestination) => {
-  return customDestination || ctx.destination;
-};
-
-// --- ДЕКЛАРАТИВНЫЙ КОНВЕЙЕР КОММУТАЦИИ ГРАФА ---
+// --- АВТОМАТИЧЕСКИЙ КОНВЕЙЕР КОММУТАЦИИ ---
 
 /**
- * Динамически соединяет последовательную цепочку аудио-узлов в единый сквозной тракт
+ * Динамически соединяет последовательную цепочку аудио-узлов в единый сквозной трат
  */
 const connectAudioChainPipeline = (nodesArray) => {
   const totalNodes = nodesArray.length;
@@ -77,42 +63,17 @@ const connectAudioChainPipeline = (nodesArray) => {
   }
 };
 
-/**
- * Декларативно определяет внутреннюю стратегию коммутации инструмента на основе его типа
- */
-const determineInstrumentRoutingStrategy = (rawSynth) => {
-  if (rawSynth && typeof rawSynth.connectInternal === 'function') {
-    return ROUTING_STRATEGY_ADAPTER;
-  }
-  if (isNativeNodeConnectable(rawSynth)) {
-    return ROUTING_STRATEGY_NATIVE;
-  }
-  return null;
-};
-
-/**
- * Выполняет безопасное подключение источника к панораме на основе выбранной стратегии
- */
-const executePipelineInputConnection = (rawSynth, pannerNode, strategy) => {
-  if (isAdapterRoutingStrategy(strategy)) {
-    rawSynth.connectInternal(pannerNode);
-  } else if (isNativeRoutingStrategy(strategy)) {
-    rawSynth.connect(pannerNode);
-  }
-};
-
 // --- ГЛАВНЫЙ СЛУЖЕБНЫЙ ИНТЕРФЕЙС РЭКА ---
 
 /**
  * Единая фабрика сборки эффектов и панорамирования для каналов инструментов.
- * Динамически строит нативный аудиограф на основе декларативной цепочки эффектов из конфига.
+ * Чистый сквозной FX-канал с гарантированным нативным выводом сигнала на мастер-шину.
  */
 export const wrapInstrumentWithEffects = (
   rawSynth,
   instrumentPreset,
   effectsChain,
   effectDevices,
-  destinationNode = null,
 ) => {
   const ctx = getNativeContext();
   if (isContextMissing(ctx)) return null;
@@ -125,13 +86,16 @@ export const wrapInstrumentWithEffects = (
   const hardwareRoutingPipeline = [pannerNode, outputGainNode];
   connectAudioChainPipeline(hardwareRoutingPipeline);
 
-  // 3. Выводим сигнал наружу рэка в строго указанную целевую ноду (или на мейн-выход по умолчанию)
-  const finalAudioTarget = resolveAudioTargetDestination(ctx, destinationNode);
-  outputGainNode.connect(finalAudioTarget);
+  // 3. ЖЕЛЕЗНАЯ КОММУТАЦИЯ: Гарантируем, что выход рэка всегда физически подключен к колонкам.
+  // Это возвращает прямой звуковой мост для драм-машины, предотвращая затухание One-shot сэмплов.
+  outputGainNode.connect(ctx.destination);
 
-  // 4. Декларативно определяем и выполняем безопасную стратегию подключения источника звука
-  const activeRoutingStrategy = determineInstrumentRoutingStrategy(rawSynth);
-  executePipelineInputConnection(rawSynth, pannerNode, activeRoutingStrategy);
+  // 4. Безопасно коммутируем входящий источник звука на вход панорамы рэка
+  if (rawSynth && typeof rawSynth.connectInternal === 'function') {
+    rawSynth.connectInternal(pannerNode);
+  } else {
+    establishAudioConnection(rawSynth, pannerNode);
+  }
 
   // 5. Собираем виртуальный слой совместимости с UI/Redux
   const virtualFxRegistry = buildVirtualHardwareRegistry();
@@ -148,8 +112,9 @@ export const wrapInstrumentWithEffects = (
     dispose() {
       safelyDisconnectNode(pannerNode);
       safelyDisconnectNode(outputGainNode);
-      safelyDisconnectNode(rawSynth);
-      safelyDisposeNode(rawSynth);
+      if (rawSynth && typeof rawSynth.dispose === 'function') {
+        rawSynth.dispose();
+      }
     },
   };
 };

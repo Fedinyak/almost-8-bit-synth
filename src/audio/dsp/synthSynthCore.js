@@ -59,6 +59,9 @@ export const createNativeMonoSynthAdapter = (presetConfig) => {
     presetConfig,
     releaseTime: state.releaseTime,
 
+    // Ссылка на внутренний стейт, куда мост запишет нативные attackTime/decayTime
+    envelope: state,
+
     getVolume() {
       return state.volumeValue;
     },
@@ -118,7 +121,6 @@ export const createNativeMonoSynthAdapter = (presetConfig) => {
 
       const osc = state.ctx.createOscillator();
 
-      // Форму волны берем динамически из конфига пресета прямо в момент старта
       applyOscillatorParameters(
         osc,
         getOscillatorType(presetConfig),

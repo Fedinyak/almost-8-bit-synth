@@ -65,11 +65,11 @@ export const applyEnvelopeAutomations = (
 ) => {
   const targetGain = dbToLinearGain(volumeDecibels);
 
-  if (state) {
-    console.log(
-      `[Core ADSR]: A=${state.attackTime}s | D=${state.decayTime}s | S=${state.sustainLevel} | R=${state.releaseTime}s`,
-    );
-  }
+  // if (state) {
+  //   console.log(
+  //     `[Core ADSR]: A=${state.attackTime}s | D=${state.decayTime}s | S=${state.sustainLevel} | R=${state.releaseTime}s`,
+  //   );
+  // }
 
   try {
     scheduleAdsrEnvelope(

@@ -21,6 +21,7 @@ import {
   syncAllVolumes,
   syncAllPans,
 } from '../audio/bridge/audioModulationActions';
+import { syncAllEnvelopes } from '../audio/bridge/instrumentEnvelopeActions';
 import { synthEnginesRegistry } from '../audio/timeline/sync/visualizerState';
 
 const drumNoteMap = noteAndKeyMap.drumNoteMap;
@@ -59,7 +60,7 @@ export const useAudioEngineSync = (
     );
   }, []);
 
-  // Жизненный цикл 2: Управление громкостью и стерео-панорамой на каналах рэка
+  // Жизненный цикл 2: Управление громкостью, стерео-панорамой и огибающими ADSR на каналах рэка
   useEffect(() => {
     syncAllVolumes({
       synthEngines: synthEnginesRef.current,
@@ -70,6 +71,15 @@ export const useAudioEngineSync = (
     });
 
     syncAllPans({
+      synthEngines: synthEnginesRef.current,
+      drumsEngine: drumsEngineRef.current,
+      soundSettings,
+      SYNTH_LIST,
+      DRUM_KIT_LIST,
+    });
+
+    // СКВОЗНАЯ КОММУТАЦИЯ: Доставляем параметры огибающих во все нативные ядра
+    syncAllEnvelopes({
       synthEngines: synthEnginesRef.current,
       drumsEngine: drumsEngineRef.current,
       soundSettings,

@@ -6,44 +6,36 @@ import {
 } from '../../constants/audioEngineConfig';
 import { nativeRampTo } from '../dsp/audioGraphUtils';
 import {
-  isMetalSynth,
   canApplyPan,
   canApplyFilterCutoff,
   canApplyRackFilterQ,
 } from './synthEnvelopeGuards';
-import { updateMetalSynthEnvelope } from './synthEnvelopeMutators';
-import {
-  SYNTH_PARAMETER_PIPELINE,
-  applySynthEnvelopeTypeCommand,
-} from './synthParameterPipeline';
 
 const RAMP_DURATION_SEC = 0.05;
 
-export const updateInstrumentEnvelope = (instrument, settings) => {
-  if (!instrument) return;
+// --- СЕМАНТИЧЕСКИЕ ПРЕДИКАТЫ ---
+const isMissing = (target) => !target;
 
-  const envelopeValues = {
-    attack: settings.attack ?? AUDIO_DEFAULT_ATTACK,
-    decay: settings.decay ?? AUDIO_DEFAULT_DECAY,
-    sustain: settings.sustain ?? AUDIO_DEFAULT_SUSTAIN,
-    release: settings.release ?? AUDIO_DEFAULT_RELEASE,
-  };
-
-  for (const applyCommand of SYNTH_PARAMETER_PIPELINE) {
-    applyCommand(instrument, settings);
-  }
-
-  if (isMetalSynth(instrument)) {
-    updateMetalSynthEnvelope(instrument, envelopeValues);
+export const updateInstrumentEnvelope = (instrumentInstance, settings) => {
+  if (
+    isMissing(instrumentInstance) ||
+    isMissing(instrumentInstance.envelopeValues)
+  )
     return;
-  }
 
-  applySynthEnvelopeTypeCommand(instrument, envelopeValues);
+  // Декларативно пушим секунды из Redux напрямую в общие параметры рэка (DRY для синтов и барабанов)
+  instrumentInstance.envelopeValues.attack =
+    settings.attack ?? AUDIO_DEFAULT_ATTACK;
+  instrumentInstance.envelopeValues.decay =
+    settings.decay ?? AUDIO_DEFAULT_DECAY;
+  instrumentInstance.envelopeValues.sustain =
+    settings.sustain ?? AUDIO_DEFAULT_SUSTAIN;
+  instrumentInstance.envelopeValues.release =
+    settings.release ?? AUDIO_DEFAULT_RELEASE;
 };
 
 export const applySynthEnvelope = (synthInstance, settings) => {
-  const nativeInstrument = synthInstance?.instrument;
-  if (!nativeInstrument || !settings) return;
+  if (isMissing(synthInstance) || isMissing(settings)) return;
 
   if (canApplyPan(synthInstance, settings.pan)) {
     nativeRampTo(synthInstance.panner.pan, settings.pan, RAMP_DURATION_SEC);
@@ -51,15 +43,21 @@ export const applySynthEnvelope = (synthInstance, settings) => {
 
   if (canApplyFilterCutoff(synthInstance, settings.filterCutoff)) {
     nativeRampTo(
-      synthInstance.fxFilter.frequency,
+      synthInstance.fxFilter?.frequency ||
+        synthInstance.nativeBiquad?.frequency,
       settings.filterCutoff,
       RAMP_DURATION_SEC,
     );
   }
 
   if (canApplyRackFilterQ(synthInstance, settings.filterQ)) {
-    nativeRampTo(synthInstance.fxFilter.Q, settings.filterQ, RAMP_DURATION_SEC);
+    nativeRampTo(
+      synthInstance.fxFilter?.Q || synthInstance.nativeBiquad?.Q,
+      settings.filterQ,
+      RAMP_DURATION_SEC,
+    );
   }
 
-  updateInstrumentEnvelope(nativeInstrument, settings);
+  // Обновляем огибающую рэка (работает полиморфно для любого инструмента)
+  updateInstrumentEnvelope(synthInstance, settings);
 };
