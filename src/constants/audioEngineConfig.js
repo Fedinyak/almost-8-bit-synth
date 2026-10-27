@@ -137,6 +137,10 @@ export const STRATEGY_TYPE_NESTED = 'nested';
 export const STRATEGY_TYPE_VALUE = 'value';
 export const METHOD_NAME_SET_RELEASE = 'setRelease';
 
+// --- ДЕКЛАРАТИВНЫЕ СТРАТЕГИИ КОММУТАЦИИ АУДИОГРАФА В РЭКЕ ---
+export const ROUTING_STRATEGY_NATIVE = 'native_node';
+export const ROUTING_STRATEGY_ADAPTER = 'adapter_internal';
+
 // --- ИНФРАСТРУКТУРНЫЕ И ФИЗИЧЕСКИЕ НАСТРОЙКИ ДВИЖКОВ ---
 export const INFRA_PARAM_MUTATION_EPSILON = 0.0001;
 export const INFRA_SCHEDULING_LOOKAHEAD_SEC = 0.01;
@@ -162,3 +166,6 @@ export const TIME_BEATS_INDEX = 1;
 export const TIME_SIXTEENTHS_INDEX = 2;
 export const TIME_FALLBACK_SECONDS_VALUE = 0;
 export const TIME_STRING_SPLIT_CHAR = ':';
+
+export const SIGNAL_MAX_AMPLITUDE = 1.0;
+export const INITIAL_PANNER_CENTER_VALUE = 0.0;
