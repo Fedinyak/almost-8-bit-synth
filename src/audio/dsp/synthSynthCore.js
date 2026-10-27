@@ -18,10 +18,13 @@ import {
   DEFAULT_DECAY_RAMP_TIME_SEC,
   DEFAULT_RELEASE_RAMP_TIME_SEC,
   DEFAULT_SUSTAIN_GAIN_MULTIPLIER,
+  DEFAULT_PORTAMENTO_SEC,
+  DEFAULT_FILTER_ENV_OCTAVES,
 } from './synthHardware';
 import {
   createInitialSynthState,
   updateHardwareSynthVolume,
+  updateHardwareFilterQ,
   executeFilterDisconnect,
   assembleNativeSynthGraph,
 } from './synthEngineModel';
@@ -38,6 +41,8 @@ const SYNTH_DEFAULTS = {
   DEFAULT_DECAY_RAMP_TIME_SEC,
   DEFAULT_RELEASE_RAMP_TIME_SEC,
   DEFAULT_SUSTAIN_GAIN_MULTIPLIER,
+  DEFAULT_PORTAMENTO_SEC,
+  DEFAULT_FILTER_ENV_OCTAVES,
 };
 
 const hasValidDuration = (duration) =>
@@ -52,9 +57,6 @@ export const createNativeMonoSynthAdapter = (presetConfig) => {
 
   const adapter = {
     presetConfig,
-    oscillatorType: getOscillatorType(presetConfig),
-    portamento: 0,
-    filterEnvelope: { octaves: 0 },
     releaseTime: state.releaseTime,
 
     getVolume() {
@@ -85,7 +87,7 @@ export const createNativeMonoSynthAdapter = (presetConfig) => {
       state.filterQValue = val;
 
       if (shouldUpdateActiveAudioHardware(state)) {
-        state.nativeBiquad.Q.setValueAtTime(val, state.ctx.currentTime);
+        updateHardwareFilterQ(state, val);
       }
     },
 
@@ -93,13 +95,12 @@ export const createNativeMonoSynthAdapter = (presetConfig) => {
       if (isAudioEngineContextMissing(state)) {
         state.ctx = extractNativeAudioContext(pannerNode);
 
-        // Декларативно запрашиваем готовую сборку графа
         const nativeGraph = assembleNativeSynthGraph(state, pannerNode);
 
         state.outputNode = nativeGraph.outputNode;
         state.nativeBiquad = nativeGraph.nativeBiquad;
         state.isInitialized = true;
-        console.log('   └─> [ВНУТРЕННЯЯ НАТИВНАЯ ИНИЦИАЛИЗАЦИЯ ЗАВЕРШЕНА]');
+        console.log('   └─> [🎯 ВНУТРЕННЯЯ НАТИВНАЯ ИНИЦИАЛИЗАЦИЯ ЗАВЕРШЕНА]');
       }
 
       state.isConnectedToHardware = true;
@@ -116,9 +117,11 @@ export const createNativeMonoSynthAdapter = (presetConfig) => {
         : DEFAULT_PLAYBACK_DURATION_SEC;
 
       const osc = state.ctx.createOscillator();
+
+      // Форму волны берем динамически из конфига пресета прямо в момент старта
       applyOscillatorParameters(
         osc,
-        adapter.oscillatorType,
+        getOscillatorType(presetConfig),
         noteToFrequency(note),
         state.detuneValue,
         state.nativeBiquad,
@@ -139,7 +142,9 @@ export const createNativeMonoSynthAdapter = (presetConfig) => {
     },
 
     dispose() {
-      console.warn('[DISPOSE СИНТА]: Вызван метод очистки ресурсов из памяти!');
+      console.warn(
+        '[🗑️ DISPOSE СИНТА]: Вызван метод очистки ресурсов из памяти!',
+      );
       executeFilterDisconnect(state);
     },
   };

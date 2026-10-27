@@ -19,6 +19,12 @@ export const updateHardwareSynthVolume = (
   }
 };
 
+export const updateHardwareFilterQ = (state, value) => {
+  if (state.nativeBiquad && state.ctx) {
+    state.nativeBiquad.Q.setValueAtTime(value, state.ctx.currentTime);
+  }
+};
+
 export const executeHardwareDisconnect = (state) => {
   if (state.outputNode && state.isConnectedToHardware) {
     try {
@@ -72,9 +78,6 @@ export const createInitialSynthState = (presetConfig, defaults) => ({
   nativeBiquad: null,
 });
 
-/**
- * Изолированная сборка низкоуровневого аудиографа (устранение процедурной сложности)
- */
 export const assembleNativeSynthGraph = (state, pannerNode) => {
   const outputNode = state.ctx.createGain();
   outputNode.gain.value = dbToLinearGain(state.volumeValue);

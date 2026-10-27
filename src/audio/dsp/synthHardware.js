@@ -14,9 +14,22 @@ export {
   WAVEFORM_TRIANGLE,
 } from '../../constants/audioEngineConfig';
 
+import {
+  extractNativeAudioContext,
+  ensureAudioContextIsActive,
+  calculateTimelineTimes,
+  dbToLinearGain,
+} from '../../utils/audioMathUtils';
+
+export {
+  extractNativeAudioContext,
+  ensureAudioContextIsActive,
+  calculateTimelineTimes,
+  dbToLinearGain,
+};
+
 // --- СИСТЕМНЫЕ ЗВУКОВЫЕ КОНСТАНТЫ ---
 export const ZERO_AUDIO_AMPLITUDE = 0;
-
 export const FILTER_TYPE_LOWPASS = 'lowpass';
 
 export const DEFAULT_LOG_GAIN_DECIBELS = AUDIO_DEFAULT_VOLUME;
@@ -29,10 +42,8 @@ export const DEFAULT_DECAY_RAMP_TIME_SEC = AUDIO_DEFAULT_DECAY;
 export const DEFAULT_RELEASE_RAMP_TIME_SEC = AUDIO_DEFAULT_RELEASE;
 export const DEFAULT_SUSTAIN_GAIN_MULTIPLIER = AUDIO_DEFAULT_SUSTAIN;
 
-const DB_CONVERSION_BASE = 10;
-const DB_CONVERSION_DIVISER = 20;
-
-const CONTEXT_SUSPENDED_STATE = 'suspended';
+export const DEFAULT_PORTAMENTO_SEC = 0.0;
+export const DEFAULT_FILTER_ENV_OCTAVES = 0.0;
 
 // --- СЕМАНТИЧЕСКИЕ ПРЕДИКАТЫ И ВАЛИДАТОРЫ ---
 
@@ -52,14 +63,8 @@ export const isValidFilterQ = (val) =>
 export const isValidAdsrParam = (val) =>
   typeof val === 'number' && !isNaN(val) && val >= 0;
 
-export const isAudioContextSuspended = (ctx) =>
-  ctx && ctx.state === CONTEXT_SUSPENDED_STATE;
-
 export const isSynthReadyForPlayback = (isInitialized, ctx) =>
   !!(isInitialized && ctx);
-
-export const isRequestedTimeInFuture = (requestedTime, now) =>
-  typeof requestedTime === 'number' && requestedTime >= now;
 
 export const shouldUpdateActiveAudioHardware = (state) =>
   !!(state.isInitialized && state.outputNode && state.ctx);
@@ -69,34 +74,22 @@ export const isAudioEngineContextMissing = (state) => !state.isInitialized;
 export const canDisconnectFromHardware = (state) =>
   !!(state.isConnectedToHardware && state.outputNode);
 
+export const isReleaseMethod = (methodName) => methodName === 'setRelease';
+export const isGetterMethod = (methodName) => methodName.startsWith('get');
+export const isCutoffParamValid = (val) =>
+  typeof val === 'number' && !isNaN(val);
+export const isNumberValue = (val) => typeof val === 'number';
+export const isStrategyOscillator = (strategyType) =>
+  strategyType === 'oscillator';
+export const isStrategyNested = (strategyType) => strategyType === 'nested';
+export const isToneNodeConnectable = (toneNode) =>
+  toneNode && typeof toneNode.connect === 'function';
+
 // --- ВЫЧИСЛИТЕЛЬНЫЕ ОПЕРАЦИИ DSP ---
-
-export const extractNativeAudioContext = (toneNode) => {
-  return (
-    toneNode.context?.rawContext || toneNode.context || window.audioContext
-  );
-};
-
-export const ensureAudioContextIsActive = (ctx) => {
-  if (isAudioContextSuspended(ctx)) {
-    ctx.resume().catch(() => {});
-  }
-};
-
-export const calculateTimelineTimes = (ctx, requestedTime) => {
-  const now = ctx.currentTime;
-  if (isRequestedTimeInFuture(requestedTime, now)) {
-    return requestedTime;
-  }
-  return now;
-};
 
 export const getOscillatorType = (presetConfig) => {
   return presetConfig.oscillatorType || WAVEFORM_SQUARE;
 };
-
-export const dbToLinearGain = (dbValue) =>
-  Math.pow(DB_CONVERSION_BASE, dbValue / DB_CONVERSION_DIVISER);
 
 // --- КОММУТАЦИЯ НИЗКОУРОВНЕВОГО ГРАФА И АВТОМАТИЗАЦИЯ ---
 

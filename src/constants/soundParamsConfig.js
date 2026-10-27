@@ -30,6 +30,52 @@ export const SOUND_PARAM_GROUPS = [
   { key: 'filter', label: 'FILTER:' },
 ];
 
+// --- ИСЧЕРПЫВАЮЩАЯ КАРТА ДИНАМИЧЕСКИХ ПРОКСИ ДЛЯ UI СИНТЕЗАТОРА ---
+export const SYNTH_FACADE_ROUTING = {
+  coreAccessors: {
+    volume: { get: 'getVolume', set: 'setVolume' },
+    detune: { get: 'getDetune', set: 'setDetune' },
+    filterQ: { get: 'getFilterQ', set: 'setFilterQ' },
+  },
+  envelopeAccessors: {
+    getAttack: 'attackTime',
+    setAttack: 'attackTime',
+    getDecay: 'decayTime',
+    setDecay: 'decayTime',
+    getSustain: 'sustainLevel',
+    setSustain: 'sustainLevel',
+    getRelease: 'releaseTime',
+    setRelease: 'releaseTime',
+  },
+  toneJsProxies: {
+    volume: { sourceMethod: 'getVolume', targetMethod: 'setVolume' },
+    detune: { sourceMethod: 'getDetune', targetMethod: 'setDetune' },
+  },
+  // Группируем вложенные совместимые объекты Tone.js
+  compositeObjects: {
+    envelope: {
+      attack: { get: 'getAttack', set: 'setAttack' },
+      decay: { get: 'getDecay', set: 'setDecay' },
+      sustain: { get: 'getSustain', set: 'setSustain' },
+      release: { get: 'getRelease', set: 'setRelease' },
+    },
+    filter: {
+      frequency: { get: 'getCutoff', set: 'setCutoff' },
+      Q: { get: 'getFilterQ', set: 'setFilterQ' },
+    },
+  },
+  // Убираем лестницы if с помощью явного маппинга стратегий
+  presetStrategies: {
+    oscillatorType: { type: 'oscillator' },
+    portamento: { type: 'value', configKey: 'synthGlide', fallback: 0.0 },
+    filterEnvelope: {
+      type: 'nested',
+      configKey: 'filterEnvOctaves',
+      fallback: 0.0,
+    },
+  },
+};
+
 // ============================================================================
 // 2. ЖЕЛЕЗНЫЕ ДЕВАЙСЫ ДЛЯ АУДИО-ДВИЖКА (Убран экспериментальный testLfo)
 // ============================================================================

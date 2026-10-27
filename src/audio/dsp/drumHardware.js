@@ -1,14 +1,21 @@
+import {
+  dbToLinearGain,
+  extractNativeAudioContext,
+  ensureAudioContextIsActive,
+} from '../../utils/audioMathUtils';
+
 // --- НАСТРОЙКИ ИНФРАСТРУКТУРЫ ЗВУКА ---
 const ABSOLUTE_MIN_RAMP_TIME_SEC = 0.002;
 const DEFAULT_LOG_GAIN_DECIBELS = -12;
 const DEBUG_DESTINATION_GAIN = 0.05;
 
-const DB_CONVERSION_BASE = 10;
-const DB_CONVERSION_DIVISER = 20;
 export const ZERO_AUDIO_AMPLITUDE = 0;
 
-export const dbToLinearGain = (dbValue) =>
-  Math.pow(DB_CONVERSION_BASE, dbValue / DB_CONVERSION_DIVISER);
+export {
+  dbToLinearGain,
+  extractNativeAudioContext,
+  ensureAudioContextIsActive,
+};
 
 export const isValidVolumeNumber = (val) =>
   typeof val === 'number' && !isNaN(val);
@@ -122,24 +129,12 @@ export const applyGainEnvelope = (
   );
 };
 
-export const ensureAudioContextIsActive = (ctx) => {
-  if (ctx && ctx.state === 'suspended') {
-    ctx.resume().catch(() => {});
-  }
-};
-
 export const isDrumReadyForPlayback = (isInitialized, ctx) => {
-  return isInitialized && ctx;
-};
-
-export const extractNativeAudioContext = (toneNode) => {
-  return (
-    toneNode.context?.rawContext || toneNode.context || window.audioContext
-  );
+  return !!(isInitialized && ctx);
 };
 
 export const shouldUpdateActiveAudioHardware = (state) =>
-  state.isInitialized && state.outputNode && state.ctx;
+  !!(state.isInitialized && state.outputNode && state.ctx);
 export const isAudioEngineContextMissing = (state) => !state.isInitialized;
 export const canDisconnectFromHardware = (state) =>
-  state.isConnectedToHardware && state.outputNode;
+  !!(state.isConnectedToHardware && state.outputNode);

@@ -10,6 +10,7 @@ const SECONDS_IN_MINUTE = 60;
 const DB_CONVERSION_BASE = 10;
 const DB_CONVERSION_DIVISER = 20;
 const PARAM_MUTATION_EPSILON = 0.0001;
+const CONTEXT_SUSPENDED_STATE = 'suspended';
 
 // --- ПРЕДИКАТЫ СОСТОЯНИЯ ДЛЯ КВАНТОВАНИЯ ПЛЕЙХЕДА ---
 const isLastStepOfPattern = (stepIndex) =>
@@ -193,4 +194,26 @@ export const calculateCurrentPlayPattern = (step, stepsInMeasure) => {
 export const checkBypassCondition = (liveValue, bypassValue) => {
   const targetBypassValue = typeof bypassValue === 'number' ? bypassValue : 0;
   return liveValue === targetBypassValue;
+};
+
+// --- ДОБАВЛЕННЫЕ НА ТИВНЫЕ ХЕЛПЕРЫ ДЛЯ ИНТЕГРАЦИИ ДВИЖКОВ ---
+
+export const extractNativeAudioContext = (toneNode) => {
+  return (
+    toneNode.context?.rawContext || toneNode.context || window.audioContext
+  );
+};
+
+export const ensureAudioContextIsActive = (ctx) => {
+  if (ctx && ctx.state === CONTEXT_SUSPENDED_STATE) {
+    ctx.resume().catch(() => {});
+  }
+};
+
+export const calculateTimelineTimes = (ctx, requestedTime) => {
+  const now = ctx.currentTime;
+  if (typeof requestedTime === 'number' && requestedTime >= now) {
+    return requestedTime;
+  }
+  return now;
 };
