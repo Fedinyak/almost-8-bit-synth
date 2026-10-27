@@ -1,6 +1,20 @@
 export const ANALYSER_TYPE = 'waveform';
 export const ANALYSER_SIZE = 32;
 
+// --- СТАТИЧЕСКИЕ ПЕРЕЧИСЛЕНИЯ ТРАНСПОРТА И ПЛЕЙХЕДА ---
+export const PLAYBACK_STATES = {
+  START: 'start',
+  STOP: 'stop',
+  PAUSE: 'pause',
+};
+
+export const PATTERN_ACTION_TYPES = {
+  PLAY: 'PLAY',
+  LOOP: 'LOOP',
+  SELECT: 'SELECT',
+  TOGGLE_FOLLOW: 'TOGGLE_FOLLOW',
+};
+
 // --- НАСТРОЙКИ ПАРАМЕТРОВ АВТОМАТИЗАЦИИ И ЭФФЕКТОВ ---
 export const WET_PARAM_KEY = 'wet';
 export const NATIVE_VALUE_KEY = 'value';

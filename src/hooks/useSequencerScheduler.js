@@ -10,7 +10,7 @@ import {
   isHardwareStateUnchanged,
   handleStepSync,
 } from '../audio/timeline/schedulerUtils';
-import { PLAYBACK_STATES } from '../store/playerSlice';
+import { PLAYBACK_STATES } from '../constants/audioEngineConfig';
 
 // --- САМОДОКУМЕНТИРОВАННЫЕ FP ПРЕДИКАТЫ ---
 const isPlaying = (state) => state === PLAYBACK_STATES.START;

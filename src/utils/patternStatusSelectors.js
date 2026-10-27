@@ -1,4 +1,4 @@
-import { PLAYBACK_STATES } from '../store/playerSlice';
+import { PLAYBACK_STATES } from '../constants/audioEngineConfig';
 
 // --- САМОДОКУМЕНТИРОВАННЫЕ FP ПРЕДИКАТЫ ---
 const isPlayingState = (state) => state === PLAYBACK_STATES.START;

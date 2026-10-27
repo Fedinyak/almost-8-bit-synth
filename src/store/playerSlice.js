@@ -1,20 +1,11 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { SEQUENCER_CONFIG } from '../constants/sequencerConfig';
 import { SYNTH_LIST } from '../constants/constants';
-
+import {
+  PLAYBACK_STATES,
+  PATTERN_ACTION_TYPES,
+} from '../constants/audioEngineConfig';
 // --- СТАТИЧЕСКИЕ ПЕРЕЧИСЛЕНИЯ (LOOKUP ENUMS): ЕДИНЫЙ ИСТОЧНИК ПРАВДЫ ДЛЯ ВСЕГО ДВИЖКА ---
-export const PLAYBACK_STATES = {
-  START: 'start',
-  STOP: 'stop',
-  PAUSE: 'pause',
-};
-
-export const PATTERN_ACTION_TYPES = {
-  PLAY: 'PLAY',
-  LOOP: 'LOOP',
-  SELECT: 'SELECT',
-  TOGGLE_FOLLOW: 'TOGGLE_FOLLOW',
-};
 
 const initialState = {
   bpm: SEQUENCER_CONFIG.DEFAULT_BPM,

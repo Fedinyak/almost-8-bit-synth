@@ -2,9 +2,13 @@ import { setEnginePosition } from './audioEngineCore';
 import { STEPS_IN_MEASURE } from '../../constants/constants';
 import { SEQUENCER_CONFIG } from '../../constants/sequencerConfig';
 import { backupAndDropPatternData } from '../../store/patternsSlice';
+// Измени старый импорт из playerSlice на новый адрес из audioEngineConfig:
 import {
-  PLAYBACK_STATES,
   PATTERN_ACTION_TYPES,
+  PLAYBACK_STATES,
+} from '../../constants/audioEngineConfig';
+
+import {
   setPendingPattern,
   setIsLoopingFalse,
   setIsLoopingTrue,
