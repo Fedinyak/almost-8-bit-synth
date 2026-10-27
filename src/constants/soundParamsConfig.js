@@ -14,6 +14,11 @@ import {
   RAW_DRUM_PRESETS,
   STATIC_DRUM_TYPE_MAP,
 } from './audioEngineConfig';
+import {
+  STRATEGY_TYPE_OSCILLATOR,
+  STRATEGY_TYPE_NESTED,
+  STRATEGY_TYPE_VALUE,
+} from './audioEngineConfig';
 
 // ============================================================================
 // 1. ГЛОБАЛЬНЫЕ ТЕКСТОВЫЕ СЛОВАРИ
@@ -51,7 +56,6 @@ export const SYNTH_FACADE_ROUTING = {
     volume: { sourceMethod: 'getVolume', targetMethod: 'setVolume' },
     detune: { sourceMethod: 'getDetune', targetMethod: 'setDetune' },
   },
-  // Группируем вложенные совместимые объекты Tone.js
   compositeObjects: {
     envelope: {
       attack: { get: 'getAttack', set: 'setAttack' },
@@ -64,18 +68,43 @@ export const SYNTH_FACADE_ROUTING = {
       Q: { get: 'getFilterQ', set: 'setFilterQ' },
     },
   },
-  // Убираем лестницы if с помощью явного маппинга стратегий
+  // Теперь стратегии жёстко привязаны к константам
   presetStrategies: {
-    oscillatorType: { type: 'oscillator' },
-    portamento: { type: 'value', configKey: 'synthGlide', fallback: 0.0 },
+    oscillatorType: { type: STRATEGY_TYPE_OSCILLATOR },
+    portamento: {
+      type: STRATEGY_TYPE_VALUE,
+      configKey: 'synthGlide',
+      fallback: 0.0,
+    },
     filterEnvelope: {
-      type: 'nested',
+      type: STRATEGY_TYPE_NESTED,
       configKey: 'filterEnvOctaves',
       fallback: 0.0,
     },
   },
 };
-
+export const SYNTH_PARAM_STATE_MAP = {
+  volume: { stateKey: 'volumeValue', defaultKey: 'DEFAULT_LOG_GAIN_DECIBELS' },
+  detune: { stateKey: 'detuneValue', defaultFallback: 0 },
+  filterLowpassCutoff: {
+    stateKey: 'filterCutoffValue',
+    defaultKey: 'DEFAULT_FILTER_CUTOFF_HZ',
+  },
+  filterQ: { stateKey: 'filterQValue', defaultKey: 'DEFAULT_FILTER_Q_VALUE' },
+  attack: {
+    stateKey: 'attackTime',
+    defaultKey: 'DEFAULT_ATTACK_RAMP_TIME_SEC',
+  },
+  decay: { stateKey: 'decayTime', defaultKey: 'DEFAULT_DECAY_RAMP_TIME_SEC' },
+  sustain: {
+    stateKey: 'sustainLevel',
+    defaultKey: 'DEFAULT_SUSTAIN_GAIN_MULTIPLIER',
+  },
+  release: {
+    stateKey: 'releaseTime',
+    defaultKey: 'DEFAULT_RELEASE_RAMP_TIME_SEC',
+  },
+};
 // ============================================================================
 // 2. ЖЕЛЕЗНЫЕ ДЕВАЙСЫ ДЛЯ АУДИО-ДВИЖКА (Убран экспериментальный testLfo)
 // ============================================================================

@@ -6,6 +6,11 @@ import {
   AUDIO_DEFAULT_VOLUME,
   AUDIO_DEFAULT_CUTOFF,
   WAVEFORM_SQUARE,
+  STRATEGY_TYPE_OSCILLATOR,
+  STRATEGY_TYPE_NESTED,
+  METHOD_NAME_SET_RELEASE,
+  SYNTH_DEFAULT_FILTER_Q_VALUE,
+  SYNTH_DEFAULT_PLAYBACK_DURATION_SEC,
 } from '../../constants/audioEngineConfig';
 
 export {
@@ -32,10 +37,14 @@ export {
 export const ZERO_AUDIO_AMPLITUDE = 0;
 export const FILTER_TYPE_LOWPASS = 'lowpass';
 
+const CONTEXT_SUSPENDED_STATE = 'suspended';
+const GETTER_METHOD_PREFIX = 'get';
+
 export const DEFAULT_LOG_GAIN_DECIBELS = AUDIO_DEFAULT_VOLUME;
 export const DEFAULT_FILTER_CUTOFF_HZ = AUDIO_DEFAULT_CUTOFF;
-export const DEFAULT_FILTER_Q_VALUE = 1.0;
-export const DEFAULT_PLAYBACK_DURATION_SEC = 0.2;
+export const DEFAULT_FILTER_Q_VALUE = SYNTH_DEFAULT_FILTER_Q_VALUE;
+export const DEFAULT_PLAYBACK_DURATION_SEC =
+  SYNTH_DEFAULT_PLAYBACK_DURATION_SEC;
 
 export const DEFAULT_ATTACK_RAMP_TIME_SEC = AUDIO_DEFAULT_ATTACK;
 export const DEFAULT_DECAY_RAMP_TIME_SEC = AUDIO_DEFAULT_DECAY;
@@ -74,16 +83,25 @@ export const isAudioEngineContextMissing = (state) => !state.isInitialized;
 export const canDisconnectFromHardware = (state) =>
   !!(state.isConnectedToHardware && state.outputNode);
 
-export const isReleaseMethod = (methodName) => methodName === 'setRelease';
-export const isGetterMethod = (methodName) => methodName.startsWith('get');
+export const isReleaseMethod = (methodName) =>
+  methodName === METHOD_NAME_SET_RELEASE;
+export const isGetterMethod = (methodName) =>
+  methodName.startsWith(GETTER_METHOD_PREFIX);
 export const isCutoffParamValid = (val) =>
   typeof val === 'number' && !isNaN(val);
 export const isNumberValue = (val) => typeof val === 'number';
 export const isStrategyOscillator = (strategyType) =>
-  strategyType === 'oscillator';
-export const isStrategyNested = (strategyType) => strategyType === 'nested';
+  strategyType === STRATEGY_TYPE_OSCILLATOR;
+export const isStrategyNested = (strategyType) =>
+  strategyType === STRATEGY_TYPE_NESTED;
 export const isToneNodeConnectable = (toneNode) =>
   toneNode && typeof toneNode.connect === 'function';
+
+export const executeSafeAudioParameterMutation = (state, field, val) => {
+  if (isValidAdsrParam(val)) {
+    state[field] = val;
+  }
+};
 
 // --- ВЫЧИСЛИТЕЛЬНЫЕ ОПЕРАЦИИ DSP ---
 

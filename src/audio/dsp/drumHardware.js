@@ -3,11 +3,11 @@ import {
   extractNativeAudioContext,
   ensureAudioContextIsActive,
 } from '../../utils/audioMathUtils';
-
-// --- НАСТРОЙКИ ИНФРАСТРУКТУРЫ ЗВУКА ---
-const ABSOLUTE_MIN_RAMP_TIME_SEC = 0.002;
-const DEFAULT_LOG_GAIN_DECIBELS = -12;
-const DEBUG_DESTINATION_GAIN = 0.05;
+import {
+  DRUM_ABSOLUTE_MIN_RAMP_TIME_SEC,
+  DRUM_DEBUG_DESTINATION_GAIN,
+  AUDIO_DEFAULT_VOLUME,
+} from '../../constants/audioEngineConfig';
 
 export const ZERO_AUDIO_AMPLITUDE = 0;
 
@@ -26,7 +26,7 @@ export const createInitialDrumState = (presetConfig) => ({
   volumeValue:
     typeof presetConfig.volume === 'number'
       ? presetConfig.volume
-      : DEFAULT_LOG_GAIN_DECIBELS,
+      : AUDIO_DEFAULT_VOLUME,
   lastGainParam: null,
   isInitialized: false,
   isConnectedToHardware: false,
@@ -41,7 +41,7 @@ export const safelyCancelGainRamp = (lastGainParam, ctxTime) => {
     lastGainParam.setValueAtTime(lastGainParam.value, ctxTime);
     lastGainParam.linearRampToValueAtTime(
       ZERO_AUDIO_AMPLITUDE,
-      ctxTime + ABSOLUTE_MIN_RAMP_TIME_SEC,
+      ctxTime + DRUM_ABSOLUTE_MIN_RAMP_TIME_SEC,
     );
   } catch (err) {}
 };
@@ -95,7 +95,7 @@ const assembleGainSignalChain = (ctx, drumGain, outputNode) => {
   drumGain.connect(outputNode);
 
   const debugGain = ctx.createGain();
-  debugGain.gain.value = DEBUG_DESTINATION_GAIN;
+  debugGain.gain.value = DRUM_DEBUG_DESTINATION_GAIN;
   drumGain.connect(debugGain);
   debugGain.connect(ctx.destination);
 };

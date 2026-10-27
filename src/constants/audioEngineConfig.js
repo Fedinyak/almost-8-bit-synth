@@ -108,3 +108,35 @@ export const STATIC_DRUM_TYPE_MAP = {
   ride: 'MetalSynth',
   tom: 'MembraneSynth',
 };
+
+// --- СИСТЕМНЫЕ МАРКЕРЫ ДЛЯ ДИНАМИЧЕСКОГО МАППИНГА ФАСАДОВ ---
+export const STRATEGY_TYPE_OSCILLATOR = 'oscillator';
+export const STRATEGY_TYPE_NESTED = 'nested';
+export const STRATEGY_TYPE_VALUE = 'value';
+export const METHOD_NAME_SET_RELEASE = 'setRelease';
+
+// --- ИНФРАСТРУКТУРНЫЕ И ФИЗИЧЕСКИЕ НАСТРОЙКИ ДВИЖКОВ ---
+export const INFRA_PARAM_MUTATION_EPSILON = 0.0001;
+export const INFRA_SCHEDULING_LOOKAHEAD_SEC = 0.01;
+export const INFRA_DRUM_PHASE_OFFSET = 0.001;
+
+export const DRUM_ABSOLUTE_MIN_RAMP_TIME_SEC = 0.002;
+export const DRUM_DEBUG_DESTINATION_GAIN = 0.05;
+
+export const DSP_NOISE_BUFFER_DURATION_SEC = 2.0;
+export const DSP_KICK_START_FREQ_HZ = 180;
+export const DSP_KICK_END_FREQ_HZ = 45;
+export const DSP_KICK_PITCH_DECAY_SEC = 0.08;
+export const DSP_SNARE_FILTER_FREQ_HZ = 1000;
+export const DSP_SNARE_FILTER_Q_VALUE = 1.0;
+export const DSP_HATHAT_FILTER_FREQ_HZ = 3000;
+
+export const SYNTH_DEFAULT_FILTER_Q_VALUE = 1.0;
+export const SYNTH_DEFAULT_PLAYBACK_DURATION_SEC = 0.2;
+
+// --- КОНСТАНТЫ СИСТЕМЫ МУЗЫКАЛЬНОГО ВРЕМЕНИ И ТРЕКЕРНОГО ПАРСИНГА ---
+export const TIME_VALID_COORDINATES_COUNT = 3;
+export const TIME_BEATS_INDEX = 1;
+export const TIME_SIXTEENTHS_INDEX = 2;
+export const TIME_FALLBACK_SECONDS_VALUE = 0;
+export const TIME_STRING_SPLIT_CHAR = ':';

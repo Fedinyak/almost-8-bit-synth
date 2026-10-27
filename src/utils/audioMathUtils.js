@@ -2,86 +2,87 @@ import { getNativeContext } from '../audio/context/nativeContext';
 // Живой нативный темп прямо из ядра
 import { getCurrentEngineBpm } from '../audio/bridge/audioEngineCore';
 import { SEQUENCER_CONFIG } from '../constants/sequencerConfig';
+import {
+  INFRA_PARAM_MUTATION_EPSILON,
+  INFRA_SCHEDULING_LOOKAHEAD_SEC,
+  INFRA_DRUM_PHASE_OFFSET,
+  TIME_VALID_COORDINATES_COUNT,
+  TIME_BEATS_INDEX,
+  TIME_SIXTEENTHS_INDEX,
+  TIME_FALLBACK_SECONDS_VALUE,
+  TIME_STRING_SPLIT_CHAR,
+} from '../constants/audioEngineConfig';
 
 const SIXTEENTH_STEPS_PER_BEAT = 4;
-const VALID_TIME_COORDINATES_COUNT = 3;
 const SECONDS_IN_MINUTE = 60;
 
 const DB_CONVERSION_BASE = 10;
 const DB_CONVERSION_DIVISER = 20;
-const PARAM_MUTATION_EPSILON = 0.0001;
 const CONTEXT_SUSPENDED_STATE = 'suspended';
 
-// --- ПРЕДИКАТЫ СОСТОЯНИЯ ДЛЯ КВАНТОВАНИЯ ПЛЕЙХЕДА ---
+// --- СЕМАНТИЧЕСКИЕ ПРЕДИКАТЫ ВРЕМЕНИ И ТАЙМЛАЙНА ---
+
 const isLastStepOfPattern = (stepIndex) =>
   stepIndex === getStepsPerPattern() - 1;
+
 const hasPendingJump = (jumpIndex) => jumpIndex !== null;
+
 const isPatternOutOfBound = (patternIndex, maxCount) =>
   patternIndex >= maxCount;
 
-/**
- * Переводит децибелы слайдера в линейный гейн Web Audio API
- */
+const isCoordinateCountInvalid = (partsArray) =>
+  partsArray.length !== TIME_VALID_COORDINATES_COUNT;
+
+const isTimeString = (value) => typeof value === 'string';
+
+// --- ЧИСТЫЕ МАТЕМАТИЧЕСКИЕ ПРЕОБРАЗОВАНИЯ ---
+
 export const dbToLinearGain = (dbValue) =>
   Math.pow(DB_CONVERSION_BASE, dbValue / DB_CONVERSION_DIVISER);
 
-/**
- * Конвертирует линейное усиление обратно в децибелы для UI
- */
 export const linearGainToDb = (linearGain) =>
   linearGain > 0 ? DB_CONVERSION_DIVISER * Math.log10(linearGain) : -Infinity;
 
-/**
- * Проверяет, является ли изменение параметра значительным (защита от спама)
- */
 export const isParamChangeSignificant = (currentValue, targetValue) =>
-  Math.abs(currentValue - targetValue) >= PARAM_MUTATION_EPSILON;
+  Math.abs(currentValue - targetValue) >= INFRA_PARAM_MUTATION_EPSILON;
 
-/**
- * Получает количество шагов в одном паттерне из конфигурации
- */
 export const getStepsPerPattern = () => SEQUENCER_CONFIG.SEQUENCER_STEP || 16;
 
-/**
- * Вычисляет индекс паттерна (такта) на основе абсолютного тика
- */
 export const calculateMeasureIndex = (absoluteTick) =>
   Math.floor(absoluteTick / getStepsPerPattern());
 
-/**
- * Вычисляет индекс шага внутри паттерна на основе абсолютного тика
- */
 export const calculateStepIndexInMeasure = (absoluteTick) =>
   absoluteTick % getStepsPerPattern();
 
-/**
- * Рассчитывает сквозной абсолютный тик по координатам долей и микрошагов
- */
 export const calculateAbsoluteTick = (measureIndex, beats, sixteenths) => {
   const stepInPattern = beats * SIXTEENTH_STEPS_PER_BEAT + sixteenths;
   return measureIndex * getStepsPerPattern() + stepInPattern;
 };
 
-/**
- * Парсит трекерную строку формата 'такт:доля:микрошаг' в сквозной абсолютный тик
- */
-export const parseSynthTimeToAbsoluteTick = (timeStr, measureIndex) => {
-  const timeCoordinates = timeStr.split(':');
+// --- ТРЕКЕРНЫЙ МУЗЫКАЛЬНЫЙ ПАРСИНГ ---
 
-  if (timeCoordinates.length !== VALID_TIME_COORDINATES_COUNT) {
+const splitTimeCoordinates = (timeStr) => timeStr.split(TIME_STRING_SPLIT_CHAR);
+
+const parseCoordinateValue = (coordinateStr) =>
+  parseInt(coordinateStr, 10) || 0;
+
+export const parseSynthTimeToAbsoluteTick = (timeStr, measureIndex) => {
+  const timeCoordinates = splitTimeCoordinates(timeStr);
+
+  if (isCoordinateCountInvalid(timeCoordinates)) {
     return measureIndex * getStepsPerPattern();
   }
 
-  const beats = parseInt(timeCoordinates[1], 10) || 0;
-  const sixteenths = parseInt(timeCoordinates[2], 10) || 0;
+  const beats = parseCoordinateValue(timeCoordinates[TIME_BEATS_INDEX]);
+  const sixteenths = parseCoordinateValue(
+    timeCoordinates[TIME_SIXTEENTHS_INDEX],
+  );
 
   return calculateAbsoluteTick(measureIndex, beats, sixteenths);
 };
 
-/**
- * ЧИСТАЯ АБСТРАКЦИЯ КВАНТОВАНИЯ ПЛЕЙХЕЛА (Playhead State Machine)
- * Рассчитывает следующие координаты музыкального курсора на границе такта.
- */
+// --- ЧИСТАЯ АБСТРАКЦИЯ КВАНТОВАНИЯ ПЛЕЙХЕЛА (Playhead State Machine) ---
+
 export const calculateNextHardwareCoordinates = (currentState, config) => {
   const { currentStep, currentPattern } = currentState;
   const { isLooping, pendingJumpIndex, maxPatterns } = config;
@@ -124,20 +125,21 @@ export const calculateNextHardwareCoordinates = (currentState, config) => {
   };
 };
 
+// --- РАСЧЕТ ТАЙМИНГОВ СЕТКИ СЕКВЕНСОРА ---
+
 export const microTimingOffset = (drumIndex) => {
-  const DRUM_PHASE_OFFSET = 0.001;
-  return drumIndex * DRUM_PHASE_OFFSET;
+  return drumIndex * INFRA_DRUM_PHASE_OFFSET;
 };
 
 export const parseToneTimeStringToSeconds = (timeStr, bpm) => {
   const activeBpm = bpm || getCurrentEngineBpm();
+  const parts = splitTimeCoordinates(timeStr);
 
-  const parts = timeStr.split(':');
-  if (parts.length !== 3) return 0;
+  if (isCoordinateCountInvalid(parts)) return TIME_FALLBACK_SECONDS_VALUE;
 
-  const measures = parseInt(parts[0], 10) || 0;
-  const beats = parseInt(parts[1], 10) || 0;
-  const sixteenths = parseInt(parts[2], 10) || 0;
+  const measures = parseCoordinateValue(parts[0]);
+  const beats = parseCoordinateValue(parts[TIME_BEATS_INDEX]);
+  const sixteenths = parseCoordinateValue(parts[TIME_SIXTEENTHS_INDEX]);
 
   const secondsPerBeat = SECONDS_IN_MINUTE / activeBpm;
   const secondsPerMeasure = secondsPerBeat * SIXTEENTH_STEPS_PER_BEAT;
@@ -156,19 +158,20 @@ export const calculateAbsoluteTime = (time, measureIndex, bpm) => {
   const secondsPerBeat = SECONDS_IN_MINUTE / activeBpm;
   const secondsPerMeasure = secondsPerBeat * SIXTEENTH_STEPS_PER_BEAT;
 
-  const stepSeconds =
-    typeof time === 'string'
-      ? parseToneTimeStringToSeconds(time, activeBpm)
-      : time;
+  const stepSeconds = isTimeString(time)
+    ? parseToneTimeStringToSeconds(time, activeBpm)
+    : time;
   const measureSeconds = measureIndex * secondsPerMeasure;
 
   return stepSeconds + measureSeconds;
 };
 
 export const compensateLatency = (plannedTime) => {
-  const SCHEDULING_LOOKAHEAD_SEC = 0.01;
   const ctx = getNativeContext();
-  return Math.max(plannedTime, ctx.currentTime + SCHEDULING_LOOKAHEAD_SEC);
+  return Math.max(
+    plannedTime,
+    ctx.currentTime + INFRA_SCHEDULING_LOOKAHEAD_SEC,
+  );
 };
 
 export const getTotalSteps = (patterns, stepsPerMeasure = 16) => {
@@ -189,14 +192,12 @@ export const calculateCurrentPlayPattern = (step, stepsInMeasure) => {
   return Math.floor(step / stepsInMeasure);
 };
 
-// ТОТ САМЫЙ ВОЗВРАЩЕННЫЙ ЭКСПОРТ ДЛЯ БАЙПАСОВ ЭФФЕКТОВ:
-// Теперь audioModulationActions.js найдет его и успешно соберется!
 export const checkBypassCondition = (liveValue, bypassValue) => {
   const targetBypassValue = typeof bypassValue === 'number' ? bypassValue : 0;
   return liveValue === targetBypassValue;
 };
 
-// --- ДОБАВЛЕННЫЕ НА ТИВНЫЕ ХЕЛПЕРЫ ДЛЯ ИНТЕГРАЦИИ ДВИЖКОВ ---
+// --- НА ТИВНЫЕ ОПЕРАЦИИ AUDIO CONTEXT ---
 
 export const extractNativeAudioContext = (toneNode) => {
   return (

@@ -1,139 +1,47 @@
+import { SYNTH_FACADE_ROUTING } from '../../constants/soundParamsConfig';
 import {
-  SOUND_PARAMS,
-  SYNTH_FACADE_ROUTING,
-} from '../../constants/soundParamsConfig';
-import { executeHardwareDisconnect } from './synthEngineModel';
+  executeHardwareDisconnect,
+  executeEnvelopeAccessorsMapping,
+  resolvePresetStrategyValue,
+} from './synthEngineModel';
 import {
   canDisconnectFromHardware,
-  isValidAdsrParam,
   shouldUpdateActiveAudioHardware,
-  getOscillatorType,
-  isReleaseMethod,
-  isGetterMethod,
   isCutoffParamValid,
   isNumberValue,
   isStrategyOscillator,
   isStrategyNested,
   isToneNodeConnectable,
+  getOscillatorType,
 } from './synthHardware';
+import {
+  defineReadOnlyProperty,
+  defineProxyValueProperty,
+  buildNestedProxyNode,
+  executeCoreAccessorsInjection,
+} from '../../utils/audioFacadeMetaprogramming';
 
-// --- ИНФРАСТРУКТУРНЫЕ ФАБРИКИ СВОЙСТВ (ЧИСТЫЕ СИСТЕМНЫЕ АБСТРАКЦИИ) ---
+// --- ДЕКЛАРАТИВНЫЕ СБОРЩИКИ ПАЙПЛАЙНА ФАСАДА ---
 
-const defineReadOnlyProperty = (target, propertyName, getterFn) => {
-  Object.defineProperty(target, propertyName, {
-    get: getterFn,
-    configurable: true,
-  });
-};
-
-const defineProxyValueProperty = (
-  target,
-  propertyName,
-  sourceObj,
-  getMethod,
-  setMethod,
-) => {
-  Object.defineProperty(target, propertyName, {
-    get: () => ({
-      get value() {
-        return sourceObj[getMethod]();
-      },
-      set value(val) {
-        sourceObj[setMethod](val);
-      },
-    }),
-    configurable: true,
-  });
-};
-
-// --- СЕМАНТИЧЕСКИЕ ОПЕРАЦИИ НАД ПАРАМЕТРАМИ ---
-
-const executeSafeAudioParameterMutation = (state, field, val) => {
-  if (isValidAdsrParam(val)) {
-    state[field] = val;
-  }
-};
-
-const buildNestedProxyNode = (rack, definitionMap) => {
-  const node = {};
-  const fields = Object.keys(definitionMap);
-  const totalFields = fields.length;
-
-  for (let i = 0; i < totalFields; i++) {
-    const subProperty = fields[i];
-    const accessors = definitionMap[subProperty];
-
-    Object.defineProperty(node, subProperty, {
-      get: () => rack[accessors.get](),
-      set: (val) => {
-        rack[accessors.set](val);
-      },
-      configurable: true,
-    });
-  }
-
-  return node;
-};
-
-const resolvePresetValue = (presetConfig, strategy) => {
-  const configValue = presetConfig[strategy.configKey];
-  if (isNumberValue(configValue)) {
-    return configValue;
-  }
-  return strategy.fallback;
-};
-
-const executePresetStrategyResolution = (strategy, presetConfig) => {
-  if (isStrategyOscillator(strategy.type)) {
-    return getOscillatorType(presetConfig);
-  }
-
-  const resolvedBaseValue = resolvePresetValue(presetConfig, strategy);
-
-  if (isStrategyNested(strategy.type)) {
-    return { octaves: resolvedBaseValue };
-  }
-
-  return resolvedBaseValue;
-};
-
-// --- ДЕКЛАРАТИВНЫЕ СБОРЩИКИ СЛОЕВ ФАСАДА ---
-
-const buildDynamicCoreAccessors = (rack, adapter) => {
-  const map = SYNTH_FACADE_ROUTING.coreAccessors;
-  const keys = Object.keys(map);
+const buildDynamicPresetProperties = (rack, adapter) => {
+  const strategies = SYNTH_FACADE_ROUTING.presetStrategies;
+  const keys = Object.keys(strategies);
   const totalKeys = keys.length;
 
   for (let i = 0; i < totalKeys; i++) {
-    const paramKey = keys[i];
-    const config = map[paramKey];
+    const propName = keys[i];
+    const strategy = strategies[propName];
 
-    rack[config.get] = () => adapter[config.get]();
-    rack[config.set] = (val) => {
-      adapter[config.set](val);
-    };
-  }
-};
-
-const buildDynamicEnvelopeAccessors = (rack, state, adapter) => {
-  const map = SYNTH_FACADE_ROUTING.envelopeAccessors;
-  const keys = Object.keys(map);
-  const totalKeys = keys.length;
-
-  for (let i = 0; i < totalKeys; i++) {
-    const methodName = keys[i];
-    const stateField = map[methodName];
-
-    if (isGetterMethod(methodName)) {
-      rack[methodName] = () => state[stateField];
-    } else {
-      rack[methodName] = (val) => {
-        executeSafeAudioParameterMutation(state, stateField, val);
-        if (isReleaseMethod(methodName)) {
-          adapter.releaseTime = val;
-        }
-      };
-    }
+    defineReadOnlyProperty(rack, propName, () =>
+      resolvePresetStrategyValue(
+        strategy,
+        adapter.presetConfig,
+        isNumberValue,
+        isStrategyOscillator,
+        isStrategyNested,
+        getOscillatorType,
+      ),
+    );
   }
 };
 
@@ -157,7 +65,7 @@ const buildToneJsCompatibilityProxies = (rack) => {
 
   const compositeMap = SYNTH_FACADE_ROUTING.compositeObjects;
   const compositeKeys = Object.keys(compositeMap);
-  const totalCompositeKeys = compositeKeys.length;
+  const totalCompositeKeys = compositeMap.length;
 
   for (let i = 0; i < totalCompositeKeys; i++) {
     const objectName = compositeKeys[i];
@@ -165,21 +73,6 @@ const buildToneJsCompatibilityProxies = (rack) => {
 
     defineReadOnlyProperty(rack, objectName, () =>
       buildNestedProxyNode(rack, structureDefinition),
-    );
-  }
-};
-
-const buildDynamicPresetProperties = (rack, adapter) => {
-  const strategies = SYNTH_FACADE_ROUTING.presetStrategies;
-  const keys = Object.keys(strategies);
-  const totalKeys = keys.length;
-
-  for (let i = 0; i < totalKeys; i++) {
-    const propName = keys[i];
-    const strategy = strategies[propName];
-
-    defineReadOnlyProperty(rack, propName, () =>
-      executePresetStrategyResolution(strategy, adapter.presetConfig),
     );
   }
 };
@@ -194,8 +87,17 @@ export const injectSynthMethodsToRackFacade = (rack, adapter, state) => {
 
   rack.releaseTime = state.releaseTime;
 
-  buildDynamicCoreAccessors(rack, adapter);
-  buildDynamicEnvelopeAccessors(rack, state, adapter);
+  executeCoreAccessorsInjection(
+    rack,
+    adapter,
+    SYNTH_FACADE_ROUTING.coreAccessors,
+  );
+  executeEnvelopeAccessorsMapping(
+    rack,
+    state,
+    adapter,
+    SYNTH_FACADE_ROUTING.envelopeAccessors,
+  );
 
   rack.getCutoff = () => state.filterCutoffValue;
   rack.setCutoff = (val) => {

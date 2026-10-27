@@ -1,8 +1,40 @@
+import { SYNTH_PARAM_STATE_MAP } from '../../constants/soundParamsConfig';
 import {
   dbToLinearGain,
   isNodeMissing,
   FILTER_TYPE_LOWPASS,
+  isGetterMethod,
+  isReleaseMethod,
+  executeSafeAudioParameterMutation,
+  isNumberValue,
 } from './synthHardware';
+
+// --- ФУНКЦИОНАЛЬНЫЕ СБОРЩИКИ ПАРАМЕТРОВ ---
+
+const reduceConfigParameters = (presetConfig, defaults, mapDefinition) => {
+  const result = {};
+  const keys = Object.keys(mapDefinition);
+  const totalKeys = keys.length;
+
+  for (let i = 0; i < totalKeys; i++) {
+    const configKey = keys[i];
+    const mapping = mapDefinition[configKey];
+    const configValue = presetConfig[configKey];
+
+    const hasValidFallbackKey = typeof mapping.defaultKey === 'string';
+    const fallbackValue = hasValidFallbackKey
+      ? defaults[mapping.defaultKey]
+      : mapping.defaultFallback;
+
+    result[mapping.stateKey] = isNumberValue(configValue)
+      ? configValue
+      : fallbackValue;
+  }
+
+  return result;
+};
+
+// --- СИСТЕМНЫЕ МЕТОДЫ ЖИЗНЕННОГО ЦИКЛА И КОММУТАЦИИ ---
 
 export const hasDisposeMethod = (container) =>
   container && typeof container.dispose === 'function';
@@ -41,42 +73,23 @@ export const executeFilterDisconnect = ({ nativeBiquad }) => {
   } catch (e) {}
 };
 
-export const createInitialSynthState = (presetConfig, defaults) => ({
-  volumeValue:
-    typeof presetConfig.volume === 'number'
-      ? presetConfig.volume
-      : defaults.DEFAULT_LOG_GAIN_DECIBELS,
-  detuneValue:
-    typeof presetConfig.detune === 'number' ? presetConfig.detune : 0,
-  filterCutoffValue:
-    typeof presetConfig.filterLowpassCutoff === 'number'
-      ? presetConfig.filterLowpassCutoff
-      : defaults.DEFAULT_FILTER_CUTOFF_HZ,
-  filterQValue: defaults.DEFAULT_FILTER_Q_VALUE,
+export const createInitialSynthState = (presetConfig, defaults) => {
+  // Унифицированно собираем все физические параметры и ADSR в один проход
+  const coreAndEnvelopeParams = reduceConfigParameters(
+    presetConfig,
+    defaults,
+    SYNTH_PARAM_STATE_MAP,
+  );
 
-  attackTime:
-    typeof presetConfig.attack === 'number'
-      ? presetConfig.attack
-      : defaults.DEFAULT_ATTACK_RAMP_TIME_SEC,
-  decayTime:
-    typeof presetConfig.decay === 'number'
-      ? presetConfig.decay
-      : defaults.DEFAULT_DECAY_RAMP_TIME_SEC,
-  sustainLevel:
-    typeof presetConfig.sustain === 'number'
-      ? presetConfig.sustain
-      : defaults.DEFAULT_SUSTAIN_GAIN_MULTIPLIER,
-  releaseTime:
-    typeof presetConfig.release === 'number'
-      ? presetConfig.release
-      : defaults.DEFAULT_RELEASE_RAMP_TIME_SEC,
-
-  isInitialized: false,
-  isConnectedToHardware: false,
-  ctx: null,
-  outputNode: null,
-  nativeBiquad: null,
-});
+  return {
+    ...coreAndEnvelopeParams,
+    isInitialized: false,
+    isConnectedToHardware: false,
+    ctx: null,
+    outputNode: null,
+    nativeBiquad: null,
+  };
+};
 
 export const assembleNativeSynthGraph = (state, pannerNode) => {
   const outputNode = state.ctx.createGain();
@@ -91,4 +104,56 @@ export const assembleNativeSynthGraph = (state, pannerNode) => {
   outputNode.connect(pannerNode);
 
   return { outputNode, nativeBiquad };
+};
+
+// --- ВЫНЕСЕННАЯ БИЗНЕС-ЛОГИКА СТРАТЕГИЙ ПРЕСЕТОВ И ФАСАДОВ ---
+
+export const executeEnvelopeAccessorsMapping = (
+  rack,
+  state,
+  adapter,
+  routingConfig,
+) => {
+  const keys = Object.keys(routingConfig);
+  const totalKeys = keys.length;
+
+  for (let i = 0; i < totalKeys; i++) {
+    const methodName = keys[i];
+    const stateField = routingConfig[methodName];
+
+    if (isGetterMethod(methodName)) {
+      rack[methodName] = () => state[stateField];
+    } else {
+      rack[methodName] = (val) => {
+        executeSafeAudioParameterMutation(state, stateField, val);
+        if (isReleaseMethod(methodName)) {
+          adapter.releaseTime = val;
+        }
+      };
+    }
+  }
+};
+
+export const resolvePresetStrategyValue = (
+  strategy,
+  presetConfig,
+  isNumberFn,
+  isOscillatorFn,
+  isNestedFn,
+  getOscTypeFn,
+) => {
+  if (isOscillatorFn(strategy.type)) {
+    return getOscTypeFn(presetConfig);
+  }
+
+  const configValue = presetConfig[strategy.configKey];
+  const resolvedBaseValue = isNumberFn(configValue)
+    ? configValue
+    : strategy.fallback;
+
+  if (isNestedFn(strategy.type)) {
+    return { octaves: resolvedBaseValue };
+  }
+
+  return resolvedBaseValue;
 };
