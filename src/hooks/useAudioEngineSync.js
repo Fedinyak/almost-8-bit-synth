@@ -60,7 +60,7 @@ export const useAudioEngineSync = (
     );
   }, []);
 
-  // Жизненный цикл 2: Управление громкостью, стерео-панорамой и огибающими ADSR на каналах рэка
+  // Жизненный цикл 2: ПАКЕТНЫЙ ФЛАШ (BATCH FLUSH) - Выполняется только при монтировании чипа
   useEffect(() => {
     syncAllVolumes({
       synthEngines: synthEnginesRef.current,
@@ -68,7 +68,7 @@ export const useAudioEngineSync = (
       soundSettings,
       SYNTH_LIST,
       DRUM_KIT_LIST,
-      cache: smoothedValuesRef.current, // Добавили передачу вечной ссылки на контейнер кэша
+      cache: smoothedValuesRef.current,
     });
 
     syncAllPans({
@@ -77,19 +77,18 @@ export const useAudioEngineSync = (
       soundSettings,
       SYNTH_LIST,
       DRUM_KIT_LIST,
-      cache: smoothedValuesRef.current, // Добавили передачу вечной ссылки на контейнер кэша
+      cache: smoothedValuesRef.current,
     });
 
-    // СКВОЗНАЯ КОММУТАЦИЯ: Доставляем параметры огибающих во все нативные ядра
     syncAllEnvelopes({
       synthEngines: synthEnginesRef.current,
       drumsEngine: drumsEngineRef.current,
       soundSettings,
       SYNTH_LIST,
       DRUM_KIT_LIST,
-      cache: smoothedValuesRef.current, // Добавили передачу вечной ссылки на контейнер кэша
+      cache: smoothedValuesRef.current,
     });
-  }, [soundSettings, synthEnginesRef, drumsEngineRef]);
+  }, [synthEnginesRef, drumsEngineRef]); // СТЕРЛИ soundSettings ИЗ ЗАВИСИМОСТЕЙ! Больше мышь этот блок не дергает.
 
   // Жизненный цикл 4: Установка дорожек воспроизведения и сборка ресурсов
   useEffect(() => {
@@ -121,8 +120,9 @@ export const useAudioEngineSync = (
     };
   }, []);
 
-  // Жизненный цикл 5: Забивка нотных матриц при мутации паттернов или изменении темпа
+  // Жизненный цикл 5: Смена паттернов, лупов, забивка матриц и СИНХРОННЫЙ ПАКЕТНЫЙ СБРОС НАСТРОЕК ЗВУКА
   useEffect(() => {
+    // 1. Пересчитываем нотные сетки трекера
     syncPatternsToAudioTracks({
       synthPart: synthPartRef.current,
       drumsPart: drumsPartRef.current,
@@ -131,5 +131,33 @@ export const useAudioEngineSync = (
       SYNTH_LIST,
       drumNoteMap,
     });
-  }, [synthData, drumsList, drumsPartRef, synthPartRef, bpm]);
+
+    // 2. В момент смены паттерна ровно один раз жестко прошиваем аудио-чип под новые пресетные ADSR и уровни
+    syncAllVolumes({
+      synthEngines: synthEnginesRef.current,
+      drumsEngine: drumsEngineRef.current,
+      soundSettings,
+      SYNTH_LIST,
+      DRUM_KIT_LIST,
+      cache: smoothedValuesRef.current,
+    });
+
+    syncAllPans({
+      synthEngines: synthEnginesRef.current,
+      drumsEngine: drumsEngineRef.current,
+      soundSettings,
+      SYNTH_LIST,
+      DRUM_KIT_LIST,
+      cache: smoothedValuesRef.current,
+    });
+
+    syncAllEnvelopes({
+      synthEngines: synthEnginesRef.current,
+      drumsEngine: drumsEngineRef.current,
+      soundSettings,
+      SYNTH_LIST,
+      DRUM_KIT_LIST,
+      cache: smoothedValuesRef.current,
+    });
+  }, [synthData, drumsList, drumsPartRef, synthPartRef, bpm, soundSettings]); // Добавили soundSettings сюда для атомарного флэша при смене паттерна
 };

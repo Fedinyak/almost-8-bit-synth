@@ -1,59 +1,66 @@
-import { nativeRampTo } from '../dsp/audioGraphUtils';
+import { SOUND_PARAMS } from '../../constants/soundParamsConfig';
+import { synthEnginesRegistry } from '../timeline/sync/visualizerState';
 import {
-  canApplyPortamento,
-  canApplyDetune,
-  canApplyFilterQ,
-  canApplyFilterOctaves,
-  hasSustainStage,
-} from './synthEnvelopeGuards';
-import {
-  updateNodeProperty,
-  updateStandardSynthEnvelope,
-  updatePercussiveSynthEnvelope,
-} from './synthEnvelopeMutators';
+  updateInstrumentVolume,
+  updateInstrumentPan,
+} from './audioModulationActions';
 
-const PORTAMENTO_KEY = 'portamento';
-const OCTAVES_KEY = 'octaves';
-const RAMP_DURATION_SEC = 0.05;
+export const dispatchAtomicParameterCommand = (synthName, paramName, value) => {
+  const synthInstance = synthEnginesRegistry.current
+    ? synthEnginesRegistry.current[synthName]
+    : null;
 
-const applyPortamentoCommand = (instrument, settings) => {
-  if (canApplyPortamento(instrument, settings.synthGlide)) {
-    updateNodeProperty(instrument, PORTAMENTO_KEY, settings.synthGlide);
-  }
-};
+  if (!synthInstance) return;
 
-const applyDetuneCommand = (instrument, settings) => {
-  if (canApplyDetune(instrument, settings.detune)) {
-    nativeRampTo(instrument.detune, settings.detune, RAMP_DURATION_SEC);
-  }
-};
+  const config = SOUND_PARAMS[paramName];
+  if (!config) return;
 
-const applyFilterQCommand = (instrument, settings) => {
-  if (canApplyFilterQ(instrument, settings.filterQ)) {
-    nativeRampTo(instrument.filter.Q, settings.filterQ, RAMP_DURATION_SEC);
-  }
-};
-
-const applyFilterOctavesCommand = (instrument, settings) => {
-  if (canApplyFilterOctaves(instrument, settings.filterEnvOctaves)) {
-    updateNodeProperty(instrument, OCTAVES_KEY, settings.filterEnvOctaves);
-  }
-};
-
-export const applySynthEnvelopeTypeCommand = (instrument, envelopeValues) => {
-  if (!instrument.envelope) return;
-
-  if (hasSustainStage(instrument.envelope)) {
-    updateStandardSynthEnvelope(instrument, envelopeValues);
+  // 1. Обработка базового объема (Громкости) канала рэка
+  if (paramName === 'volume') {
+    if (synthInstance.instrument) {
+      updateInstrumentVolume(synthInstance.instrument, value);
+    }
     return;
   }
 
-  updatePercussiveSynthEnvelope(instrument, envelopeValues);
-};
+  // 2. Обработка стерео-панорамы на нативном StereoPannerNode
+  if (paramName === 'pan') {
+    if (synthInstance.panner) {
+      updateInstrumentPan(synthInstance.panner, value);
+    }
+    return;
+  }
 
-export const SYNTH_PARAMETER_PIPELINE = [
-  applyPortamentoCommand,
-  applyDetuneCommand,
-  applyFilterQCommand,
-  applyFilterOctavesCommand,
-];
+  // 3. Обработка параметров огибающих ADSR через прокси-фасады рэка
+  if (config.group === 'envelope') {
+    const envelopeState = synthInstance.instrument?.envelope;
+    if (envelopeState) {
+      if (paramName === 'attack') envelopeState.attackTime = value;
+      if (paramName === 'decay') envelopeState.decayTime = value;
+      if (paramName === 'sustain') envelopeState.sustainLevel = value;
+      if (paramName === 'release') envelopeState.releaseTime = value;
+      if (
+        paramName === 'synthGlide' &&
+        typeof synthInstance.setDetune === 'function'
+      ) {
+        // Заглушка под glide/portamento, если прокинут через coreAccessors
+      }
+    }
+    return;
+  }
+
+  // 4. Обработка фильтров и динамических эффектов рэка (Saturator, Crusher, Distortion и т.д.)
+  if (config.isEffect && config.nodeKey) {
+    const fxNode = synthInstance[config.nodeKey];
+    if (fxNode) {
+      // Если параметр текстовый (нотная нотация Delay), маппинг идет на уровне handleChange
+      if (config.isTextParam) return;
+
+      if (typeof fxNode.set === 'function' && config.targetParam) {
+        fxNode.set({
+          [config.targetParam]: value,
+        });
+      }
+    }
+  }
+};

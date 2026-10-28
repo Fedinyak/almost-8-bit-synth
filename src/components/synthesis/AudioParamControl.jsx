@@ -3,6 +3,7 @@ import { useDispatch } from 'react-redux';
 import { updateSynthParam } from '../../store/soundSettingsSlice';
 import { TEXT_PARAM_DICTIONARIES } from '../../constants/soundParamsConfig';
 import { synthEnginesRegistry } from '../../audio/timeline/sync/visualizerState';
+import { dispatchAtomicParameterCommand } from '../../audio/bridge/synthParameterPipeline';
 
 export const AudioParamControl = ({
   synthName,
@@ -67,11 +68,16 @@ export const AudioParamControl = ({
     if (isParamDisabled) return;
     const newValue = Number(e.target.value);
 
+    // 1. Синхронно пишем в Redux для плавной отрисовки цифры инпута на экране
     dispatch(updateSynthParam({ synthName, paramName, value: newValue }));
 
+    // 2. ИМПУЛЬСНЫЙ КАНАЛ: Мгновенно отправляем чистое число в нативный аудио-граф
+    dispatchAtomicParameterCommand(synthName, paramName, newValue);
+
+    // 3. Сохраняем твою легаси-обработку для текстовых нотных словарей (Delay Time)
     if (targetDictionary) {
-      const synthInstance = synthEnginesRegistry
-        ? synthEnginesRegistry[synthName]
+      const synthInstance = synthEnginesRegistry.current
+        ? synthEnginesRegistry.current[synthName]
         : null;
       const fxNode = synthInstance ? synthInstance[config.nodeKey] : null;
 
