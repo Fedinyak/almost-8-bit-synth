@@ -43,22 +43,36 @@ const applyDrumEnvelopeTrack = (drumInstance, settings) => {
   drumAdapter.envelope.release = settings.release ?? AUDIO_DEFAULT_RELEASE;
 };
 
-const syncSynthEnvelopes = (synthEngines, soundSettings, synthList) => {
+const syncSynthEnvelopes = (synthEngines, soundSettings, synthList, cache) => {
   const total = synthList.length;
   for (let i = 0; i < total; i++) {
     const name = synthList[i];
-    const synthInstance = synthEngines[name];
     const settings = soundSettings[name];
+
+    if (cache && cache[`env_${name}`] === settings) continue;
+    if (cache) cache[`env_${name}`] = settings;
+
+    // ЛОГ ДЕТЕКТОР: Показывает, какой синт пробился сквозь кэш огибающих
+    // console.log(`[DATA TRACE - ENV SYNTH]: Накатка ADSR для "${name}"`);
+
+    const synthInstance = synthEngines[name];
     applySynthEnvelopeTrack(synthInstance, settings);
   }
 };
 
-const syncDrumEnvelopes = (drumsEngine, soundSettings, drumKitList) => {
+const syncDrumEnvelopes = (drumsEngine, soundSettings, drumKitList, cache) => {
   const total = drumKitList.length;
   for (let i = 0; i < total; i++) {
     const name = drumKitList[i];
-    const drumInstance = drumsEngine?.[name];
     const settings = soundSettings[name];
+
+    if (cache && cache[`env_${name}`] === settings) continue;
+    if (cache) cache[`env_${name}`] = settings;
+
+    // ЛОГ ДЕТЕКТОР: Показывает, какой барабан пробился сквозь кэш огибающих
+    // console.log(`[DATA TRACE - ENV DRUM]: Накатка AR для "${name}"`);
+
+    const drumInstance = drumsEngine?.[name];
     applyDrumEnvelopeTrack(drumInstance, settings);
   }
 };
@@ -75,7 +89,8 @@ export const syncAllEnvelopes = ({
   soundSettings,
   SYNTH_LIST,
   DRUM_KIT_LIST,
+  cache,
 }) => {
-  syncSynthEnvelopes(synthEngines, soundSettings, SYNTH_LIST);
-  syncDrumEnvelopes(drumsEngine, soundSettings, DRUM_KIT_LIST);
+  syncSynthEnvelopes(synthEngines, soundSettings, SYNTH_LIST, cache);
+  syncDrumEnvelopes(drumsEngine, soundSettings, DRUM_KIT_LIST, cache);
 };

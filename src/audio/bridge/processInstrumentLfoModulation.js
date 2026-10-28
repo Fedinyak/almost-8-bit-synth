@@ -1,7 +1,7 @@
 import {
   applyDynamicBypass,
   applySynthEnvelope,
-} from '../playback/audioModulationActions';
+} from '../bridge/audioModulationActions';
 import { SOUND_PARAMS } from '../../constants/soundParamsConfig';
 
 // --- СИСТЕМНЫЕ МАТЕМАТИЧЕСКИЕ КОНСТАНТЫ ---

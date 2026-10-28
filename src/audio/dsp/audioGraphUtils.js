@@ -6,6 +6,9 @@ const AUDIO_CHAIN_LOOP_OFFSET = 1;
 const DEFAULT_RAMP_DURATION_SEC = 0.05;
 const RESET_WET_MIX_VALUE = 0;
 
+// Константа экспоненциального сглаживания (золотой стандарт для живых ручек)
+const TIME_CONSTANT_SEC = 0.015;
+
 // --- САМОДОКУМЕНТИРОВАННЫЕ ПРЕДИКАТЫ (FP ПРЕДИКТЫ) ---
 const isNodeMissing = (node) => !node;
 const isNativeAudioParam = (param) => param !== null;
@@ -26,12 +29,12 @@ const extractNativeAudioParam = (paramNode) => {
 };
 
 /**
- * Абстракция над "поездом" методов Web Audio API для плавного изменения параметров
+ * Абстракция над экспоненциальным сглаживанием Web Audio API.
+ * Плавно подхватывает значение с текущей физической точки ноды без изломов траектории.
  */
-const scheduleLinearRamp = (nativeParam, targetValue, now, duration) => {
+const scheduleExponentialRamp = (nativeParam, targetValue, now) => {
   nativeParam.cancelScheduledValues(now);
-  nativeParam.setValueAtTime(nativeParam.value, now);
-  nativeParam.linearRampToValueAtTime(targetValue, now + duration);
+  nativeParam.setTargetAtTime(targetValue, now, TIME_CONSTANT_SEC);
 };
 
 /**
@@ -115,12 +118,12 @@ export const createSleeperNode = (EffectClass, constructorParams) => {
 
 /**
  * Декларативная утилита для плавного изменения любого AudioParam (Замена .rampTo)
- * Избавлена от смешения абстракций и каскадных try/catch за счет слоев FP
+ * Избавлена от смешения абстракций и переведена на экспоненциальные про-аудио стандарты.
  */
 export const nativeRampTo = (
   paramNode,
   targetValue,
-  duration = DEFAULT_RAMP_DURATION_SEC,
+  duration = DEFAULT_RAMP_DURATION_SEC, // Оставляем аргумент для обратной совместимости сигнатур
 ) => {
   if (isNodeMissing(paramNode)) return;
 
@@ -128,7 +131,7 @@ export const nativeRampTo = (
   const now = getNativeContext().currentTime;
 
   if (isNativeAudioParam(nativeParam)) {
-    scheduleLinearRamp(nativeParam, targetValue, now, duration);
+    scheduleExponentialRamp(nativeParam, targetValue, now);
     return;
   }
 

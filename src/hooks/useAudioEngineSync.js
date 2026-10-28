@@ -68,6 +68,7 @@ export const useAudioEngineSync = (
       soundSettings,
       SYNTH_LIST,
       DRUM_KIT_LIST,
+      cache: smoothedValuesRef.current, // Добавили передачу вечной ссылки на контейнер кэша
     });
 
     syncAllPans({
@@ -76,6 +77,7 @@ export const useAudioEngineSync = (
       soundSettings,
       SYNTH_LIST,
       DRUM_KIT_LIST,
+      cache: smoothedValuesRef.current, // Добавили передачу вечной ссылки на контейнер кэша
     });
 
     // СКВОЗНАЯ КОММУТАЦИЯ: Доставляем параметры огибающих во все нативные ядра
@@ -85,6 +87,7 @@ export const useAudioEngineSync = (
       soundSettings,
       SYNTH_LIST,
       DRUM_KIT_LIST,
+      cache: smoothedValuesRef.current, // Добавили передачу вечной ссылки на контейнер кэша
     });
   }, [soundSettings, synthEnginesRef, drumsEngineRef]);
 

@@ -13,10 +13,25 @@ import {
 const createSynth = (synthName) => {
   const presetConfig = SYNTH_PRESETS[synthName] || {};
 
+  // ============================================================================
+  // ЖЕСТКИЙ АУДИТОР ПЕРЕСОЗДАНИЯ АУДИО-ГРАФА (ЖИВОЙ ТРЕЙСИНГ ЯДРА)
+  // ============================================================================
+  console.group(
+    `%c[🚨 АЛАРМ — КРАШ СИГНАЛЬНОГО ТРАКТА]: ПЕРЕПИСЫВАНИЕ ЧИПА "${synthName}"`,
+    'color: red; font-weight: bold;',
+  );
   console.warn(
-    `[🚨 ДЕТЕКТОР КРАША]: Метод createSynth ФИЗИЧЕСКИ ВЫЗВАН для инструмента: "${synthName}"! Пресет громкости: ${presetConfig?.volume}`,
+    `[КОРЕНЬ ЛАГА]: Звуковой движок ФИЗИЧЕСКИ ВЫЗВАЛ createSynth для инструмента: "${synthName}"!`,
+  );
+  console.log(
+    `[ДАННЫЕ]: Текущий пресет громкости инструмента: ${presetConfig?.volume} дБ`,
+  );
+  console.log(
+    '%c[СТЭК ВЫЗОВОВ]: Смотри ниже, какой именно React-компонент или хук уничтожил старый синт и вызвал эту сборку:',
+    'color: #999; font-style: italic;',
   );
   console.trace();
+  console.groupEnd();
 
   const { adapter, state } = createNativeMonoSynthAdapter(presetConfig);
 

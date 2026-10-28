@@ -46,13 +46,16 @@ export const updateInstrumentVolume = (instrument, volumeValue) => {
 
   const targetVolume = volumeValue ?? AUDIO_DEFAULT_VOLUME;
 
-  if (hasNativeVolumeControl(instrument)) {
-    instrument.setVolume(targetVolume);
+  // ПРЕВЕНТИВНОЕ СГЛАЖИВАНИЕ: Если у ядра есть нативный AudioParam .volume — всегда отдаем
+  // приоритет плавному экспоненциальному рампу, полностью защищая тракт от щелчков
+  if (instrument.volume) {
+    nativeRampTo(instrument.volume, targetVolume, RAMP_DURATION_SEC);
     return;
   }
 
-  if (instrument.volume) {
-    nativeRampTo(instrument.volume, targetVolume, RAMP_DURATION_SEC);
+  if (hasNativeVolumeControl(instrument)) {
+    instrument.setVolume(targetVolume);
+    return;
   }
 };
 
@@ -80,42 +83,58 @@ const updatePanTrack = (instance, settings) => {
   }
 };
 
-const syncSynthVolumes = (synthEngines, soundSettings, synthList) => {
+const syncSynthVolumes = (synthEngines, soundSettings, synthList, cache) => {
   const total = synthList.length;
   for (let i = 0; i < total; i++) {
     const name = synthList[i];
-    const synthInstance = synthEngines[name];
     const settings = soundSettings[name];
+
+    if (cache && cache[`vol_${name}`] === settings) continue;
+    if (cache) cache[`vol_${name}`] = settings;
+
+    const synthInstance = synthEngines[name];
     updateVolumeTrack(synthInstance, settings);
   }
 };
 
-const syncDrumVolumes = (drumsEngine, soundSettings, drumKitList) => {
+const syncDrumVolumes = (drumsEngine, soundSettings, drumKitList, cache) => {
   const total = drumKitList.length;
   for (let i = 0; i < total; i++) {
     const name = drumKitList[i];
-    const drumInstance = drumsEngine?.[name];
     const settings = soundSettings[name];
+
+    if (cache && cache[`vol_${name}`] === settings) continue;
+    if (cache) cache[`vol_${name}`] = settings;
+
+    const drumInstance = drumsEngine?.[name];
     updateVolumeTrack(drumInstance, settings);
   }
 };
 
-const syncSynthPans = (synthEngines, soundSettings, synthList) => {
+const syncSynthPans = (synthEngines, soundSettings, synthList, cache) => {
   const total = synthList.length;
   for (let i = 0; i < total; i++) {
     const name = synthList[i];
-    const synthInstance = synthEngines[name];
     const settings = soundSettings[name];
+
+    if (cache && cache[`pan_${name}`] === settings) continue;
+    if (cache) cache[`pan_${name}`] = settings;
+
+    const synthInstance = synthEngines[name];
     updatePanTrack(synthInstance, settings);
   }
 };
 
-const syncDrumPans = (drumsEngine, soundSettings, drumKitList) => {
+const syncDrumPans = (drumsEngine, soundSettings, drumKitList, cache) => {
   const total = drumKitList.length;
   for (let i = 0; i < total; i++) {
     const name = drumKitList[i];
-    const drumInstance = drumsEngine?.[name];
     const settings = soundSettings[name];
+
+    if (cache && cache[`pan_${name}`] === settings) continue;
+    if (cache) cache[`pan_${name}`] = settings;
+
+    const drumInstance = drumsEngine?.[name];
     updatePanTrack(drumInstance, settings);
   }
 };
@@ -131,9 +150,10 @@ export const syncAllVolumes = ({
   soundSettings,
   SYNTH_LIST,
   DRUM_KIT_LIST,
+  cache,
 }) => {
-  syncSynthVolumes(synthEngines, soundSettings, SYNTH_LIST);
-  syncDrumVolumes(drumsEngine, soundSettings, DRUM_KIT_LIST);
+  syncSynthVolumes(synthEngines, soundSettings, SYNTH_LIST, cache);
+  syncDrumVolumes(drumsEngine, soundSettings, DRUM_KIT_LIST, cache);
 };
 
 /**
@@ -145,7 +165,8 @@ export const syncAllPans = ({
   soundSettings,
   SYNTH_LIST,
   DRUM_KIT_LIST,
+  cache,
 }) => {
-  syncSynthPans(synthEngines, soundSettings, SYNTH_LIST);
-  syncDrumPans(drumsEngine, soundSettings, DRUM_KIT_LIST);
+  syncSynthPans(synthEngines, soundSettings, SYNTH_LIST, cache);
+  syncDrumPans(drumsEngine, soundSettings, DRUM_KIT_LIST, cache);
 };

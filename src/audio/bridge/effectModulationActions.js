@@ -33,9 +33,6 @@ const isAudioParamNode = (node) =>
     node.input ||
     typeof node.cancelScheduledValues === 'function');
 
-const isStaticOrBypassedParam = (node, isBypassed) =>
-  node && (node.maxValue === BYPASS_WET_VALUE || isBypassed);
-
 /**
  * Безопасно обновляет примитивное свойство аудио-узла при его изменении
  */
@@ -64,11 +61,16 @@ const updateWetParameter = (fxNode, value) => {
     fxNode.set({ wet: value });
     return;
   }
+  // Уровень Wet модулируется через nativeRampTo по умолчанию, если это нативная нода
+  if (fxNode[WET_PARAM_KEY] && isAudioParamNode(fxNode[WET_PARAM_KEY])) {
+    nativeRampTo(fxNode[WET_PARAM_KEY], value);
+    return;
+  }
   updateNodeProperty(fxNode, WET_PARAM_KEY, value);
 };
 
 /**
- * Декларативно применяет отмаппленное текстовое значение к параметру узла
+ * Декларативно применяется отмаппленное текстовое значение к параметру узла
  */
 const applyTextParamValue = (fxNode, targetParam, finalValue) => {
   if (typeof fxNode.set === 'function') {
@@ -79,7 +81,8 @@ const applyTextParamValue = (fxNode, targetParam, finalValue) => {
 };
 
 /**
- * Модулирует конкретный параметр аудио-эффекта (Линейный плоский диспетчер)
+ * Модулирует конкретный параметр аудио-эффекта.
+ * Универсальная про-аудио шина параметров: по умолчанию сглаживает ЛЮБОЙ нативный AudioParam.
  */
 export const updateEffectParam = (fxNode, targetParam, value) => {
   if (isMissing(fxNode) || !targetParam) return;
@@ -105,18 +108,12 @@ export const updateEffectParam = (fxNode, targetParam, value) => {
   const paramNode = fxNode[targetParam];
   if (paramNode === undefined) return;
 
-  if (
-    isAudioParamNode(paramNode) &&
-    isStaticOrBypassedParam(paramNode, fxNode.bypassed)
-  ) {
-    updateNodeProperty(paramNode, NATIVE_VALUE_KEY, finalValue);
-    return;
-  }
-
+  // УНИВЕРСАЛЬНЫЙ АВТО-РАМП: Любая нативная аудио-нода параметра отныне ВСЕГДА крутится плавно по умолчанию
   if (isAudioParamNode(paramNode)) {
     nativeRampTo(paramNode, finalValue);
     return;
   }
 
+  // Текстовые пресеты, примитивы и системные ключи проскакивают мгновенно без сглаживания
   updateNodeProperty(fxNode, targetParam, finalValue);
 };
