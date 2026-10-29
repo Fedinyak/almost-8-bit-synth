@@ -1,7 +1,6 @@
 import { AUDIO_DEFAULT_VOLUME } from '../../constants/audioEngineConfig';
 import { nativeRampTo } from '../dsp/audioGraphUtils';
 
-// Декларативный реэкспорт доменных модулей для сохранения внешних контрактов
 export {
   updateInstrumentEnvelope,
   applySynthEnvelope,
@@ -13,14 +12,11 @@ export {
   applyDynamicBypass,
 } from '../bridge/effectModulationActions';
 
-// Реэкспорт инициализации маршрутов из жизненного цикла, чтобы хук синхронизации не падал
 export { initializeAudioRouting } from '../context/audioLifecycleActions';
 
-// --- КОНСТАНТЫ ПАРАМЕТРОВ МОДУЛЯЦИИ ---
 const RAMP_DURATION_SEC = 0.05;
 const DEFAULT_PAN_CENTER_VALUE = 0.0;
 
-// --- САМОДОКУМЕНТИРОВАННЫЕ FP ПРЕДИКАТЫ ---
 const isMissing = (target) => !target;
 
 const hasNativeVolumeControl = (instrument) =>
@@ -39,15 +35,10 @@ const isTargetVolumeValid = (instance, settings) =>
 const isTargetPanValid = (instance, settings) =>
   !!(instance && instance.panner && hasDefinedPan(settings));
 
-// --- ДЕКЛАРАТИВНЫЕ ПОДФУНКЦИИ ОБРАБОТКИ СИГНАЛА ---
-
 export const updateInstrumentVolume = (instrument, volumeValue) => {
   if (isMissing(instrument)) return;
-
   const targetVolume = volumeValue ?? AUDIO_DEFAULT_VOLUME;
 
-  // ПРЕВЕНТИВНОЕ СГЛАЖИВАНИЕ: Если у ядра есть нативный AudioParam .volume — всегда отдаем
-  // приоритет плавному экспоненциальному рампу, полностью защищая тракт от щелчков
   if (instrument.volume) {
     nativeRampTo(instrument.volume, targetVolume, RAMP_DURATION_SEC);
     return;
@@ -61,13 +52,8 @@ export const updateInstrumentVolume = (instrument, volumeValue) => {
 
 export const updateInstrumentPan = (pannerNode, panValue) => {
   if (isMissing(pannerNode)) return;
-
   const targetPan = panValue ?? DEFAULT_PAN_CENTER_VALUE;
-
-  // Извлекаем нативный аудиопараметр .pan, если нам передали сам узел StereoPannerNode
   const targetParam = pannerNode.pan || pannerNode;
-
-  // Плавно изменяем панораму на нативном StereoPannerNode рэка
   nativeRampTo(targetParam, targetPan, RAMP_DURATION_SEC);
 };
 
@@ -88,9 +74,11 @@ const syncSynthVolumes = (synthEngines, soundSettings, synthList, cache) => {
   for (let i = 0; i < total; i++) {
     const name = synthList[i];
     const settings = soundSettings[name];
+    const currentVol = settings?.volume ?? AUDIO_DEFAULT_VOLUME;
 
-    if (cache && cache[`vol_${name}`] === settings) continue;
-    if (cache) cache[`vol_${name}`] = settings;
+    // Атомарный кэш: сравниваем только чистые числа громкости
+    if (cache && cache[`vol_${name}`] === currentVol) continue;
+    if (cache) cache[`vol_${name}`] = currentVol;
 
     const synthInstance = synthEngines[name];
     updateVolumeTrack(synthInstance, settings);
@@ -102,9 +90,10 @@ const syncDrumVolumes = (drumsEngine, soundSettings, drumKitList, cache) => {
   for (let i = 0; i < total; i++) {
     const name = drumKitList[i];
     const settings = soundSettings[name];
+    const currentVol = settings?.volume ?? AUDIO_DEFAULT_VOLUME;
 
-    if (cache && cache[`vol_${name}`] === settings) continue;
-    if (cache) cache[`vol_${name}`] = settings;
+    if (cache && cache[`vol_${name}`] === currentVol) continue;
+    if (cache) cache[`vol_${name}`] = currentVol;
 
     const drumInstance = drumsEngine?.[name];
     updateVolumeTrack(drumInstance, settings);
@@ -116,9 +105,10 @@ const syncSynthPans = (synthEngines, soundSettings, synthList, cache) => {
   for (let i = 0; i < total; i++) {
     const name = synthList[i];
     const settings = soundSettings[name];
+    const currentPan = settings?.pan ?? DEFAULT_PAN_CENTER_VALUE;
 
-    if (cache && cache[`pan_${name}`] === settings) continue;
-    if (cache) cache[`pan_${name}`] = settings;
+    if (cache && cache[`pan_${name}`] === currentPan) continue;
+    if (cache) cache[`pan_${name}`] = currentPan;
 
     const synthInstance = synthEngines[name];
     updatePanTrack(synthInstance, settings);
@@ -130,20 +120,16 @@ const syncDrumPans = (drumsEngine, soundSettings, drumKitList, cache) => {
   for (let i = 0; i < total; i++) {
     const name = drumKitList[i];
     const settings = soundSettings[name];
+    const currentPan = settings?.pan ?? DEFAULT_PAN_CENTER_VALUE;
 
-    if (cache && cache[`pan_${name}`] === settings) continue;
-    if (cache) cache[`pan_${name}`] = settings;
+    if (cache && cache[`pan_${name}`] === currentPan) continue;
+    if (cache) cache[`pan_${name}`] = currentPan;
 
     const drumInstance = drumsEngine?.[name];
     updatePanTrack(drumInstance, settings);
   }
 };
 
-// --- АГРЕГИРУЮЩИЕ КОНВЕЙЕРЫ СИНХРОНИЗАЦИИ ---
-
-/**
- * Агрегирующий конвейер синхронизации уровней громкости всех инструментов
- */
 export const syncAllVolumes = ({
   synthEngines,
   drumsEngine,
@@ -156,9 +142,6 @@ export const syncAllVolumes = ({
   syncDrumVolumes(drumsEngine, soundSettings, DRUM_KIT_LIST, cache);
 };
 
-/**
- * Агрегирующий конвейер синхронизации стерео-панорамы всех каналов рэка
- */
 export const syncAllPans = ({
   synthEngines,
   drumsEngine,

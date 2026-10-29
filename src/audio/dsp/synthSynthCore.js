@@ -112,7 +112,7 @@ export const createNativeMonoSynthAdapter = (presetConfig) => {
         state.nativeBiquad = nativeGraph.nativeBiquad;
         state.isInitialized = true;
 
-        // ПРОФЕССИОНАЛЬНАЯ МОНОФОНИЯ: Если прибор заявлен как моно-синт, мы жестко
+        // ПРОФЕССИОНАЛЬНАЯ МОНОФОНИЯ: Если прибор заявлен как monoSynth, мы жестко
         // инициализируем один вечный инстанс осциллятора в момент сборки сигнального тракта
         if (isMonoEngine) {
           const osc = state.ctx.createOscillator();
@@ -150,10 +150,18 @@ export const createNativeMonoSynthAdapter = (presetConfig) => {
 
       if (isMonoEngine && state.nativeOsc) {
         // СТРАТЕГИЯ А: Жесткое нативное моно (Note Stealing / Phase Restart)
-        // Мгновенно перестраиваем частоту вечного осциллятора без выделения памяти
-        state.nativeOsc.frequency.setValueAtTime(targetFrequency, ctxTime);
+        // АНТИ-СЛЭП ЧАСТОТЫ (Pitch De-clicking): Полностью убран ступенчатый setValueAtTime для частоты.
+        // Заставляем частоту вечного осциллятора плавно перетечь к новой ноте за ультра-короткий
+        // интервал в 2 миллисекунды (0.002s). Это воссоздает работу Control Voltage в аналоговом железе
+        // и сглаживает фазовый излом волны на средних тонах, полностью убирая «шлепок» перед нотой.
+        const PITCH_SMOOTHING_DURATION_SEC = 0.002;
+        state.nativeOsc.frequency.cancelScheduledValues(ctxTime);
+        state.nativeOsc.frequency.linearRampToValueAtTime(
+          targetFrequency,
+          ctxTime + PITCH_SMOOTHING_DURATION_SEC,
+        );
 
-        // Передаем пинок огибающей громкости, которая сама сбросит старый релиз
+        // Передаем пинок экспоненциальной огибающей громкости, которая сработает синхронно
         applyEnvelopeAutomations(
           state.outputNode.gain,
           ctxTime,
@@ -164,7 +172,6 @@ export const createNativeMonoSynthAdapter = (presetConfig) => {
         );
       } else {
         // СТРАТЕГИЯ Б: Полифонический сэмплерный триггер для перкуссии (Барабанов)
-        // Сохраняем твой исходный алгоритм наложения хвостов для сохранения плотности сбивок
         const osc = state.ctx.createOscillator();
 
         applyOscillatorParameters(
@@ -194,7 +201,6 @@ export const createNativeMonoSynthAdapter = (presetConfig) => {
       console.warn(
         '[🗑️ DISPOSE СИНТА]: Вызван метод очистки ресурсов из памяти!',
       );
-      // Если активен вечный осциллятор — принудительно глушим его перед разрывом графа
       if (isMonoEngine && state.nativeOsc) {
         try {
           state.nativeOsc.stop();

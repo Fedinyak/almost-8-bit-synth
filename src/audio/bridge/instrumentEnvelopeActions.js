@@ -5,7 +5,6 @@ import {
   AUDIO_DEFAULT_RELEASE,
 } from '../../constants/audioEngineConfig';
 
-// --- СЕМАНТИЧЕСКИЕ ПРЕДИКАТЫ ДЛЯ СНИЖЕНИЯ КОГНИТИВНОЙ НАГРУЗКИ ---
 const isMissing = (target) => !target;
 
 const extractEnvelopeValues = (settings) => ({
@@ -21,7 +20,6 @@ const applySynthEnvelopeTrack = (synthInstance, settings) => {
 
   const envelopeValues = extractEnvelopeValues(settings);
 
-  // Профессиональный маппинг: переносим живые секунды ADSR из Redux в нативные ключи ядра синта
   envelopeState.attackTime = envelopeValues.attack;
   envelopeState.decayTime = envelopeValues.decay;
   envelopeState.sustainLevel = envelopeValues.sustain;
@@ -37,7 +35,6 @@ const applyDrumEnvelopeTrack = (drumInstance, settings) => {
   )
     return;
 
-  // Маппинг для ударных: записываем Атаку и Спад напрямую в паспорт голоса барабана
   drumAdapter.envelope.attack = settings.attack ?? AUDIO_DEFAULT_ATTACK;
   drumAdapter.envelope.decay = settings.decay ?? AUDIO_DEFAULT_DECAY;
   drumAdapter.envelope.release = settings.release ?? AUDIO_DEFAULT_RELEASE;
@@ -49,11 +46,32 @@ const syncSynthEnvelopes = (synthEngines, soundSettings, synthList, cache) => {
     const name = synthList[i];
     const settings = soundSettings[name];
 
-    if (cache && cache[`env_${name}`] === settings) continue;
-    if (cache) cache[`env_${name}`] = settings;
+    // Вытаскиваем чистые примитивы для проверки
+    const atk = settings?.attack ?? AUDIO_DEFAULT_ATTACK;
+    const dec = settings?.decay ?? AUDIO_DEFAULT_DECAY;
+    const sus = settings?.sustain ?? AUDIO_DEFAULT_SUSTAIN;
+    const rel = settings?.release ?? AUDIO_DEFAULT_RELEASE;
+    const type = settings?.engineType ?? 'monoSynth';
 
-    // ЛОГ ДЕТЕКТОР: Показывает, какой синт пробился сквозь кэш огибающих
-    // console.log(`[DATA TRACE - ENV SYNTH]: Накатка ADSR для "${name}"`);
+    // Защита от залипания паттернов: если хоть одно число изменилось или сменился пресет, шьем граф
+    if (
+      cache &&
+      cache[`env_atk_${name}`] === atk &&
+      cache[`env_dec_${name}`] === dec &&
+      cache[`env_sus_${name}`] === sus &&
+      cache[`env_rel_${name}`] === rel &&
+      cache[`env_type_${name}`] === type
+    ) {
+      continue;
+    }
+
+    if (cache) {
+      cache[`env_atk_${name}`] = atk;
+      cache[`env_dec_${name}`] = dec;
+      cache[`env_sus_${name}`] = sus;
+      cache[`env_rel_${name}`] = rel;
+      cache[`env_type_${name}`] = type;
+    }
 
     const synthInstance = synthEngines[name];
     applySynthEnvelopeTrack(synthInstance, settings);
@@ -66,23 +84,30 @@ const syncDrumEnvelopes = (drumsEngine, soundSettings, drumKitList, cache) => {
     const name = drumKitList[i];
     const settings = soundSettings[name];
 
-    if (cache && cache[`env_${name}`] === settings) continue;
-    if (cache) cache[`env_${name}`] = settings;
+    const atk = settings?.attack ?? AUDIO_DEFAULT_ATTACK;
+    const dec = settings?.decay ?? AUDIO_DEFAULT_DECAY;
+    const rel = settings?.release ?? AUDIO_DEFAULT_RELEASE;
 
-    // ЛОГ ДЕТЕКТОР: Показывает, какой барабан пробился сквозь кэш огибающих
-    // console.log(`[DATA TRACE - ENV DRUM]: Накатка AR для "${name}"`);
+    if (
+      cache &&
+      cache[`env_atk_${name}`] === atk &&
+      cache[`env_dec_${name}`] === dec &&
+      cache[`env_rel_${name}`] === rel
+    ) {
+      continue;
+    }
+
+    if (cache) {
+      cache[`env_atk_${name}`] = atk;
+      cache[`env_dec_${name}`] = dec;
+      cache[`env_rel_${name}`] = rel;
+    }
 
     const drumInstance = drumsEngine?.[name];
     applyDrumEnvelopeTrack(drumInstance, settings);
   }
 };
 
-// --- АГРЕГИРУЮЩИЕ КОНВЕЙЕРЫ СИНХРОНИЗАЦИИ ---
-
-/**
- * Унифицированный конвейер синхронизации огибающих. Чистый Bridge-модуль,
- * который на лету поставляет секунды ADSR/AR с крутилок UI в нативные DSP-движки.
- */
 export const syncAllEnvelopes = ({
   synthEngines,
   drumsEngine,

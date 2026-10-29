@@ -27,32 +27,50 @@ const scheduleAdsrEnvelope = (
     state?.sustainLevel ?? defaults.DEFAULT_SUSTAIN_GAIN_MULTIPLIER;
   const release = state?.releaseTime ?? defaults.DEFAULT_RELEASE_RAMP_TIME_SEC;
 
-  const sustainGain = targetGain * sustainMultiplier;
+  // Математический лимит Web Audio API: экспоненциальная рампа рухнет в ошибку, если
+  // целевая амплитуда будет равна строгому нулю. Мы используем профессиональный аудио-порог
+  // отсечки (floor gain).
+  const EPSILON_GAIN_FLOOR = 0.0001;
+
+  // Калибруем целевые уровни громкости, защищая их от падения в чистый ноль
+  const safeTargetGain = Math.max(EPSILON_GAIN_FLOOR, targetGain);
+  const sustainGain = Math.max(
+    EPSILON_GAIN_FLOOR,
+    safeTargetGain * sustainMultiplier,
+  );
   const releaseStartTime = ctxTime + durationSeconds;
 
-  // АНТИ-ЩЕЛЧОК (De-clicking): Вместо жесткого setValueAtTime(0) плавно гасим
-  // текущую амплитуду волны за безопасные 2 миллисекунды (0.002s), убирая разрыв фазы
-  const DECLICK_DURATION_SEC = 0.002;
+  // 1. ЭКСПОНЕНЦИАЛЬНЫЙ ДЕКЛИКЕР (Phase De-clicking): Быстрое скругленное гашение
+  // предыдущего играющего хвоста за 3 мс. Никаких вертикальных ступенек.
+  const DECLICK_TIME_CONSTANT = 0.001;
+  const DECLICK_SAFETY_GAP = 0.003;
+
   gainParam.cancelScheduledValues(ctxTime);
-  gainParam.linearRampToValueAtTime(
-    ZERO_AUDIO_AMPLITUDE,
-    ctxTime + DECLICK_DURATION_SEC,
-  );
+  gainParam.setTargetAtTime(EPSILON_GAIN_FLOOR, ctxTime, DECLICK_TIME_CONSTANT);
 
-  // Запускаем Атаку новой ноты сразу после микро-затухания
-  const newAttackStartTime = ctxTime + DECLICK_DURATION_SEC;
-  gainParam.setValueAtTime(ZERO_AUDIO_AMPLITUDE, newAttackStartTime);
-  gainParam.linearRampToValueAtTime(targetGain, newAttackStartTime + attack);
-  gainParam.linearRampToValueAtTime(
-    sustainGain,
-    newAttackStartTime + attack + decay,
-  );
+  // Мягко стартуем Атаку новой ноты из скругленного нуля
+  const newAttackStartTime = ctxTime + DECLICK_SAFETY_GAP;
+  gainParam.setValueAtTime(EPSILON_GAIN_FLOOR, newAttackStartTime);
 
-  gainParam.setValueAtTime(sustainGain, releaseStartTime);
-  gainParam.linearRampToValueAtTime(
-    ZERO_AUDIO_AMPLITUDE,
-    releaseStartTime + release,
-  );
+  // 2. СТАДИЯ АТАКИ (Attack Stage): Линейный или экспоненциальный взлет до пика громкости.
+  // Оставляем линейный рампа-клик для сохранения пробивного 8-битного транзиента (щелчка атаки).
+  const attackEndTime = newAttackStartTime + attack;
+  gainParam.linearRampToValueAtTime(safeTargetGain, attackEndTime);
+
+  // 3. СТАДИЯ СПАДА (Decay Stage): Переходим на честную нативную ЭКСПОНЕНТУ.
+  // Волна опускается до уровня сустейна по мягкой скругленной траектории, как в Tone.js.
+  const decayEndTime = attackEndTime + decay;
+  gainParam.exponentialRampToValueAtTime(sustainGain, decayEndTime);
+
+  // 4. СТАДИЯ РЕЛИЗА (Release Stage): Бесшовный экспоненциальный спад до тишины.
+  // Полностью убраны любые setValueAtTime. В момент окончания шага секвенсора (releaseStartTime)
+  // кривая подхватывает текущее живое значение сустейна и уводит его в точку отсечки по плавной
+  // аналоговой дуге. На средних частотах синуса и при рулёжке ADSR мышиные изломы исчезают.
+  const releaseEndTime = releaseStartTime + release;
+  gainParam.exponentialRampToValueAtTime(EPSILON_GAIN_FLOOR, releaseEndTime);
+
+  // Наглухо закрываем цифровой шлюз в абсолютную тишину сразу после окончания релиза
+  gainParam.setValueAtTime(ZERO_AUDIO_AMPLITUDE, releaseEndTime + 0.001);
 };
 
 const scheduleFallbackGate = (
