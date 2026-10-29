@@ -20,6 +20,11 @@ const DB_CONVERSION_BASE = 10;
 const DB_CONVERSION_DIVISER = 20;
 const CONTEXT_SUSPENDED_STATE = 'suspended';
 
+// Профессиональный порог отсечки шумовой полки (Floor Threshold). Всё, что тише -60 дБ,
+// физически превращается в честный цифровой ноль, предотвращая сифон и песок в эффектах.
+const ABSOLUTE_SILENCE_THRESHOLD_DB = -59.9;
+const LINEAR_ZERO_AMPLITUDE = 0.0;
+
 // --- СЕМАНТИЧЕСКИЕ ПРЕДИКАТЫ ВРЕМЕНИ И ТАЙМЛАЙНА ---
 
 const isLastStepOfPattern = (stepIndex) =>
@@ -37,8 +42,12 @@ const isTimeString = (value) => typeof value === 'string';
 
 // --- ЧИСТЫЕ МАТЕМАТИЧЕСКИЕ ПРЕОБРАЗОВАНИЯ ---
 
-export const dbToLinearGain = (dbValue) =>
-  Math.pow(DB_CONVERSION_BASE, dbValue / DB_CONVERSION_DIVISER);
+export const dbToLinearGain = (dbValue) => {
+  if (dbValue <= ABSOLUTE_SILENCE_THRESHOLD_DB) {
+    return LINEAR_ZERO_AMPLITUDE;
+  }
+  return Math.pow(DB_CONVERSION_BASE, dbValue / DB_CONVERSION_DIVISER);
+};
 
 export const linearGainToDb = (linearGain) =>
   linearGain > 0 ? DB_CONVERSION_DIVISER * Math.log10(linearGain) : -Infinity;
