@@ -55,6 +55,9 @@ export const createNativeMonoSynthAdapter = (presetConfig) => {
 
   const state = createInitialSynthState(presetConfig, SYNTH_DEFAULTS);
 
+  // Сохраняем признак монофонического движка из конфигурации пресета
+  const isMonoEngine = presetConfig?.engineType === 'monoSynth';
+
   const adapter = {
     presetConfig,
     releaseTime: state.releaseTime,
@@ -80,6 +83,11 @@ export const createNativeMonoSynthAdapter = (presetConfig) => {
     setDetune(val) {
       if (!isValidDetuneNumber(val)) return;
       state.detuneValue = val;
+
+      // Если синт инициализирован и активен вечный моно-осциллятор — точечно обновляем его detune
+      if (isMonoEngine && state.isInitialized && state.nativeOsc) {
+        state.nativeOsc.detune.setValueAtTime(val, state.ctx.currentTime);
+      }
     },
 
     getFilterQ() {
@@ -103,6 +111,25 @@ export const createNativeMonoSynthAdapter = (presetConfig) => {
         state.outputNode = nativeGraph.outputNode;
         state.nativeBiquad = nativeGraph.nativeBiquad;
         state.isInitialized = true;
+
+        // ПРОФЕССИОНАЛЬНАЯ МОНОФОНИЯ: Если прибор заявлен как моно-синт, мы жестко
+        // инициализируем один вечный инстанс осциллятора в момент сборки сигнального тракта
+        if (isMonoEngine) {
+          const osc = state.ctx.createOscillator();
+          applyOscillatorParameters(
+            osc,
+            getOscillatorType(presetConfig),
+            0, // Стартуем в тишину, частота прилетит на первом тике
+            state.detuneValue,
+            state.nativeBiquad,
+          );
+          osc.start(state.ctx.currentTime);
+          state.nativeOsc = osc; // Фиксируем вечную ноду в стейте чипа
+          console.log(
+            '   └─> [🎯 ВЕЧНЫЙ МОНОФОНИЧЕСКИЙ ОСЦИЛЛЯТОР ИНИЦИАЛИЗИРОВАН]',
+          );
+        }
+
         console.log('   └─> [🎯 ВНУТРЕННЯЯ НАТИВНАЯ ИНИЦИАЛИЗАЦИЯ ЗАВЕРШЕНА]');
       }
 
@@ -119,34 +146,61 @@ export const createNativeMonoSynthAdapter = (presetConfig) => {
         ? duration
         : DEFAULT_PLAYBACK_DURATION_SEC;
 
-      const osc = state.ctx.createOscillator();
+      const targetFrequency = noteToFrequency(note);
 
-      applyOscillatorParameters(
-        osc,
-        getOscillatorType(presetConfig),
-        noteToFrequency(note),
-        state.detuneValue,
-        state.nativeBiquad,
-      );
+      if (isMonoEngine && state.nativeOsc) {
+        // СТРАТЕГИЯ А: Жесткое нативное моно (Note Stealing / Phase Restart)
+        // Мгновенно перестраиваем частоту вечного осциллятора без выделения памяти
+        state.nativeOsc.frequency.setValueAtTime(targetFrequency, ctxTime);
 
-      applyEnvelopeAutomations(
-        state.outputNode.gain,
-        ctxTime,
-        parsedDuration,
-        state.volumeValue,
-        state,
-        SYNTH_DEFAULTS,
-      );
+        // Передаем пинок огибающей громкости, которая сама сбросит старый релиз
+        applyEnvelopeAutomations(
+          state.outputNode.gain,
+          ctxTime,
+          parsedDuration,
+          state.volumeValue,
+          state,
+          SYNTH_DEFAULTS,
+        );
+      } else {
+        // СТРАТЕГИЯ Б: Полифонический сэмплерный триггер для перкуссии (Барабанов)
+        // Сохраняем твой исходный алгоритм наложения хвостов для сохранения плотности сбивок
+        const osc = state.ctx.createOscillator();
 
-      const releaseStartTime = ctxTime + parsedDuration;
-      osc.start(ctxTime);
-      osc.stop(releaseStartTime + state.releaseTime);
+        applyOscillatorParameters(
+          osc,
+          getOscillatorType(presetConfig),
+          targetFrequency,
+          state.detuneValue,
+          state.nativeBiquad,
+        );
+
+        applyEnvelopeAutomations(
+          state.outputNode.gain,
+          ctxTime,
+          parsedDuration,
+          state.volumeValue,
+          state,
+          SYNTH_DEFAULTS,
+        );
+
+        const releaseStartTime = ctxTime + parsedDuration;
+        osc.start(ctxTime);
+        osc.stop(releaseStartTime + state.releaseTime);
+      }
     },
 
     dispose() {
       console.warn(
         '[🗑️ DISPOSE СИНТА]: Вызван метод очистки ресурсов из памяти!',
       );
+      // Если активен вечный осциллятор — принудительно глушим его перед разрывом графа
+      if (isMonoEngine && state.nativeOsc) {
+        try {
+          state.nativeOsc.stop();
+        } catch (e) {}
+        state.nativeOsc = null;
+      }
       executeFilterDisconnect(state);
     },
   };

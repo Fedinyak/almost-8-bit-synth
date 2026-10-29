@@ -30,11 +30,23 @@ const scheduleAdsrEnvelope = (
   const sustainGain = targetGain * sustainMultiplier;
   const releaseStartTime = ctxTime + durationSeconds;
 
+  // АНТИ-ЩЕЛЧОК (De-clicking): Вместо жесткого setValueAtTime(0) плавно гасим
+  // текущую амплитуду волны за безопасные 2 миллисекунды (0.002s), убирая разрыв фазы
+  const DECLICK_DURATION_SEC = 0.002;
   gainParam.cancelScheduledValues(ctxTime);
-  gainParam.setValueAtTime(ZERO_AUDIO_AMPLITUDE, ctxTime);
+  gainParam.linearRampToValueAtTime(
+    ZERO_AUDIO_AMPLITUDE,
+    ctxTime + DECLICK_DURATION_SEC,
+  );
 
-  gainParam.linearRampToValueAtTime(targetGain, ctxTime + attack);
-  gainParam.linearRampToValueAtTime(sustainGain, ctxTime + attack + decay);
+  // Запускаем Атаку новой ноты сразу после микро-затухания
+  const newAttackStartTime = ctxTime + DECLICK_DURATION_SEC;
+  gainParam.setValueAtTime(ZERO_AUDIO_AMPLITUDE, newAttackStartTime);
+  gainParam.linearRampToValueAtTime(targetGain, newAttackStartTime + attack);
+  gainParam.linearRampToValueAtTime(
+    sustainGain,
+    newAttackStartTime + attack + decay,
+  );
 
   gainParam.setValueAtTime(sustainGain, releaseStartTime);
   gainParam.linearRampToValueAtTime(
@@ -64,12 +76,6 @@ export const applyEnvelopeAutomations = (
   defaults,
 ) => {
   const targetGain = dbToLinearGain(volumeDecibels);
-
-  // if (state) {
-  //   console.log(
-  //     `[Core ADSR]: A=${state.attackTime}s | D=${state.decayTime}s | S=${state.sustainLevel} | R=${state.releaseTime}s`,
-  //   );
-  // }
 
   try {
     scheduleAdsrEnvelope(
