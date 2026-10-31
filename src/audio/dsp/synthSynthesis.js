@@ -1,5 +1,77 @@
 import { ZERO_AUDIO_AMPLITUDE, dbToLinearGain } from './synthHardware';
 
+// --- КОНФИГУРАЦИЯ И КОНСТАНТЫ ---
+// Перенесено из локальных областей видимости для снижения когнитивной нагрузки.
+// В будущем эти параметры можно вынести в soundParamsConfig.js.
+const EPSILON_GAIN_FLOOR = 0.0001;
+const DECLICK_TIME_CONSTANT = 0.001;
+const DECLICK_SAFETY_GAP = 0.003;
+const ABSOLUTE_SILENCE_DELAY_SEC = 0.001;
+
+// --- СЕМАНТИЧЕСКИЕ ПРЕДИКАТЫ ---
+const isValidAudioParam = (param) =>
+  param && typeof param.setValueAtTime === 'function';
+const hasCustomEnvelopeSettings = (state) =>
+  state !== null && state !== undefined;
+
+// --- УТИЛИТЫ ДЛЯ СНИЖЕНИЯ КОГНИТИВНОЙ НАГРУЗКИ (АБСТРАКЦИИ НАД Web Audio API) ---
+const resetAudioSchedule = (param, startTime) => {
+  param.cancelScheduledValues(startTime);
+};
+
+const applyInstantGain = (param, value, time) => {
+  param.setValueAtTime(value, time);
+};
+
+const applyLinearRamp = (param, value, time) => {
+  param.linearRampToValueAtTime(value, time);
+};
+
+const applyExponentialRamp = (param, value, time) => {
+  param.exponentialRampToValueAtTime(value, time);
+};
+
+const applyDeclickFade = (param, time) => {
+  param.setTargetAtTime(EPSILON_GAIN_FLOOR, time, DECLICK_TIME_CONSTANT);
+};
+
+// --- ВЫЧИСЛИТЕЛЬНЫЕ ЧИСТЫЕ ФУНКЦИИ (ФУНКЦИОНАЛЬНОЕ ПРОГРАММИРОВАНИЕ) ---
+const calculateSafeGain = (targetGain) =>
+  Math.max(EPSILON_GAIN_FLOOR, targetGain);
+
+const calculateSustainGain = (safeTargetGain, sustainMultiplier) =>
+  Math.max(EPSILON_GAIN_FLOOR, safeTargetGain * sustainMultiplier);
+
+const getEnvelopeValue = (state, key, defaultValue) =>
+  hasCustomEnvelopeSettings(state)
+    ? (state[key] ?? defaultValue)
+    : defaultValue;
+
+const getEnvelopeConfig = (state, defaults) => ({
+  attack: getEnvelopeValue(
+    state,
+    'attackTime',
+    defaults.DEFAULT_ATTACK_RAMP_TIME_SEC,
+  ),
+  decay: getEnvelopeValue(
+    state,
+    'decayTime',
+    defaults.DEFAULT_DECAY_RAMP_TIME_SEC,
+  ),
+  sustainMultiplier: getEnvelopeValue(
+    state,
+    'sustainLevel',
+    defaults.DEFAULT_SUSTAIN_GAIN_MULTIPLIER,
+  ),
+  release: getEnvelopeValue(
+    state,
+    'releaseTime',
+    defaults.DEFAULT_RELEASE_RAMP_TIME_SEC,
+  ),
+});
+
+// --- ОСНОВНАЯ ЛОГИКА АВТОМАТИЗАЦИИ ---
+
 export const applyOscillatorParameters = (
   osc,
   oscillatorType,
@@ -7,82 +79,63 @@ export const applyOscillatorParameters = (
   detuneValue,
   targetInputNode,
 ) => {
+  const currentTime = osc.context.currentTime;
+
   osc.type = oscillatorType;
-  osc.frequency.setValueAtTime(frequencyHz, osc.context.currentTime);
-  osc.detune.setValueAtTime(detuneValue, osc.context.currentTime);
+  applyInstantGain(osc.frequency, frequencyHz, currentTime);
+  applyInstantGain(osc.detune, detuneValue, currentTime);
   osc.connect(targetInputNode);
 };
 
-const scheduleAdsrEnvelope = (
+const executeAdsrPipeline = (
   gainParam,
   ctxTime,
   durationSeconds,
   targetGain,
-  state,
-  defaults,
+  config,
 ) => {
-  const attack = state?.attackTime ?? defaults.DEFAULT_ATTACK_RAMP_TIME_SEC;
-  const decay = state?.decayTime ?? defaults.DEFAULT_DECAY_RAMP_TIME_SEC;
-  const sustainMultiplier =
-    state?.sustainLevel ?? defaults.DEFAULT_SUSTAIN_GAIN_MULTIPLIER;
-  const release = state?.releaseTime ?? defaults.DEFAULT_RELEASE_RAMP_TIME_SEC;
-
-  // Математический лимит Web Audio API: экспоненциальная рампа рухнет в ошибку, если
-  // целевая амплитуда будет равна строгому нулю. Мы используем профессиональный аудио-порог
-  // отсечки (floor gain).
-  const EPSILON_GAIN_FLOOR = 0.0001;
-
-  // Калибруем целевые уровни громкости, защищая их от падения в чистый ноль
-  const safeTargetGain = Math.max(EPSILON_GAIN_FLOOR, targetGain);
-  const sustainGain = Math.max(
-    EPSILON_GAIN_FLOOR,
-    safeTargetGain * sustainMultiplier,
+  const safeTargetGain = calculateSafeGain(targetGain);
+  const sustainGain = calculateSustainGain(
+    safeTargetGain,
+    config.sustainMultiplier,
   );
-  const releaseStartTime = ctxTime + durationSeconds;
 
-  // 1. ЭКСПОНЕНЦИАЛЬНЫЙ ДЕКЛИКЕР (Phase De-clicking): Быстрое скругленное гашение
-  // предыдущего играющего хвоста за 3 мс. Никаких вертикальных ступенек.
-  const DECLICK_TIME_CONSTANT = 0.001;
-  const DECLICK_SAFETY_GAP = 0.003;
-
-  gainParam.cancelScheduledValues(ctxTime);
-  gainParam.setTargetAtTime(EPSILON_GAIN_FLOOR, ctxTime, DECLICK_TIME_CONSTANT);
-
-  // Мягко стартуем Атаку новой ноты из скругленного нуля
   const newAttackStartTime = ctxTime + DECLICK_SAFETY_GAP;
-  gainParam.setValueAtTime(EPSILON_GAIN_FLOOR, newAttackStartTime);
+  const attackEndTime = newAttackStartTime + config.attack;
+  const decayEndTime = attackEndTime + config.decay;
+  const releaseStartTime = ctxTime + durationSeconds;
+  const releaseEndTime = releaseStartTime + config.release;
 
-  // 2. СТАДИЯ АТАКИ (Attack Stage): Линейный или экспоненциальный взлет до пика громкости.
-  // Оставляем линейный рампа-клик для сохранения пробивного 8-битного транзиента (щелчка атаки).
-  const attackEndTime = newAttackStartTime + attack;
-  gainParam.linearRampToValueAtTime(safeTargetGain, attackEndTime);
+  // 1. Стадия декликинга и инициализации новой ноты
+  resetAudioSchedule(gainParam, ctxTime);
+  applyDeclickFade(gainParam, ctxTime);
+  applyInstantGain(gainParam, EPSILON_GAIN_FLOOR, newAttackStartTime);
 
-  // 3. СТАДИЯ СПАДА (Decay Stage): Переходим на честную нативную ЭКСПОНЕНТУ.
-  // Волна опускается до уровня сустейна по мягкой скругленной траектории, как в Tone.js.
-  const decayEndTime = attackEndTime + decay;
-  gainParam.exponentialRampToValueAtTime(sustainGain, decayEndTime);
+  // 2. Стадия атаки (Линейный взлет для 8-битного транзиента)
+  applyLinearRamp(gainParam, safeTargetGain, attackEndTime);
 
-  // 4. СТАДИЯ РЕЛИЗА (Release Stage): Бесшовный экспоненциальный спад до тишины.
-  // Полностью убраны любые setValueAtTime. В момент окончания шага секвенсора (releaseStartTime)
-  // кривая подхватывает текущее живое значение сустейна и уводит его в точку отсечки по плавной
-  // аналоговой дуге. На средних частотах синуса и при рулёжке ADSR мышиные изломы исчезают.
-  const releaseEndTime = releaseStartTime + release;
-  gainParam.exponentialRampToValueAtTime(EPSILON_GAIN_FLOOR, releaseEndTime);
+  // 3. Стадия спада (Экспоненциальный спуск до сустейна)
+  applyExponentialRamp(gainParam, sustainGain, decayEndTime);
 
-  // Наглухо закрываем цифровой шлюз в абсолютную тишину сразу после окончания релиза
-  gainParam.setValueAtTime(ZERO_AUDIO_AMPLITUDE, releaseEndTime + 0.001);
+  // 4. Стадия релиза (Экспоненциальное затухание)
+  applyExponentialRamp(gainParam, EPSILON_GAIN_FLOOR, releaseEndTime);
+
+  // 5. Полная отсечка сигнала в абсолютный ноль
+  applyInstantGain(
+    gainParam,
+    ZERO_AUDIO_AMPLITUDE,
+    releaseEndTime + ABSOLUTE_SILENCE_DELAY_SEC,
+  );
 };
 
-const scheduleFallbackGate = (
+const executeFallbackGatePipeline = (
   gainParam,
   ctxTime,
   durationSeconds,
   targetGain,
 ) => {
-  try {
-    gainParam.setValueAtTime(targetGain, ctxTime);
-    gainParam.setValueAtTime(ZERO_AUDIO_AMPLITUDE, ctxTime + durationSeconds);
-  } catch (innerErr) {}
+  applyInstantGain(gainParam, targetGain, ctxTime);
+  applyInstantGain(gainParam, ZERO_AUDIO_AMPLITUDE, ctxTime + durationSeconds);
 };
 
 export const applyEnvelopeAutomations = (
@@ -95,16 +148,24 @@ export const applyEnvelopeAutomations = (
 ) => {
   const targetGain = dbToLinearGain(volumeDecibels);
 
-  try {
-    scheduleAdsrEnvelope(
+  if (isValidAudioParam(gainParam)) {
+    const config = getEnvelopeConfig(state, defaults);
+    executeAdsrPipeline(
       gainParam,
       ctxTime,
       durationSeconds,
       targetGain,
-      state,
-      defaults,
+      config,
     );
-  } catch (error) {
-    scheduleFallbackGate(gainParam, ctxTime, durationSeconds, targetGain);
+    return;
+  }
+
+  if (gainParam) {
+    executeFallbackGatePipeline(
+      gainParam,
+      ctxTime,
+      durationSeconds,
+      targetGain,
+    );
   }
 };
